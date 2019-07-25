@@ -1,0 +1,20 @@
+{
+  "author": [
+    "nwithan8"
+  ],
+  "bot_version": [
+    3,
+    0,
+    0
+  ],
+  "description": "Get live sports scores from ESPN.com",
+  "hidden": true,
+  "install_msg": "Thank you for installing ESPNScores! Get started with '[p]load espn', then '[p]help espn'",
+  "requirements": [],
+  "short": "Scores from ESPN",
+  "tags": [
+    "nwithan8",
+    "utils",
+    "sports"
+  ]
+}

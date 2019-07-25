@@ -9,8 +9,14 @@ class ESPNScores(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    #Main
-    @commands.command(name="espn",pass_context=True,no_pm=True)
+    """
+    Get live sports scores from ESPN.com
+    """
+
+    help_msg = "This is a test of the help section."
+
+    @commands.command(name="espn",help=help_msg,pass_context=True,no_pm=True,case_insensitive=True)
+    @commands.bot_has_permissions(embed_links=True)
     async def _espn(self, ctx, league: str, team: str):
     
         #LEAGUE STRINGS
@@ -20,6 +26,9 @@ class ESPNScores(commands.Cog):
         MLB = 'mlb'
         NBA = 'nba'
         NHL = 'nhl'
+        
+        async def on_command_error(self,error,ctx):
+            print("Got the error!")
 
         async def get_game(team, league, game_list):
             embed = discord.Embed(title="ESPN Scoreboard")
@@ -111,6 +120,4 @@ class ESPNScores(commands.Cog):
             await ctx.send(embed=response)
         else:
             await ctx.send("Something went wrong. Please try again.")
-            
-def setup(bot):
-    bot.add_cog(ESPNScores(bot))
+            await ctx.send_command_help(ctx.command)
