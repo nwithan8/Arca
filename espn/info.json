@@ -9,9 +9,9 @@
   ],
   "description": "Get live sports scores from ESPN.com",
   "hidden": true,
-  "install_msg": "Thank you for installing ESPNScores! Get started with '[p]load espn', then '[p]help espn'",
+  "install_msg": "Thank you for installing ESPN! Get started with '[p]load espn', then '[p]help espn'",
   "requirements": [],
-  "short": "Scores from ESPN",
+  "short": "Scores and stats from ESPN",
   "tags": [
     "nwithan8",
     "utils",

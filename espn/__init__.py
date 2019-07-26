@@ -1,4 +1,4 @@
-from .espn_scores import ESPNScores
+from .espn import ESPN
 
 def setup(bot):
-	bot.add_cog(ESPNScores(bot))
+	bot.add_cog(ESPN(bot))
