@@ -106,14 +106,14 @@ class ESPN(commands.Cog):
                             break
                 embed = discord.Embed(title=scores[searched_id][0] + " " + scores[searched_id][1] + " - " + scores[searched_id][2] + " " + scores[searched_id][3] + " " + scores[searched_id][4])
                 try:
-                    soup = BeautifulSoup(requests.get("http://www.espn.com/"+league+"/game?gameId=" + str(searched_id)).content, features="lxml")
+                    soup = BeautifulSoup(requests.get("http://www.espn.com/"+league+"/game?gameId=" + str(searched_id)).content)
                     probholder = soup.find("span", {"class": "header-win-percentage"})
                     if not probholder:
                         await ctx.send("Couldn't find that game.")
                     else:
                         prob = probholder.find("img").nextSibling.strip().replace('%','')
                         team_id = re.search('/500/(.*).png&amp', str(probholder)).group(1)
-                        soup = BeautifulSoup(requests.get("http://www.espn.com/"+ league +"/team/_/id/" + str(team_id)).content, features="lxml")
+                        soup = BeautifulSoup(requests.get("http://www.espn.com/"+ league +"/team/_/id/" + str(team_id)).content)
                         winning_team = soup.find("span", {"class": "ClubhouseHeader__Location"}).contents[0]
                         if float(prob) < 100:
                             embed.add_field(name=winning_team + " has a " + prob + "% chance of winning.", value="http://www.espn.com/"+league+"/game?gameId="+str(searched_id),inline=False)
