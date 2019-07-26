@@ -191,7 +191,7 @@ class Plex(commands.Cog):
     @plex.command(name="stats",aliases=["statistics"], pass_context=True)
     async def plex_stats(self, ctx: commands.Context, PlexUsername: str):
         """
-        
+        Watch time statistics for a user
         """
         user_id = None
         for u in self.request("get_user_names",None)['response']['data']:
@@ -208,6 +208,9 @@ class Plex(commands.Cog):
 
     @plex.command(name="size", pass_context=True)
     async def plex_size(self, ctx: commands.Context):
+        """
+        Size of Plex libraries
+        """
         embed = discord.Embed(title=SERVER_NICKNAME + " Library Statistics")
         for l in self.request("get_libraries",None)['response']['data']:
             if l['section_type'] == 'movie':
@@ -217,6 +220,37 @@ class Plex(commands.Cog):
             elif l['section_type'] == 'artist':
                 embed.add_field(name=str(l['count']) + " artists, " + str(l['parent_count']) + " albums, " + str(l['child_count']) + " songs",value=str(l['section_name']),inline=False)
         await ctx.send(embed=embed)
+        
+    @plex.command(name="top", aliases=["pop"], pass_context=True)
+    async def plex_top(self, ctx: commands.Context, searchTerm: str, timeRange: int):
+        """
+        Most popular media or most active users during time range (in days)
+        Use 'movies','shows','artists' or 'users'
+        """
+        embed = discord.Embed(title=('Most popular '+searchTerm.lower() if searchTerm.lower() != 'users' else 'Most active users')+' in past '+str(timeRange)+' days')
+        count = 1;
+        if searchTerm.lower() == "movies":
+            for m in self.request("get_home_stats","time_range="+str(timeRange)+"&stats_type=duration&stats_count=5")['response']['data'][0]['rows']:
+                embed.add_field(name=str(count)+". "+str(m['title']),value=str(m['total_plays'])+(" plays" if int(m['total_plays']) > 1 else " play"),inline=False)
+                count = count+1
+            await ctx.send(embed=embed)
+        elif searchTerm.lower() == "shows":
+            for m in self.request("get_home_stats","time_range="+str(timeRange)+"&stats_type=duration&stats_count=5")['response']['data'][1]['rows']:
+                embed.add_field(name=str(count)+". "+str(m['title']),value=str(m['total_plays'])+(" plays" if int(m['total_plays']) > 1 else " play"),inline=False)
+                count = count+1
+            await ctx.send(embed=embed)
+        elif searchTerm.lower() == "artists":
+            for m in self.request("get_home_stats","time_range="+str(timeRange)+"&stats_type=duration&stats_count=5")['response']['data'][2]['rows']:
+                embed.add_field(name=str(count)+". "+str(m['title']),value=str(m['total_plays'])+(" plays" if int(m['total_plays']) > 1 else " play"),inline=False)
+                count = count+1
+            await ctx.send(embed=embed)
+        elif searchTerm.lower() == "users":
+            for m in self.request("get_home_stats","time_range="+str(timeRange)+"&stats_type=duration&stats_count=5")['response']['data'][7]['rows']:
+                embed.add_field(name=str(count)+". "+str(m['friendly_name']),value=str(m['total_plays'])+(" plays" if int(m['total_plays']) > 1 else " play"),inline=False)
+                count = count+1
+            await ctx.send(embed=embed)
+        else:
+            ctx.send("Please try again. Use 'movies','shows','artists' or 'users'")
 
 def setup(bot):
     bot.add_cog(Plex(bot))
