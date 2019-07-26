@@ -120,7 +120,7 @@ class ESPN(commands.Cog):
                         else:
                             embed.add_field(name=winning_team + " won.", value="http://www.espn.com/"+league+"/game?gameId="+str(searched_id),inline=False)
                         await ctx.send(embed=embed)
-                except httplib2.ServerNotFoundError:
+                except:
                     await ctx.send("Sorry, couldn't reach ESPN.com")
         except Exception as e:
             print(str(e))
