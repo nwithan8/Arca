@@ -105,6 +105,7 @@ class ESPN(commands.Cog):
                             searched_id = g
                             break
                 embed = discord.Embed(title=scores[searched_id][0] + " " + scores[searched_id][1] + " - " + scores[searched_id][2] + " " + scores[searched_id][3] + " " + scores[searched_id][4])
+                embed.set_thumbnail(url="https://image.flaticon.com/icons/png/128/870/870901.png")
                 try:
                     soup = BeautifulSoup(requests.get("http://www.espn.com/"+league+"/game?gameId=" + str(searched_id)).content)
                     probholder = soup.find("span", {"class": "header-win-percentage"})
@@ -205,6 +206,7 @@ class ESPN(commands.Cog):
                 await ctx.send("Oops, there's no " + league.upper() + " games!")
             else:
                 embed = discord.Embed(title="ESPN Scoreboard")
+                embed.set_thumbnail(url="https://image.flaticon.com/icons/png/128/870/870901.png")
                 respond = False
                 games = ""
                 if team == 'all':
