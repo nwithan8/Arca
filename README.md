@@ -14,7 +14,13 @@ Cog Function
  ```
  
  # Contact
-Join the #cogs channel on my Discord server: https://discord.gg/ygRDVE9
+Join the #cogs channel on my Discord server:
+
+<div align="center">
+	<p>
+		<a href="https://discord.gg/ygRDVE9"><img src="https://discordapp.com/api/guilds/472537215457689601/widget.png?style=banner2" alt="" /></a>
+	</p>
+</div>
 
 I'm also often floating around on other developer Discord servers.
 
