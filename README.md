@@ -5,7 +5,8 @@ Cog Function
 | Name | Status | Description (Click for full details)
 | --- | --- | --- |
 | espn | **Beta** | <details><summary>Get live data from ESPN.com</summary><p>Commands:<p><ul><li><b>score</b> - Get live score(s) for a team</li><li><b>prob</b> - Get ESPN's win probability for a team's current game</li></ul><p>Supported leagues: NFL, NBA, MLB, NHL, CFB, CBB</p> |
-  
+| plex | **Beta** | <details><summary>Interact with a Plex Media Server (via Tautulli)</summary><p>Commands:<p><ul><li><b>size</b> - Get Plex library statistics</li><li><b>stats</b> - Get watch statistics for a specific user</li><li><b>rec</b> - Get a recommendation of what to watch</li></ul> |
+	
  # Installation
  ```
  [p]repo add nwithan8 https://github.com/nwithan8/nwithan8-cogs
