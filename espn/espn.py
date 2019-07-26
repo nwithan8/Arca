@@ -36,6 +36,10 @@ class ESPN(commands.Cog):
             league = 'ncf'
         if (league == 'cbb'):
             league = 'ncb' 
+            
+            
+            
+        #Credit to Josh Fuerst (http://www.fuerstjh.com) for creating his makeshift ESPN API after the official one was locked.
         scores = {}
         STRIP = "()1234567890 "
         try:
@@ -89,6 +93,8 @@ class ESPN(commands.Cog):
                 scores[gameID][2] = team2_name
                 scores[gameID][3] = team2_score
                 scores[gameID][4] = time
+                
+                
                 
             if not scores:
                 await ctx.send("Oops, there's no " + league.upper() + " games!")
