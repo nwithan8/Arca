@@ -227,8 +227,8 @@ class Plex(commands.Cog):
         Most popular media or most active users during time range (in days)
         Use 'movies','shows','artists' or 'users'
         """
-        embed = discord.Embed(title=('Most popular '+searchTerm.lower() if searchTerm.lower() != 'users' else 'Most active users')+' in past '+str(timeRange)+(' days' if int(timeRange) > 1 else ' day')
-        count = 1;
+        embed = discord.Embed(title=('Most popular '+searchTerm.lower() if searchTerm.lower() != 'users' else 'Most active users')+' in past '+str(timeRange)+(' days' if int(timeRange) > 1 else ' day'))
+        count = 1
         if searchTerm.lower() == "movies":
             for m in self.request("get_home_stats","time_range="+str(timeRange)+"&stats_type=duration&stats_count=5")['response']['data'][0]['rows']:
                 embed.add_field(name=str(count)+". "+str(m['title']),value=str(m['total_plays'])+(" plays" if int(m['total_plays']) > 1 else " play"),inline=False)
