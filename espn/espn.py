@@ -15,7 +15,7 @@ pro_leagues = ['nfl','mlb','nba','nhl','wnba']
 college_leagues = ['ncf','ncb','ncw']
 all_leagues = pro_leagues + college_leagues
 
-#Future support: 'tennis', 'soccer', 
+#Future support: 'tennis', 'soccer'
 
 class Team(object):
     def __init__(self, first_name, second_name, code, initials):
@@ -150,7 +150,6 @@ class ESPN(commands.Cog):
     async def espn_prob(self, ctx: commands.Context, league: str, *, team: str):
         """
         ESPN's "win probability" for a team's current game
-        
         Supported leagues: NFL, NBA, MLB, NHL, CFB, CBBW
         """
         league = self.fix_league(league)
@@ -226,7 +225,7 @@ class ESPN(commands.Cog):
     @espn.command(name="sched",aliases=["schedule"])
     async def espn_sched(self, ctx: commands.Context, league: str, *, team: str):
         """
-        Gat a team's schedule
+        A link to a team's schedule
         Supported leagues: NFL, NBA, MLB, NHL
         """
         league = self.fix_league(league)
