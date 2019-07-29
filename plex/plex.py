@@ -13,6 +13,8 @@ import requests
 from progress.bar import Bar
 import os
 import datetime
+from decimal import *
+import math
 
 PLEX_URL = os.environ.get('PLEX_URL')
 PLEX_TOKEN = os.environ.get('PLEX_TOKEN')
@@ -251,6 +253,40 @@ class Plex(commands.Cog):
             await ctx.send(embed=embed)
         else:
             ctx.send("Please try again. Use 'movies','shows','artists' or 'users'")
+    
+    def selectIcon(self, state):
+        switcher = {
+            "playing":":arrow_forward:",
+            "paused": ":pause_button:",
+            "stopped": ":stop_button:",
+            "buffering": ":large_blue_circle:",
+        }
+        return str(switcher.get(state, ""))
+    
+    @plex.command(name="current",aliases=["now"],pass_context=True)
+    async def plex_now(self, ctx: commands.Context):
+        embed = discord.Embed(title="Current Plex activity")
+        json_data = self.request("get_activity",None)
+        try:
+            stream_count = json_data['response']['data']['stream_count']
+            transcode_count = json_data['response']['data']['stream_count_transcode']
+            total_bandwidth = json_data['response']['data']['total_bandwidth']
+            lan_bandwidth = json_data['response']['data']['lan_bandwidth']
+            overview_message = "Sessions: " + str(stream_count) + (" stream" if int(stream_count) == 1 else " streams") + ((" (" + str(transcode_count) + (" transcode" if int(transcode_count) == 1 else " transcodes") + ")") if int(transcode_count) > 0 else "") + ((" | Bandwidth: " + str(round(Decimal(float(total_bandwidth)/1024),1)) + " Mbps" + ((" (LAN: " + str(round(Decimal(float(lan_bandwidth)/1024),1)) + " Mbps)") if int(lan_bandwidth) > 0 else "")) if int(total_bandwidth) > 0 else "")
+            sessions = json_data['response']['data']['sessions']
+            count = 0
+            session_ids = []
+            final_message = overview_message + "\n"
+            for session in sessions:
+                count = count + 1
+                stream_message = "**(" + str(count) + ")** " + self.selectIcon(str(session['state'])) + " " + str(session['username']) + ": *" + str(session["full_title"]) + "*\n"
+                stream_message = stream_message + "__Player__: " + str(session['product']) + " (" + str(session['player']) + ")\n"
+                stream_message = stream_message + "__Quality__: " + str(session['quality_profile']) + " (" + (str(round(Decimal(float(session['bandwidth'])/1024),1)) if session['bandwidth'] is not "" else "O") + " Mbps)" + (" (Transcode)" if str(session['stream_container_decision']) == 'transcode' else "")
+                final_message = final_message + "\n" + stream_message + "\n"
+            if int(stream_count) > 0:
+                await ctx.send(final_message)
+        except KeyError:
+            await ctx.send("**Connection error.**")
 
 def setup(bot):
     bot.add_cog(Plex(bot))
