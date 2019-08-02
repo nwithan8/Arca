@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands, tasks
+from discord.utils import get
 from plexapi.server import PlexServer
 from plexapi.myplex import MyPlexServerShare
 import plexapi
@@ -10,11 +11,12 @@ from imdbpie import ImdbFacade
 import re
 import json
 import requests
-from progress.bar import Bar
+#from progress.bar import Bar
 import os
 import datetime
 from decimal import *
 import math
+import asyncio
 
 PLEX_URL = os.environ.get('PLEX_URL')
 PLEX_TOKEN = os.environ.get('PLEX_TOKEN')
@@ -119,7 +121,6 @@ class Plex(commands.Cog):
     @tasks.loop(count=1)
     async def getLibraries(self):
         #global shows, movies
-        print("Updating libraries...")
         items = defaultdict(list)
         movies.clear()
         shows.clear()
@@ -127,33 +128,30 @@ class Plex(commands.Cog):
             media = plex.library.section(MOVIE_LIBRARY_NAME)
             json_data = self.request('get_library','section_id='+str(MOVIE_LIBRARY))
             count = json_data['response']['data']['count']
-            bar = Bar('Loading movies', max=int(count))
+            #bar = Bar('Loading movies', max=int(count))
             for results in media.search():
                 movies['Results'].append([results.title, results.year])
-                bar.next()
-            bar.finish()
+                #bar.next()
+            #bar.finish()
         if not shows:
             media = plex.library.section(TV_SHOW_LIBRARY_NAME)
             json_data = self.request('get_library','section_id='+str(TV_LIBRARY))
             count = json_data['response']['data']['count']
-            bar = Bar('Loading TV shows', max=int(count))
+            #bar = Bar('Loading TV shows', max=int(count))
             for results in media.search():
                 shows['Results'].append([results.title, results.year])
-                bar.next()
-            bar.finish()
+                #bar.next()
+            #bar.finish()
         print("Libraries updated.")
+        print("Plex ready.")
             
-    @commands.Cog.listener()
-    async def on_ready(self):
-        self.getLibraries.start()
-        
     @commands.group(aliases=["Plex"], pass_context=True)
     async def plex(self, ctx: commands.Context):
         """
         Plex Media Server commands
         """
         if ctx.invoked_subcommand is None:
-            pass
+            await ctx.send("What subcommand?")
     
     @plex.group(name="rec",aliases=["sug","recommend","suggest"], pass_context=True)
     async def plex_rec(self, ctx: commands.Context, mediaType: str):
@@ -168,11 +166,16 @@ class Plex(commands.Cog):
                 await ctx.send("Please try again, indicating either 'movie' or 'show'")
             else:
                 await ctx.send("Looking for a " + mediaType + "...")
-                res, att, sugg = self.recommend(mediaType, False, None)
-                if att is not None:
-                    await ctx.send(res,embed=att)
-                else:
-                    await ctx.send(res)
+                async with ctx.typing():
+                    res, att, sugg = self.recommend(mediaType, False, None)
+                    if att is not None:
+                        await ctx.send(res,embed=att)
+                    else:
+                        await ctx.send(res)
+                        
+    @plex_rec.error
+    async def plex_rec_error(self, ctx, error):
+        await ctx.send("Please indicate either 'movie' or 'show'. Add 'new <username>' for an unseen suggestion.")
     
     @plex_rec.command(name="new",aliases=["unseen"])
     async def plex_rec_new(self, ctx: commands.Context, PlexUsername: str):
@@ -184,11 +187,12 @@ class Plex(commands.Cog):
             await ctx.send("Please try again, indicating either 'movie' or 'show'")
         else:
             await ctx.send("Looking for a new " + mediaType + "...")
-            res, att, sugg = self.recommend(mediaType, True, PlexUsername)
-            if att is not None:
-                await ctx.send(res,embed=att)
-            else:
-                await ctx.send(res)
+            async with ctx.typing():
+                res, att, sugg = self.recommend(mediaType, True, PlexUsername)
+                if att is not None:
+                    await ctx.send(res,embed=att)
+                else:
+                    await ctx.send(res)
                 
     @plex.command(name="stats",aliases=["statistics"], pass_context=True)
     async def plex_stats(self, ctx: commands.Context, PlexUsername: str):
@@ -207,6 +211,10 @@ class Plex(commands.Cog):
             for i in self.request("get_user_watch_time_stats","user_id=" + str(user_id))['response']['data']:
                 embed.add_field(name=str(datetime.timedelta(seconds=int(i['total_time']))) +", " + str(i['total_plays']) + " plays",value=("Last " + str(i['query_days']) + (" Day " if int(i['query_days']) == 1 else " Days ") if int(i['query_days']) != 0 else "All Time "),inline=False)
             await ctx.send(embed=embed)
+            
+    @plex_stats.error
+    async def plex_stats_error(self, ctx, error):
+        await ctx.send("Please include a Plex username")
 
     @plex.command(name="size", pass_context=True)
     async def plex_size(self, ctx: commands.Context):
@@ -263,8 +271,16 @@ class Plex(commands.Cog):
         }
         return str(switcher.get(state, ""))
     
-    @plex.command(name="current",aliases=["now"],pass_context=True)
+    @plex_top.error
+    async def plex_top_error(self, ctx, error):
+        await ctx.send("Please include <movies|shows|artists|users> <timeFrame>")
+    
+    @plex.command(name="current",aliases=["now"],hidden=True,pass_context=True)
+    @commands.has_role("Admin")
     async def plex_now(self, ctx: commands.Context):
+        """
+        Current Plex activity
+        """
         embed = discord.Embed(title="Current Plex activity")
         json_data = self.request("get_activity",None)
         try:
@@ -285,8 +301,64 @@ class Plex(commands.Cog):
                 final_message = final_message + "\n" + stream_message + "\n"
             if int(stream_count) > 0:
                 await ctx.send(final_message)
+            else:
+                await ctx.send("No current activity.")
         except KeyError:
             await ctx.send("**Connection error.**")
-
-def setup(bot):
-    bot.add_cog(Plex(bot))
+            
+    @plex.command(name="new",alias=["added"],pass_context=True)
+    async def new(self, ctx: commands.Context):
+        """
+        See recently added content
+        """
+        e = discord.Embed(title="Recently Added to " + str(SERVER_NICKNAME))
+        count = 5
+        cur = 0
+        recently_added = self.request("get_recently_added","count="+str(count))
+        url = TAUTULLI_BASE_URL+"/api/v2?apikey="+TAUTULLI_API_KEY+"&cmd=pms_image_proxy&img="+recently_added['response']['data']['recently_added'][cur]['thumb']
+        e.set_image(url=url)
+        listing = recently_added['response']['data']['recently_added'][cur]
+        e.description = "(" + str(cur+1) + "/" + str(count) + ") " + str(listing['grandparent_title'] if listing['grandparent_title'] != "" else (listing['parent_title'] if listing['parent_title'] != "" else listing['full_title'])) + " - [Watch Now](https://app.plex.tv/desktop#!/server/" + PLEX_SERVER_ID + "/details?key=%2Flibrary%2Fmetadata%2F" + str(recently_added['response']['data']['recently_added'][cur]['rating_key']) + ")"
+        ra_embed = await ctx.send(embed=e)
+        nav = True
+        while nav:
+            def check(reaction, user):
+                return user != ra_embed.author
+            
+            try:
+                if cur == 0:
+                    await ra_embed.add_reaction(u"\u27A1") #arrow_right
+                elif cur == count - 1:
+                    await ra_embed.add_reaction(u"\u2B05") #arrow_left
+                else:
+                    await ra_embed.add_reaction(u"\u2B05") #arrow_left
+                    await ra_embed.add_reaction(u"\u27A1") #arrow_right
+                reaction, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
+            except asyncio.TimeoutError:
+                await ra_embed.delete()
+                nav = False
+                self.request("delete_image_cache", None)
+            else:
+                if reaction.emoji == u"\u27A1":
+                    if (cur + 1 < count):
+                        cur = cur + 1
+                        url = TAUTULLI_BASE_URL+"/api/v2?apikey="+TAUTULLI_API_KEY+"&cmd=pms_image_proxy&img="+recently_added['response']['data']['recently_added'][cur]['thumb']
+                        e.set_image(url=url)
+                        listing = recently_added['response']['data']['recently_added'][cur]
+                        e.description = "(" + str(cur+1) + "/" + str(count) + ") " + str(listing['grandparent_title'] if listing['grandparent_title'] != "" else (listing['parent_title'] if listing['parent_title'] != "" else listing['full_title'])) + " - [Watch Now](https://app.plex.tv/desktop#!/server/" + PLEX_SERVER_ID + "/details?key=%2Flibrary%2Fmetadata%2F" + str(recently_added['response']['data']['recently_added'][cur]['rating_key']) + ")"
+                        await ra_embed.edit(embed=e)
+                        await ra_embed.clear_reactions()
+                else:
+                    if (cur - 1 >= 0):
+                        cur = cur - 1
+                        url = TAUTULLI_BASE_URL+"/api/v2?apikey="+TAUTULLI_API_KEY+"&cmd=pms_image_proxy&img="+recently_added['response']['data']['recently_added'][cur]['thumb']
+                        e.set_image(url=url)
+                        listing = recently_added['response']['data']['recently_added'][cur]
+                        e.description = "(" + str(cur+1) + "/" + str(count) + ") " + str(listing['grandparent_title'] if listing['grandparent_title'] != "" else (listing['parent_title'] if listing['parent_title'] != "" else listing['full_title'])) + " - [Watch Now](https://app.plex.tv/desktop#!/server/" + PLEX_SERVER_ID + "/details?key=%2Flibrary%2Fmetadata%2F" + str(recently_added['response']['data']['recently_added'][cur]['rating_key']) + ")"
+                        await ra_embed.edit(embed=e)
+                        await ra_embed.clear_reactions()
+            
+    def __init__(self, bot):
+        self.bot = bot
+        print("Plex - updating libraries...")
+        self.getLibraries.start()
