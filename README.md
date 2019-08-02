@@ -4,8 +4,10 @@ Cog Function
 
 | Name | Status | Description (Click for full details)
 | --- | --- | --- |
-| espn | **Beta** | <details><summary>Get live data from ESPN.com</summary><p>Commands:<p><ul><li><b>score</b> - Get live score(s) for a team</li><li><b>prob</b> - Get ESPN's win probability for a team's current game</li></ul><p>Supported leagues: NFL, NBA, MLB, NHL, CFB, CBB</p> |
-| plex | **Beta** | <details><summary>Interact with a Plex Media Server (via Tautulli)</summary><p>Commands:<p><ul><li><b>size</b> - Get Plex library statistics</li><li><b>stats</b> - Get watch statistics for a specific user</li><li><b>rec</b> - Get a recommendation of what to watch</li></ul> |
+| espn | 1.1.1 | <details><summary>Get live data from ESPN.com</summary><p>Commands:<p><ul><li><b>score</b> - Get live score(s) for a team</li><li><b>prob</b> - Get ESPN's win probability for a team's current game</li><li><b>sched</b> - A Get a link to a team's schedule</li></ul><p>Supported leagues: NFL, NBA, MLB, NHL, CFB, CBBM, CBBW</p> |
+| plex | 1.1.0 | <details><summary>Interact with a Plex Media Server (via Tautulli)</summary><p>Commands:<p><ul><li><b>size</b> - Get Plex library statistics</li><li><b>stats</b> - Get watch statistics for a specific user</li><li><b>top</b> - Get the most popular media or most active users</li><li><b>rec</b> - Get a recommendation of what to watch</li><li><b>new</b> - Get an interactive catalog of newly-added content</li></ul> |
+| plex_manager | 1.0.0 | <details><summary>Manage a Plex Media Server</summary><p>Commands:<p><ul><li><b>add</b> - Invite Plex user to Plex server (also done by adding a specific emoji to a message)</li><li><b>remove</b> - Remove Plex user from Plex server (also done by removing a specific emoji from a message)</li><li><b>ping</b> - Ping the PlexDiscord Manager</li><li><b>purge</b> - Remove inactive winners</li><li><b>count</b> - Get the number of Plex Friends with access to the Plex server</li></ul> |
+| core | 0.3.0 | <details><summary>Manage cogs for Discord bot</summary><p>Commands:<p><ul><li><b>import</b> - IMport new cogs</li><li><b>add</b> - Add new cog repo (.git links)</li><li><b>load</b> - Load a cog from a downloaded repo</li></ul> |
 	
  # Installation
  ```
