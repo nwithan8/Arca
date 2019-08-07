@@ -232,7 +232,7 @@ class ESPN(commands.Cog):
                                 top_games[max(scores[g][1],scores[g][4])][1] = scores[g]
                     for i in range(1,26):
                         if str(i) in top_games:
-                            embed.add_field(name=("(" + top_games[str(i)][1][1] + ") " if top_games[str(i)][1][1] != '' else '') + ("**"+top_games[str(i)][1][0]+"** " if int(top_games[str(i)][1][2]) > int(top_games[str(i)][1][5]) else top_games[str(i)][1][0]+" ")+top_games[str(i)][1][2]+" - "+ ("(" + top_games[str(i)][1][4] + ") " if top_games[str(i)][1][4] != '' else '') + ("**"+top_games[str(i)][1][3]+"** " if int(top_games[str(i)][1][5]) > int(top_games[str(i)][1][2]) else top_games[str(i)][1][3]+" ")+top_games[str(i)][1][5],value=top_games[str(i)][1][6]+" - [Live](http://www.espn.com/"+league+"/game?gameId="+top_games[str(i)][0]+")",inline=False)
+                            embed.add_field(name=("(" + top_games[str(i)][1][1] + ") " if top_games[str(i)][1][1] != '' else '') + ("**"+top_games[str(i)][1][0]+"** " if int(top_games[str(i)][1][2]) > int(top_games[str(i)][1][5]) else top_games[str(i)][1][0]+" ")+top_games[str(i)][1][2]+" - "+ ("(" + top_games[str(i)][1][4] + ") " if top_games[str(i)][1][4] != '' else '') + ("**"+top_games[str(i)][1][3]+"** " if int(top_games[str(i)][1][5]) > int(top_games[str(i)][1][2]) else top_games[str(i)][1][3]+" ")+top_games[str(i)][1][5],value=top_games[str(i)][1][6]+("" if not str(top_games[str(i)][0])[0].isdigit() else " - [Live](http://www.espn.com/"+league+"/game?gameId="+top_games[str(i)][0]+")"),inline=False)
                             #print(top_games[str(i)])
                     await ctx.send(embed=embed)
             except Exception as e:
@@ -266,7 +266,7 @@ class ESPN(commands.Cog):
                 if team == 'all':
                     fc = 0
                     for g in scores:
-                        embed.add_field(name=("(" + scores[g][1] + ") " if scores[g][1] != '' else '') + ("**"+scores[g][0]+"** " if int(scores[g][2]) > int(scores[g][5]) else scores[g][0]+" ")+scores[g][2]+" - "+ ("(" + scores[g][4] + ") " if scores[g][4] != '' else '') + ("**"+scores[g][3]+"** " if int(scores[g][5]) > int(scores[g][2]) else scores[g][3]+" ")+scores[g][5],value=scores[g][6]+" - [Live](http://www.espn.com/"+league+"/game?gameId="+g+")",inline=False)
+                        embed.add_field(name=("(" + scores[g][1] + ") " if scores[g][1] != '' else '') + ("**"+scores[g][0]+"** " if int(scores[g][2]) > int(scores[g][5]) else scores[g][0]+" ")+scores[g][2]+" - "+ ("(" + scores[g][4] + ") " if scores[g][4] != '' else '') + ("**"+scores[g][3]+"** " if int(scores[g][5]) > int(scores[g][2]) else scores[g][3]+" ")+scores[g][5],value=scores[g][6]+("" if not str(g)[0].isdigit() else " - [Live](http://www.espn.com/"+league+"/game?gameId="+g+")"),inline=False)
                         fc = fc + 1
                         if fc >= 23:
                             embed.add_field(name='\u200b',value="http://www.espn.com/"+league+"/scoreboard",inline=False)
@@ -288,7 +288,7 @@ class ESPN(commands.Cog):
                 else:
                     for g in scores:
                         if (scores[g][0].lower().strip() == team.lower().strip()) or (scores[g][3].lower().strip() == team.lower().strip()):
-                            embed.add_field(name=("(" + scores[g][1] + ") " if scores[g][1] != '' else '') + ("**"+scores[g][0]+"** " if int(scores[g][2]) > int(scores[g][5]) else scores[g][0]+" ")+scores[g][2]+" - "+ ("(" + scores[g][4] + ") " if scores[g][4] != '' else '') + ("**"+scores[g][3]+"** " if int(scores[g][5]) > int(scores[g][2]) else scores[g][3]+" ")+scores[g][5],value=scores[g][6]+" - [Live](http://www.espn.com/"+league+"/game?gameId="+g+")",inline=False)
+                            embed.add_field(name=("(" + scores[g][1] + ") " if scores[g][1] != '' else '') + ("**"+scores[g][0]+"** " if int(scores[g][2]) > int(scores[g][5]) else scores[g][0]+" ")+scores[g][2]+" - "+ ("(" + scores[g][4] + ") " if scores[g][4] != '' else '') + ("**"+scores[g][3]+"** " if int(scores[g][5]) > int(scores[g][2]) else scores[g][3]+" ")+scores[g][5],value=scores[g][6]+("" if not str(g)[0].isdigit() else " - [Live](http://www.espn.com/"+league+"/game?gameId="+g+")"),inline=False)
                             #if not scores[g][6][1].isdigit():
                             #embed.add_field(name='\u200b',value="http://www.espn.com/"+league+"/boxscore?gameId="+g,inline=False)
                             respond = True
