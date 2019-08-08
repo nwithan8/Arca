@@ -54,12 +54,21 @@ feeds = {
         "USAT":"http://rssfeeds.usatoday.com/UsatodaycomNation-TopStories",
         "WSJ":"https://feeds.a.dj.com/rss/WSJcomUSBusiness.xml",
         "WP":"http://feeds.washingtonpost.com/rss/national"
+    },
+    "sports":{
+        "CNN":"http://rss.cnn.com/rss/edition_sport.rss",
+        "ESPN":"https://www.espn.com/espn/rss/news",
+        "NYT":"https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml",
+        "Reut":"http://feeds.reuters.com/reuters/sportsNews",
+        "USAT":"http://rssfeeds.usatoday.com/UsatodaycomSports-TopStories",
+        "WP":"http://feeds.washingtonpost.com/rss/sports"
     }
 }
     
 outlets={
     "BBC":"BBC",
     "CNN":"CNN",
+    "ESPN":"ESPN",
     "NPR":"NPR",
     "NYT":"The New York Times",
     "Reut":"Reuters",
@@ -87,6 +96,8 @@ class News(commands.Cog):
             return 'BBC'
         elif data.lower() in ['cnn','cable news network','cnn.com','fake news']:
             return 'CNN'
+        elif data.lower() in ['espn']:
+            return 'ESPN'
         elif data.lower() in ['npr','national public radio','public radio','radio']:
             return "NPR"
         elif data.lower() in ['nyt','new york times','ny times','nytimes','times','the times','nyt.com','newyorktimes','nytimes.com']:
@@ -180,6 +191,21 @@ class News(commands.Cog):
         
     @news_us.error
     async def news_us_error(self, ctx, error):
+        await ctx.send("Something went wrong. Please try again later.")
+        
+        @news.command(name="u.s",aliases=["us","america","united states","national"], pass_context=True, case_insensitive=True)
+    async def news_sports(self, ctx: commands.Context):
+        """
+        U.S. news headlines
+        """
+        embed = discord.Embed(title="Sports News")
+        for o in feeds['us']:
+            t,l = self.headline("sports",o)
+            embed.add_field(name="*"+outlets[o]+"*",value="["+self.unescape(t)+"]("+l+")")
+        await ctx.send(embed=embed)
+        
+    @news_sports.error
+    async def news_sports_error(self, ctx, error):
         await ctx.send("Something went wrong. Please try again later.")
     
     def __init__(self, bot):
