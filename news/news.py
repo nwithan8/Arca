@@ -136,7 +136,8 @@ class News(commands.Cog):
         embed = discord.Embed(title="News Brief")
         for o in feeds['brief']:
             t,l = self.headline("brief",o)
-            embed.add_field(name="*"+outlets[o]+"*",value="["+self.unescape(t)+"]("+l+")")
+            embed.add_field(name=self.unescape(t),value="["+"*"+outlets[o]+"*"+"]("+l+")")
+            #embed.add_field(name="*"+outlets[o]+"*",value="["+self.unescape(t)+"]("+l+")")
         await ctx.send(embed=embed)
     
     @news_brief.error
@@ -155,8 +156,11 @@ class News(commands.Cog):
         else:
             embed = discord.Embed(title="Top News from "+outlets[o])
             h = self.headlines("top",o,5)
+            print(h)
             for i in h:
-                embed.add_field(name=str(time.strftime('%b %d, %Y, %I:%M %p',i.updated_parsed)),value="["+self.unescape(i['title'])+"]("+i.link+")")
+                print(i.link)
+                embed.add_field(name=self.unescape(i['title']),value="["+str(time.strftime('%b %d, %Y, %I:%M %p',i.updated_parsed))+"]("+i['link']+")")
+                #embed.add_field(name=str(time.strftime('%b %d, %Y, %I:%M %p',i.updated_parsed)),value="["+self.unescape(i['title'])+"]("+i['link']+")")
             await ctx.send(embed=embed)
             
     @news_top.error
@@ -171,7 +175,8 @@ class News(commands.Cog):
         embed = discord.Embed(title="World News")
         for o in feeds['world']:
             t,l = self.headline("world",o)
-            embed.add_field(name="*"+outlets[o]+"*",value="["+self.unescape(t)+"]("+l+")")
+            embed.add_field(name=self.unescape(t),value="["+"*"+outlets[o]+"*"+"]("+l+")")
+            #embed.add_field(name="*"+outlets[o]+"*",value="["+self.unescape(t)+"]("+l+")")
         await ctx.send(embed=embed)
         
     @news_world.error
@@ -186,22 +191,24 @@ class News(commands.Cog):
         embed = discord.Embed(title="U.S. News")
         for o in feeds['us']:
             t,l = self.headline("us",o)
-            embed.add_field(name="*"+outlets[o]+"*",value="["+self.unescape(t)+"]("+l+")")
+            embed.add_field(name=self.unescape(t),value="["+"*"+outlets[o]+"*"+"]("+l+")")
+            #embed.add_field(name="*"+outlets[o]+"*",value="["+self.unescape(t)+"]("+l+")")
         await ctx.send(embed=embed)
         
     @news_us.error
     async def news_us_error(self, ctx, error):
         await ctx.send("Something went wrong. Please try again later.")
         
-        @news.command(name="u.s",aliases=["us","america","united states","national"], pass_context=True, case_insensitive=True)
+    @news.command(name="sports",aliases=["sport"], pass_context=True, case_insensitive=True)
     async def news_sports(self, ctx: commands.Context):
         """
-        U.S. news headlines
+        Sports headlines
         """
         embed = discord.Embed(title="Sports News")
-        for o in feeds['us']:
+        for o in feeds['sports']:
             t,l = self.headline("sports",o)
-            embed.add_field(name="*"+outlets[o]+"*",value="["+self.unescape(t)+"]("+l+")")
+            embed.add_field(name=self.unescape(t),value="["+"*"+outlets[o]+"*"+"]("+l+")")
+            #embed.add_field(name="*"+outlets[o]+"*",value="["+self.unescape(t)+"]("+l+")")
         await ctx.send(embed=embed)
         
     @news_sports.error
