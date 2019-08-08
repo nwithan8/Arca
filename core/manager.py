@@ -13,7 +13,7 @@ class Manager(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         #self.getLibraries.start()
-        print("Ready Freddy.")
+        print("Cog Manager ready.")
         
     @commands.group(aliases=["import"], pass_context=True)
     async def imp(self, ctx: commands.Context):
