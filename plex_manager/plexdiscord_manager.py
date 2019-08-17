@@ -21,8 +21,8 @@ import sys, traceback, os
 
 #Discord-to-Plex database credentials
 hostname = 'localhost'
-username = 'plexbot'
-password = 'plexbot'
+username = 'DiscordBot'
+password = 'DiscordBot'
 database = 'PlexDiscord'
 
 #Plex Server settings
@@ -183,7 +183,7 @@ class PlexDiscord_Manager(commands.Cog):
             await self.log(str(id) + " removed from " + whichDatabase + " users.", "v")
             await self.log("Database connection closed.", "v")
             
-    async def find_in_db(self, PlexOrDiscord,data):
+    async def find_in_db(self, PlexOrDiscord, data):
         myConnection = mysql.connector.connect(host=hostname,user=username,passwd=password,db=database)
         result = None
         if myConnection.is_connected():
