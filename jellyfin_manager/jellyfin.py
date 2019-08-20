@@ -252,7 +252,7 @@ class Jellyfin(commands.Cog):
     #def request(self, cmd, params):
     #    return json.loads(requests.get(JELLYFIN_URL + "/" + cmd + "?apikey=" + TAUTULLI_API_KEY + "&" + str(params) + "&cmd=" + str(cmd)).text if params != None else requests.get(TAUTULLI_BASE_URL + "/api/v2?apikey=" + TAUTULLI_API_KEY + "&cmd=" + str(cmd)).text)
     
-    @commands.group(aliases=["Jellyfin", "em"], pass_context=True)
+    @commands.group(aliases=["Jellyfin", "jf", "JF"], pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
     async def jellyfin(self, ctx: commands.Context):
         """
