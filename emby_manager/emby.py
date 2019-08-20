@@ -161,15 +161,15 @@ class Emby(commands.Cog):
             conn.close()
             return response
             
-    def add_user_to_db(self, discordId, embyUsername, EmbyID, note):
+    def add_user_to_db(self, DiscordID, EmbyUsername, EmbyID, note):
         myConnection = mysql.connector.connect(host=hostname,port=port,user=username,passwd=password,db=database)
         if myConnection.is_connected():
             cursor = myConnection.cursor(buffered=True)
             query = ""
             if note == 't':
-                query = "INSERT INTO users (DiscordID, EmbyUsername, EmbyID, ExpirationStamp, Note) VALUES ('" + str(discordId) + "','" + str(embyUsername) + "','" + str(embyId) + "','" + str(int(time.time()) + (3600 * TRIAL_LENGTH)) + "','" + str(note) + "')"
+                query = "INSERT INTO users (DiscordID, EmbyUsername, EmbyID, ExpirationStamp, Note) VALUES ('" + str(DiscordID) + "','" + str(EmbyUsername) + "','" + str(EmbyID) + "','" + str(int(time.time()) + (3600 * TRIAL_LENGTH)) + "','" + str(note) + "')"
             else:
-                query = "INSERT INTO users (DiscordID, EmbyUsername, EmbyID, Note) VALUES ('" + str(discordId) + "','" + str(embyUsername) + "','" + str(embyId) + "','" + str(note) + "')"
+                query = "INSERT INTO users (DiscordID, EmbyUsername, EmbyID, Note) VALUES ('" + str(DiscordID) + "','" + str(EmbyUsername) + "','" + str(EmbyID) + "','" + str(note) + "')"
             cursor.execute(str(query))
             myConnection.commit()
             cursor.close()
