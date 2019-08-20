@@ -69,7 +69,7 @@ approvedEmojiName = "approved"
 TRIAL_ROLE_NAME = "Trial Member"
 TRIAL_LENGTH = 24 # hours
 TRIAL_CHECK_FREQUENCY = 15 # minutes
-TRIAL_END_NOTIFICATION = "Hello, your " + str(TRIAL_LENGTH) + "-hour trial of " + SERVER_NICKNAME + " has ended."
+TRIAL_END_NOTIFICATION = "Hello, your " + str(TRIAL_LENGTH) + "-hour trial of " + str(SERVER_NICKNAME) + " has ended."
 
 # Winner settings
 WINNER_ROLE_NAME = "Winner"
@@ -269,9 +269,9 @@ class Emby(commands.Cog):
         s = self.add_to_emby(username, user.id, 's')
         if str(s).startswith("2"):
             await user.create_dm()
-            await user.dm_channel.send("You have been added to " + SERVER_NICKNAME + "!\n" +
-                                       "Hostname: " + EMBY_URL + "\n" +
-                                       "Username: " + username + "\n" +
+            await user.dm_channel.send("You have been added to " + str(SERVER_NICKNAME) + "!\n" +
+                                       "Hostname: " + str(EMBY_URL) + "\n" +
+                                       "Username: " + str(username) + "\n" +
                                        "Leave password blank on first login, but please secure your account by setting a password.\n" + 
                                        "Have fun!")
             await ctx.send("You've been added, " + user.mention + "! Please check your direct messages for login information.")
@@ -289,7 +289,7 @@ class Emby(commands.Cog):
         """
         s = await self.remove_from_emby(user.id)
         if str(s).startswith("2"):
-            await ctx.send("You've been removed from " + SERVER_NICKNAME + ", " + user.mention + ".")
+            await ctx.send("You've been removed from " + str(SERVER_NICKNAME) + ", " + user.mention + ".")
         else:
             await ctx.send("An error occurred while removing " + user.mention)
             
@@ -303,12 +303,12 @@ class Emby(commands.Cog):
         s = await self.add_to_emby(EmbyUsername, user.id, 't')
         if str(s).startswith("2"):
             await user.create_dm()
-            await user.dm_channel.send("You have been granted a " + str(TRIAL_LENGTH) + "-hour trial to " + SERVER_NICKNAME + "!\n" +
-                                       "Hostname: " + EMBY_URL + "\n" +
-                                       "Username: " + username + "\n" +
+            await user.dm_channel.send("You have been granted a " + str(TRIAL_LENGTH) + "-hour trial to " + str(SERVER_NICKNAME) + "!\n" +
+                                       "Hostname: " + str(EMBY_URL) + "\n" +
+                                       "Username: " + str(username) + "\n" +
                                        "Leave password blank on first login, but please secure your account by setting a password.\n" + 
                                        "Have fun!")
-            await ctx.send("Your trial of " + SERVER_NICKNAME + " has begun, " + user.mention + "! Please check your direct messages for login information.")
+            await ctx.send("Your trial of " + str(SERVER_NICKNAME) + " has begun, " + user.mention + "! Please check your direct messages for login information.")
         else:
             await ctx.send("An error occurred while starting a trial for " + user.mention)
             
@@ -323,7 +323,7 @@ class Emby(commands.Cog):
         """
         count = len(json.loads(requests.get(EMBY_URL + "/Users?api_key=" + EMBY_KEY).text))
         if count > 0:
-            await ctx.send(SERVER_NICKNAME + " has " + str(count) + " users.")
+            await ctx.send(str(SERVER_NICKNAME) + " has " + str(count) + " users.")
         else:
             await ctx.send("An error occurred.")
             

@@ -33,9 +33,9 @@ JellyfinDiscord.users
 (DiscordID BIGINT, JellyfinUsername 'VARCHAR(100)', JellyfinID 'VARCHAR(100)')
 '''
 
-EMBY_URL = os.environ.get('EMBY_URL')
-EMBY_KEY = os.environ.get('EMBY_KEY')
-SERVER_NICKNAME = os.environ.get('EMBY_SERVER_NAME')
+JELLYFIN_URL = os.environ.get('JELLYFIN_URL')
+JELLYFIN_KEY = os.environ.get('JELLYFIN_KEY')
+SERVER_NICKNAME = os.environ.get('JELLYFIN_SERVER_NAME')
 
 # Discord (Admin) settings
 SERVER_ID = os.environ.get('DISCORD_SERVER_ID')
@@ -69,7 +69,7 @@ approvedEmojiName = "approved"
 TRIAL_ROLE_NAME = "Trial Member"
 TRIAL_LENGTH = 24 # hours
 TRIAL_CHECK_FREQUENCY = 15 # minutes
-TRIAL_END_NOTIFICATION = "Hello, your " + str(TRIAL_LENGTH) + "-hour trial of " + SERVER_NICKNAME + " has ended."
+TRIAL_END_NOTIFICATION = "Hello, your " + str(TRIAL_LENGTH) + "-hour trial of " + str(SERVER_NICKNAME) + " has ended."
 
 # Winner settings
 WINNER_ROLE_NAME = "Winner"
@@ -86,11 +86,11 @@ class Jellyfin(commands.Cog):
         payload = {
             "Name": username
         }
-        r = json.loads(requests.post(EMBY_URL + "/Users/New?api_key=" + EMBY_KEY, json=payload).text)
+        r = json.loads(requests.post(JELLYFIN_URL + "/Users/New?api_key=" + JELLYFIN_KEY, json=payload).text)
         #p = self.password(length=10)
         #print(p)
         Id = r['Id']
-        #r = requests.post(EMBY_URL + "/Users/" + str(Id) + "/Password?api_key=" + EMBY_KEY, json=payload) # CANNOT CURRENTLY SET PASSWORD FOR NEW USER
+        #r = requests.post(JELLYFIN_URL + "/Users/" + str(Id) + "/Password?api_key=" + JELLYFIN_KEY, json=payload) # CANNOT CURRENTLY SET PASSWORD FOR NEW USER
         #print(r.status_code)
         self.add_user_to_db(discordId, username, Id, note)
         payload = {
@@ -113,7 +113,7 @@ class Jellyfin(commands.Cog):
                 "TVHeadEnd Recordings"
             ]
         }
-        return requests.post(EMBY_URL + "/Users/" + str(Id) + "/Policy?api_key=" + EMBY_KEY, json=payload).status_code
+        return requests.post(JELLYFIN_URL + "/Users/" + str(Id) + "/Policy?api_key=" + JELLYFIN_KEY, json=payload).status_code
     
     def remove_from_jellyfin(self, id):
         """
@@ -140,10 +140,10 @@ class Jellyfin(commands.Cog):
                 "TVHeadEnd Recordings"
             ]
         }
-        #s = requests.post(EMBY_URL + "/Users/" + str(jellyfinId) + "/Policy?api_key=" + EMBY_KEY, json=payload).status_code
+        #s = requests.post(JELLYFIN_URL + "/Users/" + str(jellyfinId) + "/Policy?api_key=" + JELLYFIN_KEY, json=payload).status_code
         # Doesn't delete user, instead makes deactive.
         # Delete function not documented in Jellyfin API, but exists in old Jellyfin API and still works
-        s = requests.delete(EMBY_URL + "/Users/" + str(jellyfinId) + "?api_key=" + EMBY_KEY).status_code
+        s = requests.delete(JELLYFIN_URL + "/Users/" + str(jellyfinId) + "?api_key=" + JELLYFIN_KEY).status_code
         self.remove_user_from_db(id)
         return s
     
@@ -241,16 +241,16 @@ class Jellyfin(commands.Cog):
         return ''.join(random.choice(lettersAndDigits) for i in range(length))
     
     def r_post(self, cmd, params):
-        return json.loads(requests.post(EMBY_URL + "/" + cmd + "?api_key=" + EMBY_KEY).text)
+        return json.loads(requests.post(JELLYFIN_URL + "/" + cmd + "?api_key=" + JELLYFIN_KEY).text)
     
     def r_get(self, cmd, params):
-        return json.loads(requests.get(EMBY_URL + "/" + cmd + "?api_key=" + EMBY_KEY).text)
+        return json.loads(requests.get(JELLYFIN_URL + "/" + cmd + "?api_key=" + JELLYFIN_KEY).text)
     
     def r_delete(self, cmd, params):
-        return json.loads(requests.delete(EMBY_URL + "/" + cmd + "?api_key=" + EMBY_KEY).text)
+        return json.loads(requests.delete(JELLYFIN_URL + "/" + cmd + "?api_key=" + JELLYFIN_KEY).text)
         
     #def request(self, cmd, params):
-    #    return json.loads(requests.get(EMBY_URL + "/" + cmd + "?apikey=" + TAUTULLI_API_KEY + "&" + str(params) + "&cmd=" + str(cmd)).text if params != None else requests.get(TAUTULLI_BASE_URL + "/api/v2?apikey=" + TAUTULLI_API_KEY + "&cmd=" + str(cmd)).text)
+    #    return json.loads(requests.get(JELLYFIN_URL + "/" + cmd + "?apikey=" + TAUTULLI_API_KEY + "&" + str(params) + "&cmd=" + str(cmd)).text if params != None else requests.get(TAUTULLI_BASE_URL + "/api/v2?apikey=" + TAUTULLI_API_KEY + "&cmd=" + str(cmd)).text)
     
     @commands.group(aliases=["Jellyfin", "em"], pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
@@ -269,9 +269,9 @@ class Jellyfin(commands.Cog):
         s = self.add_to_jellyfin(username, user.id, 's')
         if str(s).startswith("2"):
             await user.create_dm()
-            await user.dm_channel.send("You have been added to " + SERVER_NICKNAME + "!\n" +
-                                       "Hostname: " + EMBY_URL + "\n" +
-                                       "Username: " + username + "\n" +
+            await user.dm_channel.send("You have been added to " + str(SERVER_NICKNAME) + "!\n" +
+                                       "Hostname: " + str(JELLYFIN_URL) + "\n" +
+                                       "Username: " + str(username) + "\n" +
                                        "Leave password blank on first login, but please secure your account by setting a password.\n" + 
                                        "Have fun!")
             await ctx.send("You've been added, " + user.mention + "! Please check your direct messages for login information.")
@@ -289,7 +289,7 @@ class Jellyfin(commands.Cog):
         """
         s = await self.remove_from_jellyfin(user.id)
         if str(s).startswith("2"):
-            await ctx.send("You've been removed from " + SERVER_NICKNAME + ", " + user.mention + ".")
+            await ctx.send("You've been removed from " + str(SERVER_NICKNAME) + ", " + user.mention + ".")
         else:
             await ctx.send("An error occurred while removing " + user.mention)
             
@@ -304,11 +304,11 @@ class Jellyfin(commands.Cog):
         if str(s).startswith("2"):
             await user.create_dm()
             await user.dm_channel.send("You have been granted a " + str(TRIAL_LENGTH) + "-hour trial to " + SERVER_NICKNAME + "!\n" +
-                                       "Hostname: " + EMBY_URL + "\n" +
+                                       "Hostname: " + JELLYFIN_URL + "\n" +
                                        "Username: " + username + "\n" +
                                        "Leave password blank on first login, but please secure your account by setting a password.\n" + 
                                        "Have fun!")
-            await ctx.send("Your trial of " + SERVER_NICKNAME + " has begun, " + user.mention + "! Please check your direct messages for login information.")
+            await ctx.send("Your trial of " + str(SERVER_NICKNAME) + " has begun, " + user.mention + "! Please check your direct messages for login information.")
         else:
             await ctx.send("An error occurred while starting a trial for " + user.mention)
             
@@ -321,9 +321,9 @@ class Jellyfin(commands.Cog):
         """
         Get the number of enabled Jellyfin users
         """
-        count = len(json.loads(requests.get(EMBY_URL + "/Users?api_key=" + EMBY_KEY).text))
+        count = len(json.loads(requests.get(JELLYFIN_URL + "/Users?api_key=" + JELLYFIN_KEY).text))
         if count > 0:
-            await ctx.send(SERVER_NICKNAME + " has " + str(count) + " users.")
+            await ctx.send(str(SERVER_NICKNAME) + " has " + str(count) + " users.")
         else:
             await ctx.send("An error occurred.")
             
