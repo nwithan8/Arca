@@ -48,9 +48,9 @@ SUB_CHECK_TIME = 7 # days
 
 REACT_TO_ADD = False
 # False:
-# The Discord administrator types "pm add <@DiscordUser> <EmbyUsername>".
+# The Discord administrator types "emby add <@DiscordUser> <EmbyUsername>".
 # The mentioned Discord user will be associated with the corresponding Emby username.
-# "pm remove <@DiscordUser>" will remove the mentioned Discord user's Emby access.
+# "emby remove <@DiscordUser>" will remove the mentioned Discord user's Emby access.
 #
 # True:
 # A user posts their Emby username in a Discord channel.
