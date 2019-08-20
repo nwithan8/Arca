@@ -13,11 +13,10 @@ Cog Function
 | news | 1.0.0 | <details><summary>Get news headlines</summary><p>Commands:<p><ul><li><b>brief</b> - Get 5 top headlines</li><li><b>top</b> - Top headlines from a specific media outlet</li><li><b>sports</b> - Sports news headlines</li><li><b>u.s.</b> - U.S. news headlines</li><li><b>world</b> - World news headlines</li></ul> |
 	
  # Installation
- ```
- [p]repo add nwithan8 https://github.com/nwithan8/nwithan8-cogs
- [p]cog install nwithan8 <cogname>
- [p]load <cogname>
- ```
+ 1. ```git clone https://github.com/nwithan8/nwithan8-cogs.git```
+ 2. Set <a href="https://askubuntu.com/questions/58814/how-do-i-add-environment-variables">environmental variables</a> (see env.txt in each cog folder)
+ 3. ```pip3 install -r requirements.txt```
+ 4. ```./bot.py```
  
  # Contact
 Join the #cogs channel on my Discord server:
