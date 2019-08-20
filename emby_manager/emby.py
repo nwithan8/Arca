@@ -269,7 +269,7 @@ class Emby(commands.Cog):
     #def request(self, cmd, params):
     #    return json.loads(requests.get(EMBY_URL + "/" + cmd + "?apikey=" + TAUTULLI_API_KEY + "&" + str(params) + "&cmd=" + str(cmd)).text if params != None else requests.get(TAUTULLI_BASE_URL + "/api/v2?apikey=" + TAUTULLI_API_KEY + "&cmd=" + str(cmd)).text)
     
-    @commands.group(aliases=["Emby", "jf", "JF"], pass_context=True)
+    @commands.group(aliases=["Emby", "em", "EM"], pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
     async def emby(self, ctx: commands.Context):
         """
