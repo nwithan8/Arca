@@ -161,15 +161,15 @@ class Jellyfin(commands.Cog):
             conn.close()
             return response
             
-    def add_user_to_db(self, discordId, jellyfinUsername, JellyfinID, note):
+    def add_user_to_db(self, DiscordID, JellyfinUsername, JellyfinID, note):
         myConnection = mysql.connector.connect(host=hostname,port=port,user=username,passwd=password,db=database)
         if myConnection.is_connected():
             cursor = myConnection.cursor(buffered=True)
             query = ""
             if note == 't':
-                query = "INSERT INTO users (DiscordID, JellyfinUsername, JellyfinID, ExpirationStamp, Note) VALUES ('" + str(discordId) + "','" + str(jellyfinUsername) + "','" + str(jellyfinId) + "','" + str(int(time.time()) + (3600 * TRIAL_LENGTH)) + "','" + str(note) + "')"
+                query = "INSERT INTO users (DiscordID, JellyfinUsername, JellyfinID, ExpirationStamp, Note) VALUES ('" + str(DiscordID) + "','" + str(JellyfinUsername) + "','" + str(JellyfinID) + "','" + str(int(time.time()) + (3600 * TRIAL_LENGTH)) + "','" + str(note) + "')"
             else:
-                query = "INSERT INTO users (DiscordID, JellyfinUsername, JellyfinID, Note) VALUES ('" + str(discordId) + "','" + str(jellyfinUsername) + "','" + str(jellyfinId) + "','" + str(note) + "')"
+                query = "INSERT INTO users (DiscordID, JellyfinUsername, JellyfinID, Note) VALUES ('" + str(DiscordID) + "','" + str(JellyfinUsername) + "','" + str(JellyfinID) + "','" + str(note) + "')"
             cursor.execute(str(query))
             myConnection.commit()
             cursor.close()
