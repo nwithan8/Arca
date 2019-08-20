@@ -360,3 +360,6 @@ class Plex(commands.Cog):
         self.bot = bot
         print("Plex - updating libraries...")
         self.getLibraries.start()
+        
+def setup(bot):
+    bot.add_cog(Plex(bot))
