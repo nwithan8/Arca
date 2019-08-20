@@ -1,0 +1,5 @@
+discord
+requests
+mysql-connector-python
+asyncio
+GitPython

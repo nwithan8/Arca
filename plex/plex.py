@@ -45,9 +45,7 @@ shows = defaultdict(list)
 movies = defaultdict(list)
 
 class Plex(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
-                
+    
     def request(self, cmd, params):
         return json.loads(requests.get(TAUTULLI_BASE_URL + "/api/v2?apikey=" + TAUTULLI_API_KEY + "&" + str(params) + "&cmd=" + str(cmd)).text if params != None else requests.get(TAUTULLI_BASE_URL + "/api/v2?apikey=" + TAUTULLI_API_KEY + "&cmd=" + str(cmd)).text)
     
