@@ -15,8 +15,19 @@ Cog Function
  # Installation
  1. ```git clone https://github.com/nwithan8/nwithan8-cogs.git```
  2. Set <a href="https://askubuntu.com/questions/58814/how-do-i-add-environment-variables">environmental variables</a> (see env.txt in each cog folder)
- 3. ```pip3 install -r requirements.txt```
- 4. ```./bot.py```
+ 3. Install required packages with ```pip3 install -r requirements.txt```
+ 4. Set up databases with ```mysql -u root -p < makePEJdb.sql```
+ 5. Run with ```./bot.py```
+ 
+ ```bot.py``` has all cogs activated by default. Cogs can be deactivated by being commented out.
+ 
+ Individual cogs can also be installed to pre-existing bots as well.
+ 
+ # Usage
+ Default bot prefix is ```*```
+ Prefix can be changed in ```bot.py```
+ 
+ Type ```*help``` to get overview of installed cogs.
  
  # Contact
 Join the #cogs channel on my Discord server:
