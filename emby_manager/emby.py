@@ -17,13 +17,14 @@ import math
 import asyncio
 import random
 import string
+import time
 
 
 #Discord-to-Emby database credentials
-hostname = os.environ.get('DATABASE_HOST')
-port = os.environ.get('DATABASE_PORT')
-username = os.environ.get('DATABASE_USER')
-password = os.environ.get('DATABASE_PASS')
+dbhostname = os.environ.get('DATABASE_HOST')
+dbport = os.environ.get('DATABASE_PORT')
+dbusername = os.environ.get('DATABASE_USER')
+dbpassword = os.environ.get('DATABASE_PASS')
 database = 'EmbyDiscord'
 
 '''
@@ -83,72 +84,90 @@ VERBOSE_LOGGING = False
 
 class Emby(commands.Cog):
     def add_to_emby(self, username, discordId, note):
-        payload = {
-            "Name": username
-        }
-        r = json.loads(requests.post(EMBY_URL + "/Users/New?api_key=" + EMBY_KEY, json=payload).text)
-        #p = self.password(length=10)
-        #print(p)
-        Id = r['Id']
-        #r = requests.post(EMBY_URL + "/Users/" + str(Id) + "/Password?api_key=" + EMBY_KEY, json=payload) # CANNOT CURRENTLY SET PASSWORD FOR NEW USER
-        #print(r.status_code)
-        self.add_user_to_db(discordId, username, Id, note)
-        payload = {
-            "IsAdministrator": "false",
-            "IsHidden": "true",
-            "IsHiddenRemotely": "true",
-            "IsDisabled": "false",
-            "EnableRemoteControlOfOtherUsers": "false",
-            "EnableSharedDeviceControl": "false",
-            "EnableRemoteAccess": "true",
-            "EnableLiveTvManagement": "false",
-            "EnableLiveTvAccess": "false",
-            "EnableContentDeletion": "false",
-            "EnableSubtitleManagement": "false",
-            "EnableAllDevices": "true",
-            "EnableAllChannels": "false",
-            "EnablePublicSharing": "false",
-            "BlockedChannels": [
-                "IPTV",
-                "TVHeadEnd Recordings"
-            ]
-        }
-        return requests.post(EMBY_URL + "/Users/" + str(Id) + "/Policy?api_key=" + EMBY_KEY, json=payload).status_code
+        try:
+            payload = {
+                "Name": username
+            }
+            r = json.loads(requests.post(EMBY_URL + "/Users/New?api_key=" + EMBY_KEY, json=payload).text)
+            #p = self.password(length=10)
+            #print(p)
+            Id = r['Id']
+            #r = requests.post(EMBY_URL + "/Users/" + str(Id) + "/Password?api_key=" + EMBY_KEY, json=payload) # CANNOT CURRENTLY SET PASSWORD FOR NEW USER
+            #print(r.status_code)
+            self.add_user_to_db(discordId, username, Id, note)
+            #self.add_user_to_db(discordId, username, 'f36ddf47b06a460bb1045e6ad502d5fe', note)
+            payload = {
+                "IsAdministrator": "false",
+                "IsHidden": "true",
+                "IsHiddenRemotely": "true",
+                "IsDisabled": "false",
+                "EnableRemoteControlOfOtherUsers": "false",
+                "EnableSharedDeviceControl": "false",
+                "EnableRemoteAccess": "true",
+                "EnableLiveTvManagement": "false",
+                "EnableLiveTvAccess": "false",
+                "EnableContentDeletion": "false",
+                "EnableSubtitleManagement": "false",
+                "EnableAllDevices": "true",
+                "EnableAllChannels": "false",
+                "EnablePublicSharing": "false",
+                "BlockedChannels": [
+                    "IPTV",
+                    "TVHeadEnd Recordings"
+                ]
+            }
+            return requests.post(EMBY_URL + "/Users/" + str(Id) + "/Policy?api_key=" + EMBY_KEY, json=payload).status_code
+        except Exception as e:
+            print(e)
     
     def remove_from_emby(self, id):
         """
         Delete a Discord user from Emby
         """
-        embyId = self.find_user_in_db("Emby", id)
-        payload = {
-            "IsAdministrator": "false",
-            "IsHidden": "true",
-            "IsHiddenRemotely": "true",
-            "IsDisabled": "true",
-            "EnableRemoteControlOfOtherUsers": "false",
-            "EnableSharedDeviceControl": "false",
-            "EnableRemoteAccess": "true",
-            "EnableLiveTvManagement": "false",
-            "EnableLiveTvAccess": "false",
-            "EnableContentDeletion": "false",
-            "EnableSubtitleManagement": "false",
-            "EnableAllDevices": "true",
-            "EnableAllChannels": "false",
-            "EnablePublicSharing": "false",
-            "BlockedChannels": [
-                "IPTV",
-                "TVHeadEnd Recordings"
-            ]
-        }
-        #s = requests.post(EMBY_URL + "/Users/" + str(embyId) + "/Policy?api_key=" + EMBY_KEY, json=payload).status_code
-        # Doesn't delete user, instead makes deactive.
-        # Delete function not documented in Emby API, but exists in old Emby API and still works
-        s = requests.delete(EMBY_URL + "/Users/" + str(embyId) + "?api_key=" + EMBY_KEY).status_code
-        self.remove_user_from_db(id)
-        return s
+        try:
+            embyIds = self.find_user_in_db("Emby", id)
+            s = 200
+            if not embyIds:
+                s = 900
+            else:
+                status_codes = []
+                for embyId in embyIds:
+                    embyId = embyId[0]
+                    payload = {
+                        "IsAdministrator": "false",
+                        "IsHidden": "true",
+                        "IsHiddenRemotely": "true",
+                        "IsDisabled": "true",
+                        "EnableRemoteControlOfOtherUsers": "false",
+                        "EnableSharedDeviceControl": "false",
+                        "EnableRemoteAccess": "true",
+                        "EnableLiveTvManagement": "false",
+                        "EnableLiveTvAccess": "false",
+                        "EnableContentDeletion": "false",
+                        "EnableSubtitleManagement": "false",
+                        "EnableAllDevices": "true",
+                        "EnableAllChannels": "false",
+                        "EnablePublicSharing": "false",
+                        "BlockedChannels": [
+                            "IPTV",
+                            "TVHeadEnd Recordings"
+                        ]
+                    }
+                    #s = requests.post(EMBY_URL + "/Users/" + str(embyId) + "/Policy?api_key=" + EMBY_KEY, json=payload).status_code
+                    # Doesn't delete user, instead makes deactive.
+                    # Delete function not documented in Emby API, but exists in old Emby API and still works
+                    status_codes.append(requests.delete(EMBY_URL + "/Users/" + str(embyId) + "?api_key=" + EMBY_KEY).status_code)
+                self.remove_user_from_db(id)
+                for code in status_codes:
+                    if not str(code).startswith("2"):
+                        s = 700
+                        break
+            return s
+        except Exception as e:
+            print(e)
     
     def check_db(self, data, type):
-        conn = mysql.connector.connect(host=hostname,port=port,user=username,passwd=password,db=database)
+        conn = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
         response = ""
         if conn.is_connected():
             cur = conn.cursor(buffered=True)
@@ -162,21 +181,21 @@ class Emby(commands.Cog):
             return response
             
     def add_user_to_db(self, DiscordID, EmbyUsername, EmbyID, note):
-        myConnection = mysql.connector.connect(host=hostname,port=port,user=username,passwd=password,db=database)
+        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
         if myConnection.is_connected():
             cursor = myConnection.cursor(buffered=True)
             query = ""
             if note == 't':
-                query = "INSERT INTO users (DiscordID, EmbyUsername, EmbyID, ExpirationStamp, Note) VALUES ('" + str(DiscordID) + "','" + str(EmbyUsername) + "','" + str(EmbyID) + "','" + str(int(time.time()) + (3600 * TRIAL_LENGTH)) + "','" + str(note) + "')"
+                cursor.execute("INSERT INTO users (DiscordID, EmbyUsername, EmbyID, ExpirationStamp, Note) VALUES (%s, %s, %s, %s, %s)", (str(DiscordID), str(EmbyUsername), str(EmbyID), str(int(time.time()) + (3600 * TRIAL_LENGTH)), str(note)))
             else:
-                query = "INSERT INTO users (DiscordID, EmbyUsername, EmbyID, Note) VALUES ('" + str(DiscordID) + "','" + str(EmbyUsername) + "','" + str(EmbyID) + "','" + str(note) + "')"
+                cursor.execute("INSERT INTO users (DiscordID, EmbyUsername, EmbyID, Note) VALUES (%s, %s, %s, %s)", (DiscordID, EmbyUsername, EmbyID, note))
             cursor.execute(str(query))
             myConnection.commit()
             cursor.close()
             myConnection.close()
         
     def remove_user_from_db(self, id):
-        myConnection = mysql.connector.connect(host=hostname,port=port,user=username,passwd=password,db=database)
+        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
         if myConnection.is_connected():
             cursor = myConnection.cursor(buffered=True)
             cursor.execute(str("DELETE FROM users WHERE DiscordID = " + str(id)))
@@ -185,12 +204,12 @@ class Emby(commands.Cog):
             myConnection.close()
             
     def find_user_in_db(self, EmbyOrDiscord, data):
-        myConnection = mysql.connector.connect(host=hostname,port=port,user=username,passwd=password,db=database)
+        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
         if myConnection.is_connected():
             cursor = myConnection.cursor()
             query = "SELECT " + ("EmbyID" if EmbyOrDiscord == "Emby" else "DiscordID") + " FROM users WHERE " + ("DiscordID" if EmbyOrDiscord == "Emby" else "EmbyID") + " = '" + str(data) + "'"
             cursor.execute(str(query))
-            result = cursor.fetchone()[0]
+            result = cursor.fetchall()
             cursor.close()
             myConnection.close()
             return result
@@ -201,12 +220,10 @@ class Emby(commands.Cog):
         
     @tasks.loop(seconds=SUB_CHECK_TIME*(3600*24))
     async def check_subs(self):
-        myConnection = mysql.connector.connect(host=hostname,port=port,user=username,passwd=password,db=database)
-        #await self.log("Checking non-subscribers.", "v")
+        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
         cur = myConnection.cursor(buffered=True)
         query = "SELECT * FROM users"
         cur.execute(str(query))
-        ##await self.log("Database preview:\n" + str(cur.fetchall()))
         exemptRoles = []
         allRoles = self.bot.get_guild(SERVER_ID).roles
         for r in allRoles:
@@ -219,7 +236,7 @@ class Emby(commands.Cog):
         
     @tasks.loop(seconds=TRIAL_CHECK_FREQUENCY*60)
     async def check_trials(self):
-        myConnection = mysql.connector.connect(host=hostname,port=port,user=username,passwd=password,db=database)
+        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
         if myConnection.is_connected():
             cur = myConnection.cursor(buffered=True)
             query = "SELECT DiscordID FROM users WHERE ExpirationStamp<=" + str(int(time.time())) + " AND Note = 't'";
@@ -252,7 +269,7 @@ class Emby(commands.Cog):
     #def request(self, cmd, params):
     #    return json.loads(requests.get(EMBY_URL + "/" + cmd + "?apikey=" + TAUTULLI_API_KEY + "&" + str(params) + "&cmd=" + str(cmd)).text if params != None else requests.get(TAUTULLI_BASE_URL + "/api/v2?apikey=" + TAUTULLI_API_KEY + "&cmd=" + str(cmd)).text)
     
-    @commands.group(aliases=["Emby", "em", "EM"], pass_context=True)
+    @commands.group(aliases=["Emby", "jf", "JF"], pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
     async def emby(self, ctx: commands.Context):
         """
@@ -287,9 +304,13 @@ class Emby(commands.Cog):
         """
         Delete a Discord user from Emby
         """
-        s = await self.remove_from_emby(user.id)
+        s = self.remove_from_emby(user.id)
         if str(s).startswith("2"):
             await ctx.send("You've been removed from " + str(SERVER_NICKNAME) + ", " + user.mention + ".")
+        elif str(s).startswith("7"):
+            await ctx.send("Not all accounts for " + user.mention + " were successfully removed.")
+        elif str(s).startswith("9"):
+            await ctx.send("There are no accounts for " + user.mention)
         else:
             await ctx.send("An error occurred while removing " + user.mention)
             
@@ -300,12 +321,12 @@ class Emby(commands.Cog):
     @emby.command(name="trial")
     @commands.has_role(ADMIN_ROLE_NAME)
     async def emby_trial(self, ctx: commands.Context, user: discord.Member, EmbyUsername: str):
-        s = await self.add_to_emby(EmbyUsername, user.id, 't')
+        s = self.add_to_emby(EmbyUsername, user.id, 't')
         if str(s).startswith("2"):
             await user.create_dm()
-            await user.dm_channel.send("You have been granted a " + str(TRIAL_LENGTH) + "-hour trial to " + str(SERVER_NICKNAME) + "!\n" +
-                                       "Hostname: " + str(EMBY_URL) + "\n" +
-                                       "Username: " + str(username) + "\n" +
+            await user.dm_channel.send("You have been granted a " + str(TRIAL_LENGTH) + "-hour trial to " + SERVER_NICKNAME + "!\n" +
+                                       "Hostname: " + EMBY_URL + "\n" +
+                                       "Username: " + EmbyUsername + "\n" +
                                        "Leave password blank on first login, but please secure your account by setting a password.\n" + 
                                        "Have fun!")
             await ctx.send("Your trial of " + str(SERVER_NICKNAME) + " has begun, " + user.mention + "! Please check your direct messages for login information.")
