@@ -439,7 +439,7 @@ class PlexManager(commands.Cog):
         
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
-        if reaction.emoji.name == approvedEmojiName and user.id in ADMIN_ID and REACT_TO_ADD: #Add user to Plex and Tautulli
+        if (REACT_TO_ADD) and (reaction.emoji.name == approvedEmojiName) and (user.id in ADMIN_ID): #Add user to Plex and Tautulli
             plexname = reaction.message.content.strip() #Only include username, nothing else
             #await self.log("Adding " + str(plexname), "v")
             await reaction.message.channel.send("Adding " + plexname + ". Please wait about 60 seconds...")
@@ -466,7 +466,7 @@ class PlexManager(commands.Cog):
 
     @commands.Cog.listener()
     async def on_reaction_remove(self, reaction, user):
-        if reaction.emoji.name == approvedEmojiName and user.name in ADMIN_USERNAME and REACT_TO_ADD: #Listen for users removed
+        if (REACT_TO_ADD) and (reaction.emoji.name == approvedEmojiName) and (user.name in ADMIN_USERNAME): #Listen for users removed
             plexname = reaction.message.content.strip() #Only include username, nothing else
             await self.delete_from_plex(plexname)
             await reaction.message.channel.send(reaction.message.author.mention + " (" + plexname + "), you have been removed from " + PLEX_SERVER_NAME + ". To appeal this removal, please send a Direct Message to <@" + ADMIN_ID + ">")
