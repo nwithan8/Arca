@@ -321,6 +321,9 @@ class Jellyfin(commands.Cog):
     @jellyfin.command(name="trial")
     @commands.has_role(ADMIN_ROLE_NAME)
     async def jellyfin_trial(self, ctx: commands.Context, user: discord.Member, JellyfinUsername: str):
+                """
+        Start a trial of Jellyfin
+        """
         s = self.add_to_jellyfin(JellyfinUsername, user.id, 't')
         if str(s).startswith("2"):
             await user.create_dm()

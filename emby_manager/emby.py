@@ -321,6 +321,9 @@ class Emby(commands.Cog):
     @emby.command(name="trial")
     @commands.has_role(ADMIN_ROLE_NAME)
     async def emby_trial(self, ctx: commands.Context, user: discord.Member, EmbyUsername: str):
+        """
+        Start a trial of Emby
+        """
         s = self.add_to_emby(EmbyUsername, user.id, 't')
         if str(s).startswith("2"):
             await user.create_dm()
