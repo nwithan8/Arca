@@ -51,6 +51,14 @@ class Plex(commands.Cog):
     def request(self, cmd, params):
         return json.loads(requests.get(TAUTULLI_BASE_URL + "/api/v2?apikey=" + TAUTULLI_API_KEY + "&" + str(params) + "&cmd=" + str(cmd)).text if params != None else requests.get(TAUTULLI_BASE_URL + "/api/v2?apikey=" + TAUTULLI_API_KEY + "&cmd=" + str(cmd)).text)
     
+    def filesize(self, size):
+        pf = ['Byte','Kilobyte','Megabyte','Gigabyte','Terabyte','Petabyte','Exabyte','Zettabyte','Yottabyte']
+        i = 0
+        while size > 1024:
+            i+=1
+            size/= 1024
+        return "{:.2f}".format(size) + " " + pf[i] + ("s" if size != 1 else "")
+    
     def getposter(self, att, title):
         try:
             att.set_image(url=str(imdbf.get_title(imdb.search_for_title(title)[0]['imdb_id']).image.url))
@@ -222,13 +230,18 @@ class Plex(commands.Cog):
         Size of Plex libraries
         """
         embed = discord.Embed(title=SERVER_NICKNAME + " Library Statistics")
+        size = 0
         for l in self.request("get_libraries",None)['response']['data']:
             if l['section_type'] == 'movie':
+                size = size + self.request("get_library_media_info","section_id="+str(l['section_id']))['response']['data']['total_file_size']
                 embed.add_field(name=str(l['count']) + " movies",value=str(l['section_name']),inline=False)
             elif l['section_type'] == 'show':
+                size = size + self.request("get_library_media_info","section_id="+str(l['section_id']))['response']['data']['total_file_size']
                 embed.add_field(name=str(l['count']) + " shows, " + str(l['parent_count']) + " seasons, " + str(l['child_count']) + " episodes",value=str(l['section_name']),inline=False)
             elif l['section_type'] == 'artist':
+                size = size + self.request("get_library_media_info","section_id="+str(l['section_id']))['response']['data']['total_file_size']
                 embed.add_field(name=str(l['count']) + " artists, " + str(l['parent_count']) + " albums, " + str(l['child_count']) + " songs",value=str(l['section_name']),inline=False)
+        embed.add_field(name='\u200b',value="Total: "+self.filesize(size))
         await ctx.send(embed=embed)
         
     @plex.command(name="top", aliases=["pop"], pass_context=True)
