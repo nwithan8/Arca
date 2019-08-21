@@ -23,6 +23,8 @@ PLEX_TOKEN = os.environ.get('PLEX_TOKEN')
 PLEX_SERVER_ID = os.environ.get('PLEX_SERVER_ID') #after "/server/" in browser UI URL
 SERVER_NICKNAME = os.environ.get('PLEX_SERVER_NAME')
 
+ADMIN_ROLE_NAME="Admin"
+
 #http://[PMS_IP_Address]:32400/library/sections?X-Plex-Token=YourTokenGoesHere
 #Use the above link to find the number for each library: composite="/library/sections/NUMBER/composite/..."
 MOVIE_LIBRARY = 1 #Might be different for your Plex library
@@ -214,7 +216,7 @@ class Plex(commands.Cog):
     async def plex_stats_error(self, ctx, error):
         await ctx.send("Please include a Plex username")
 
-    @plex.command(name="size", pass_context=True)
+    @plex.command(name="size", aliases=["library"], pass_context=True)
     async def plex_size(self, ctx: commands.Context):
         """
         Size of Plex libraries
@@ -274,7 +276,7 @@ class Plex(commands.Cog):
         await ctx.send("Please include <movies|shows|artists|users> <timeFrame>")
     
     @plex.command(name="current",aliases=["now"],hidden=True,pass_context=True)
-    @commands.has_role("Admin")
+    @commands.has_role(ADMIN_ROLE_NAME)
     async def plex_now(self, ctx: commands.Context):
         """
         Current Plex activity
