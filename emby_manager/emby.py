@@ -319,7 +319,6 @@ class Emby(commands.Cog):
         await ctx.send("Please mention the Discord user to remove from Emby.")
         
     @emby.command(name="trial")
-    @commands.has_role(ADMIN_ROLE_NAME)
     async def emby_trial(self, ctx: commands.Context, user: discord.Member, EmbyUsername: str):
         """
         Start a trial of Emby
@@ -337,7 +336,7 @@ class Emby(commands.Cog):
             await ctx.send("An error occurred while starting a trial for " + user.mention)
             
     @emby_trial.error
-    async def pm_trial_error(self, ctx, error):
+    async def emby_trial_error(self, ctx, error):
         await ctx.send("Please mention the Discord user to add to Emby, as well as their Emby username.")
             
     @emby.command(name="count", aliases=["subs","number"], pass_context=True)

@@ -319,7 +319,6 @@ class Jellyfin(commands.Cog):
         await ctx.send("Please mention the Discord user to remove from Jellyfin.")
         
     @jellyfin.command(name="trial")
-    @commands.has_role(ADMIN_ROLE_NAME)
     async def jellyfin_trial(self, ctx: commands.Context, user: discord.Member, JellyfinUsername: str):
         """
         Start a trial of Jellyfin
