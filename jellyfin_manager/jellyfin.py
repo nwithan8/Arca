@@ -171,7 +171,7 @@ class Jellyfin(commands.Cog):
         response = ""
         if conn.is_connected():
             cur = conn.cursor(buffered=True)
-            query = "SELECT * FROM regular_users WHERE " + ("DiscordID" if type == "Discord" else "JellyfinUsername") + " = " + str(data)
+            query = "SELECT * FROM users WHERE " + ("DiscordID" if type == "Discord" else "JellyfinUsername") + " = " + str(data)
             cur.execute(query)
             for el in cur.fetchone:
                 for i in range(0, len(cur.description)):
@@ -337,7 +337,7 @@ class Jellyfin(commands.Cog):
             await ctx.send("An error occurred while starting a trial for " + user.mention)
             
     @jellyfin_trial.error
-    async def pm_trial_error(self, ctx, error):
+    async def jellyfin_trial_error(self, ctx, error):
         await ctx.send("Please mention the Discord user to add to Jellyfin, as well as their Jellyfin username.")
             
     @jellyfin.command(name="count", aliases=["subs","number"], pass_context=True)
