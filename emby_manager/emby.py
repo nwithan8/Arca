@@ -171,7 +171,7 @@ class Emby(commands.Cog):
         response = ""
         if conn.is_connected():
             cur = conn.cursor(buffered=True)
-            query = "SELECT * FROM regular_users WHERE " + ("DiscordID" if type == "Discord" else "EmbyUsername") + " = " + str(data)
+            query = "SELECT * FROM users WHERE " + ("DiscordID" if type == "Discord" else "EmbyUsername") + " = " + str(data)
             cur.execute(query)
             for el in cur.fetchone:
                 for i in range(0, len(cur.description)):
