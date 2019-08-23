@@ -20,10 +20,10 @@ import sys, traceback, os
 
 
 # Discord-to-Plex database credentials
-hostname = os.environ.get('DATABASE_HOST')
-port = os.environ.get('DATABASE_PORT')
-username = os.environ.get('DATABASE_USER')
-password = os.environ.get('DATABASE_PASS')
+dbhostname = os.environ.get('DATABASE_HOST')
+dbport = os.environ.get('DATABASE_PORT')
+dbusername = os.environ.get('DATABASE_USER')
+dbpassword = os.environ.get('DATABASE_PASS')
 database = 'PlexDiscord'
 
 # Plex Server settings
@@ -108,43 +108,29 @@ class PlexManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
                 
-    async def t_request(self, cmd, params):
+    def t_request(self, cmd, params):
         return json.loads(requests.get(os.environ.get('TAUTULLI_URL') + "/api/v2?apikey=" + os.environ.get('TAUTULLI_KEY') + "&cmd=" + str(cmd) + (("&" + str(params)) if params != None else "")).text)
     
-    async def log(self, log_message, logType):
-        if VERBOSE_LOGGING == True:
-            print(log_message)
-            vl_channel = self.bot.get_channel(VERBOSE_LOG_CHANNEL_ID)
-            await vl_channel.send(log_message)
-            #await vlogChannel.send(log_message)
-        if (FRIENDLY_LOGGING == True) and (logType == "f"):
-            fl_channel = self.bot.get_channel(FRIENDLY_LOG_CHANNEL_ID)
-            await fl_channel.send(log_message)
-            #await flogChannel.send(log_message)
-    
-    async def add_to_tautulli(self, plexname):
+    def add_to_tautulli(self, plexname):
         if USE_TAUTULLI == False:
             pass
         else:
-            response = await self.t_request("refresh_users_list",None)
-            #await self.log(str(plexname) + " added to Tautulli.", "v")
+            response = self.t_request("refresh_users_list",None)
         
-    async def delete_from_tautulli(self, plexname):
-        if USE_TAUTULLI == False:
+    def delete_from_tautulli(self, plexname):
+        if not USE_TAUTULLI:
             pass
         else:
-            response = await self.t_request("delete_user","user_id=" + str(plexname))
+            response = self.t_request("delete_user","user_id=" + str(plexname))
             #requests.get(TAUTULLI_URL + "delete_user&user_id=" + str(plexname))
-            #await self.log(str(plexname) + " removed from Tautulli.", "v")
         
-    async def add_to_ombi(self, plexname):
+    def add_to_ombi(self, plexname):
         if USE_OMBI == False:
             pass
         else:
             requests.post(ombi_import,headers=ombi_headers)
-            #await self.log(str(plexname) + " added to Ombi.", "v")
 
-    async def delete_from_ombi(self, plexname):
+    def delete_from_ombi(self, plexname):
         if USE_OMBI == False:
             pass
         else:
@@ -155,40 +141,56 @@ class PlexManager(commands.Cog):
                     id = i['id']
             delete = str(ombi_delete) + str(id)
             requests.delete(delete, headers=ombi_headers)
-            #await self.log(str(plexname) + " removed from Ombi.", "v")
 
-    async def add_to_plex(self, plexname):
-        plex.myPlexAccount().inviteFriend(user=plexname,server=plex,sections=None, allowSync=False, allowCameraUpload=False, allowChannels=False, filterMovies=None, filterTelevision=None, filterMusic=None)
-        #await self.log(str(plexname) + " added to Plex.", "v")
-        asyncio.sleep(60)
-        await self.add_to_tautulli(plexname)
-        await self.add_to_ombi(plexname)
-        
-    async def delete_from_plex(self, plexname):
-        #await self.log("Removing " + plexname + " from Plex.", "v")
+    def add_to_plex(self, plexname, discordId, note):
         try:
+            plex.myPlexAccount().inviteFriend(user=plexname,server=plex,sections=None, allowSync=False, allowCameraUpload=False, allowChannels=False, filterMovies=None, filterTelevision=None, filterMusic=None)
+            self.add_plex_user_to_db(discordId, plexname, note)
+            asyncio.sleep(60)
+            self.add_to_tautulli(plexname)
+            if note != 't': # Trial members do not have access to Ombi
+                self.add_to_ombi(plexname)
+            return True
+        except Exception as e:
+            return False
+        
+    def delete_from_plex(self, id):
+        try:
+            plexname, note = self.find_user_in_db("Plex",id)
             plex.myPlexAccount().removeFriend(user=plexname)
-            #await self.log(str(plexname) + " removed from Plex.", "v")
+            if note != 't':
+                self.delete_from_ombi(plexname) # Error if trying to remove trial user that doesn't exist in Ombi?
+            self.delete_from_tautulli(plexname)
+            self.remove_user_from_db(id)
+            return True
         except plexapi.exceptions.NotFound:
-            print("Not removed.")
-            #await self.log(plexname + " not removed because not a current " + PLEX_SERVER_NAME + " user.", "v")
-            
-    async def check_db(self, data, type):
-        conn = mysql.connector.connect(host=hostname,port=port,user=username,passwd=password,db=database)
+            return False
+        
+    def describe_table(self, table):
+        conn = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
         response = ""
         if conn.is_connected():
             cur = conn.cursor(buffered=True)
-            query = "SELECT * FROM regular_users WHERE " + ("DiscordID" if type == "Discord" else "PlexUsername") + " = " + str(data)
+            cur.execute("DESCRIBE " + str(table))
+            response = cur.fetchall()
+            cur.close()
+            conn.close()
+            return response
+            
+    def pull_user_from_db(self, type, data):
+        conn = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
+        response = ""
+        if conn.is_connected():
+            cur = conn.cursor(buffered=True)
+            query = "SELECT * FROM users WHERE " + ("DiscordID" if type == "Discord" else "PlexUsername") + " = '" + str(data) + "'"
             cur.execute(query)
-            for el in cur.fetchone:
-                for i in range(0, len(cur.description)):
-                    response = response + cur.description[i][0] + " " + el[i] + "\n"
+            response = cur.fetchone()
             cur.close()
             conn.close()
             return response
 
-    async def add_user_to_db(self, discordId, plexUsername, note):
-        myConnection = mysql.connector.connect(host=hostname,port=port,user=username,passwd=password,db=database)
+    def add_user_to_db(self, discordId, plexUsername, note):
+        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
         if myConnection.is_connected():
             cursor = myConnection.cursor(buffered=True)
             query = ""
@@ -200,9 +202,9 @@ class PlexManager(commands.Cog):
             myConnection.commit()
             cursor.close()
             myConnection.close()
-        
-    async def remove_user_from_db(self, id):
-        myConnection = mysql.connector.connect(host=hostname,port=port,user=username,passwd=password,db=database)
+            
+    def remove_user_from_db(self, id):
+        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
         if myConnection.is_connected():
             cursor = myConnection.cursor(buffered=True)
             cursor.execute(str("DELETE FROM users WHERE DiscordID = " + str(id)))
@@ -210,20 +212,23 @@ class PlexManager(commands.Cog):
             cursor.close()
             myConnection.close()
             
-    async def find_user_in_db(self, PlexOrDiscord, data):
-        myConnection = mysql.connector.connect(host=hostname,port=port,user=username,passwd=password,db=database)
+    def find_user_in_db(self, PlexOrDiscord, data):
+        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
         if myConnection.is_connected():
             cursor = myConnection.cursor()
-            query = "SELECT " + ("PlexUsername" if PlexOrDiscord == "Plex" else "DiscordID") + " FROM users WHERE " + ("DiscordID" if PlexOrDiscord == "Plex" else "PlexUsername") + " = '" + str(data) + "'"
+            query = "SELECT " + ("PlexUsername, Note" if PlexOrDiscord == "Plex" else "DiscordID") + " FROM users WHERE " + ("DiscordID" if PlexOrDiscord == "Plex" else "PlexUsername") + " = '" + str(data) + "'"
             cursor.execute(str(query))
-            result = cursor.fetchone()[0]
+            results = cursor.fetchone()
             cursor.close()
             myConnection.close()
-            return result
+            if PlexOrDiscord == "Plex":
+                return results[0], results[1]
+            else:
+                return results[0]
         
     async def purge_winners(self, ctx):
         try:
-            myConnection = mysql.connector.connect(host=hostname,port=port,user=username,passwd=password,db=database)
+            myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
             monitorlist = []
             if myConnection.is_connected():
                 cur = myConnection.cursor()
@@ -233,38 +238,31 @@ class PlexManager(commands.Cog):
                 cur.close()
                 myConnection.close()
                 print(monitorlist)
-                data = await self.t_request("get_users_table","length=1000")
+                data = self.t_request("get_users_table","length=1000")
                 removed_list = ""
                 for i in data['response']['data']['data']:
                     try:
                         if str(i['friendly_name']) in monitorlist:
                             #print(i['friendly_name'] + " is in the monitor list, checking...")
-                            PlexUsername = (await self.t_request("get_user","user_id="+str(i['user_id'])))['response']['data']['username']
+                            PlexUsername = (self.t_request("get_user","user_id="+str(i['user_id'])))['response']['data']['username']
                             print(PlexUsername)
                             if i['duration'] is None:
-                                #await self.log(str(i['friendly_name']) + " has not played anything. Pruning " + str(i['friendly_name']), "v")
-                                mention_id = await self.remove_winner(str(PlexUsername), ctx)
+                                mention_id = self.remove_winner(str(PlexUsername), ctx)
                                 removed_list = removed_list + (mention_id if mention_id != None else "")
                             elif i['last_seen'] is None:
-                                #await self.log(str(i['friendly_name']) + " has never been seen. Pruning " + str(i['friendly_name']), "v")
-                                mention_id = await self.remove_winner(str(PlexUsername),ctx)
+                                mention_id = self.remove_winner(str(PlexUsername),ctx)
                                 removed_list = removed_list + (mention_id if mention_id != None else "")
                             elif i['duration']/3600 < WINNER_THRESHOLD:
-                                #await self.log(str(i['friendly_name']) + " has watched less than " + str(WINNER_THRESHOLD) + " hours of content. Pruning " + str(i['friendly_name']), "v")
-                                mention_id = await self.remove_winner(str(PlexUsername),ctx)
+                                mention_id = self.remove_winner(str(PlexUsername),ctx)
                                 removed_list = removed_list + (mention_id if mention_id != None else "")
                             elif time.time()-i['last_seen'] > 1209600:
-                                #await self.log(str(i['friendly_name']) + " has not been seen in two weeks. Pruning " + str(i['friendly_name']), "v")
-                                mention_id = await self.remove_winner(str(PlexUsername),ctx)
+                                mention_id = self.remove_winner(str(PlexUsername),ctx)
                                 removed_list = removed_list + (mention_id if mention_id != None else "")
                             else:
                                 print(PlexUsername + " has met the requirements")
-                                #await self.log(str(i['friendly_name']) + " has met the requirements. Not pruned.", "v")
                     except Exception as e:
                         print(e)
-                        #await self.log(str(e), "v")
                 if removed_list != "":
-                    #print(removed_list)
                     await ctx.send(removed_list + "You have been removed as a Winner due to inactivity.")
                 else:
                     await ctx.send("No winners purged.")
@@ -276,33 +274,29 @@ class PlexManager(commands.Cog):
     ##### MAKE EDITS WHEN DEPLOYING #####
     async def remove_winner(self, username,ctx):
         #self.delete_from_plex(username)
-        id = await self.find_user_in_db("Discord", username)
+        id = self.find_user_in_db("Discord", username)
         if id != None:
             user = ctx.message.server.get_member(id)
             #await user.create_dm()
             #await user.dm_channel.send("You have been removed from " + str(PLEX_SERVER_NAME) + " due to inactivity.")
             #await user.remove_roles(discord.utils.get(self.bot.get_guild(SERVER_ID).roles, name="Winner"), reason="Inactive winner")
-            #await self.remove_user_from_db(id)
+            self.remove_user_from_db(id)
             return "<@" + id + ">, "
         else:
-            #print("Error trying to remove Winner role from " + str(username))
-            #await self.log("Error trying to remove Winner role from " + str(username), "v")
             return None
     
     async def remove_nonsub(self, memberID):
         if memberID not in exemptsubs:
-            plexUsername = await self.find_user_in_db("Plex", memberID)
+            plexUsername, note = self.find_user_in_db("Plex", memberID)
             self.delete_from_plex(plexname)
             self.delete_from_ombi(plexname)
     
     @tasks.loop(seconds=SUB_CHECK_TIME*(3600*24))
     async def check_subs(self):
-        myConnection = mysql.connector.connect(host=hostname,port=port,user=username,passwd=password,db=database)
-        #await self.log("Checking non-subscribers.", "v")
+        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
         cur = myConnection.cursor(buffered=True)
         query = "SELECT * FROM users"
         cur.execute(str(query))
-        ##await self.log("Database preview:\n" + str(cur.fetchall()))
         exemptRoles = []
         allRoles = self.bot.get_guild(SERVER_ID).roles
         for r in allRoles:
@@ -315,20 +309,20 @@ class PlexManager(commands.Cog):
         
     @tasks.loop(seconds=TRIAL_CHECK_FREQUENCY*60)
     async def check_trials(self):
-        myConnection = mysql.connector.connect(host=hostname,port=port,user=username,passwd=password,db=database)
+        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
         if myConnection.is_connected():
             cur = myConnection.cursor(buffered=True)
             query = "SELECT PlexUsername, DiscordID FROM users WHERE ExpirationStamp<=" + str(int(time.time())) + " AND Note = 't'";
             cur.execute(str(query))
             trial_role = discord.utils.get(self.bot.get_guild(SERVER_ID).roles, name=TRIAL_ROLE_NAME)
             for u in cur:
-                await self.delete_from_plex(u[0])
-                await self.delete_from_tautulli(u[0])
+                self.delete_from_plex(u[0])
+                self.delete_from_tautulli(u[0])
                 user = self.bot.get_guild(SERVER_ID).get_member(u[1])
                 await user.create_dm()
                 await user.dm_channel.send(TRIAL_END_NOTIFICATION)
                 await user.remove_roles(trial_role, reason="Trial has ended.")
-                await self.remove_user_from_db(u[1])
+                self.remove_user_from_db(u[1])
             cur.close()
             myConnection.close()
         
@@ -372,7 +366,7 @@ class PlexManager(commands.Cog):
         """
         Add a Discord user to Plex
         """
-        if REACT_TO_ADD == False:
+        if not REACT_TO_ADD:
             await ctx.send('Adding ' + PlexUsername + ' to Plex. Please wait about 60 seconds...')
             try:
                 winner_role = discord.utils.get(ctx.message.guild.roles, name=WINNER_ROLE_NAME)
@@ -401,8 +395,8 @@ class PlexManager(commands.Cog):
         """
         Remove a Discord user from Plex
         """
-        if REACT_TO_ADD == False:
-            plexUsername = await self.find_user_in_db("Plex",user.id)
+        if not REACT_TO_ADD:
+            plexUsername, note = await self.find_user_in_db("Plex",user.id)
             await self.delete_from_plex(plexUsername)
             await remove_user_from_db(user.id)
             role = discord.utils.get(ctx.message.guild.roles, name=afterApprovedRoleName)
@@ -418,6 +412,9 @@ class PlexManager(commands.Cog):
     @pm.command(name="trial")
     @commands.has_role(ADMIN_ROLE_NAME)
     async def pm_trial(self, ctx: commands.Context, user: discord.Member, PlexUsername: str):
+        """
+        Start a Plex trial
+        """
         await ctx.send('Starting ' + PLEX_SERVER_NAME + ' trial for ' + PlexUsername + '. Please wait about 60 seconds...')
         try:
             plex.myPlexAccount().inviteFriend(user=PlexUsername,server=plex,sections=None, allowSync=False, allowCameraUpload=False, allowChannels=False, filterMovies=None, filterTelevision=None, filterMusic=None)
@@ -435,13 +432,91 @@ class PlexManager(commands.Cog):
     @pm_trial.error
     async def pm_trial_error(self, ctx, error):
         await ctx.send("Please mention the Discord user to add to Plex, as well as their Plex username.")
+        
+    @pm.group(name="find", aliases=["id"], pass_context=True)
+    @commands.has_role(ADMIN_ROLE_NAME)
+    async def pm_find(self, ctx: commands.Context):
+        """
+        Find Discord or Plex user
+        """
+        if ctx.invoked_subcommand is None:
+            await ctx.send("What subcommand?")
+        
+    @pm_find.command(name="plex", aliases=["p"])
+    async def pm_find_plex(self, ctx: commands.Context, user: discord.Member):
+        """
+        Find Discord member's Plex username
+        """
+        name, note = self.find_user_in_db("Plex", user.id)
+        await ctx.send(user.mention + " is Plex user: " + name + (" [Trial]" if note == 't' else " [Subscriber]"))
+        
+    @pm_find.command(name="discord", aliases=["d"])
+    async def pm_find_discord(self, ctx: commands.Context, PlexUsername: str):
+        """
+        Find Plex user's Discord name
+        """
+        id = self.find_user_in_db("Discord", PlexUsername)
+        await ctx.send(PlexUsername + " is Discord user: " + self.bot.get_user(int(id)).mention)
             
+    @pm_find.error
+    async def pm_find_error(self, ctx, error):
+        await ctx.send("User not found.")
+            
+    @pm.group(name="info")
+    async def pm_info(self, ctx: commands.Context):
+        """
+        Get database entry for a user
+        """
+        if ctx.invoked_subcommand is None:
+            await ctx.send("What subcommand?")
+            
+    @pm_info.command(name="plex", aliases=["p", "P"])
+    @commands.has_role(ADMIN_ROLE_NAME)
+    async def pm_info_plex(self, ctx, PlexUsername: str):
+        """
+        Get database entry for Plex username
+        """
+        embed = discord.Embed(title=("Info for " + str(PlexUsername)))
+        n = self.describe_table("users")
+        d = self.pull_user_from_db("Plex", PlexUsername)
+        for i in range(0,len(n)):
+            val=str(d[i])
+            if str(n[i][0]) == "DiscordID":
+                val=val+" ("+self.bot.get_user(int(d[i])).mention+")"
+            if str(n[i][0]) == "Note":
+                val=("Trial" if d[i] == 't' else "Subscriber")
+            if d[i] != None:
+                embed.add_field(name=str(n[i][0]),value=val,inline=False)
+        await ctx.send(embed=embed)
+        
+    @pm_info.command(name="discord", aliases=["d","D"])
+    @commands.has_role(ADMIN_ROLE_NAME)
+    async def pm_info_discord(self, ctx, user: discord.Member):
+        """
+        Get database entry for Discord user
+        """
+        embed = discord.Embed(title=("Info for " + user.name))
+        n = self.describe_table("users")
+        d = self.pull_user_from_db("Discord", user.id)
+        for i in range(0,len(n)):
+            name=str(n[i][0])
+            val=str(d[i])
+            if str(n[i][0]) == "DiscordID":
+                val=val+" ("+self.bot.get_user(int(d[i])).mention+")"
+            if str(n[i][0]) == "Note":
+                val=("Trial" if d[i] == 't' else "Subscriber")
+            if d[i] != None:
+                embed.add_field(name=str(n[i][0]),value=val,inline=False)
+        await ctx.send(embed=embed)
+        
+    @pm_info.error
+    async def pm_info_error(self, ctx, error):
+        await ctx.send("User not found.")
         
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
         if (REACT_TO_ADD) and (reaction.emoji.name == approvedEmojiName) and (user.id in ADMIN_ID): #Add user to Plex and Tautulli
             plexname = reaction.message.content.strip() #Only include username, nothing else
-            #await self.log("Adding " + str(plexname), "v")
             await reaction.message.channel.send("Adding " + plexname + ". Please wait about 60 seconds...")
             try:
                 winner_role = discord.utils.get(reaction.message.guild.roles, name=WINNER_ROLE_NAME)
@@ -454,15 +529,12 @@ class PlexManager(commands.Cog):
                     await self.add_user_to_db(reaction.message.author.id, plexname, 'w')
                 else:
                     await self.add_user_to_db(reaction.message.author.id, plexname, 's')
-                #await self.log("Discord user " + reaction.message.author.name + " (ID: " + str(reaction.message.author.id) + ") is Plex user " + plexname, "v")
                 member = reaction.message.author
                 role = discord.utils.get(reaction.message.guild.roles, name=afterApprovedRoleName)
                 await member.add_roles(role, reason="Access membership channels")
-                #await self.log("Added " + afterApprovedRoleName + " role to " + str(member.name), "v")
                 await reaction.message.channel.send(member.mention + " You've been invited, " + plexname + ". Welcome to " + PLEX_SERVER_NAME + "!")
             except plexapi.exceptions.BadRequest:
                 await reaction.message.channel.send(reaction.message.author.mention + ", " + plexname + " is not a valid Plex username.")
-                #await self.log(str(plexname) + " is not a valid Plex username.", "v")
 
     @commands.Cog.listener()
     async def on_reaction_remove(self, reaction, user):
