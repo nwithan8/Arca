@@ -142,16 +142,17 @@ class PlexManager(commands.Cog):
             delete = str(ombi_delete) + str(id)
             requests.delete(delete, headers=ombi_headers)
 
-    def add_to_plex(self, plexname, discordId, note):
+    async def add_to_plex(self, plexname, discordId, note):
         try:
             plex.myPlexAccount().inviteFriend(user=plexname,server=plex,sections=None, allowSync=False, allowCameraUpload=False, allowChannels=False, filterMovies=None, filterTelevision=None, filterMusic=None)
-            self.add_plex_user_to_db(discordId, plexname, note)
-            asyncio.sleep(60)
+            self.add_user_to_db(discordId, plexname, note)
+            await asyncio.sleep(60)
             self.add_to_tautulli(plexname)
             if note != 't': # Trial members do not have access to Ombi
                 self.add_to_ombi(plexname)
             return True
         except Exception as e:
+            print(e)
             return False
         
     def delete_from_plex(self, id):
@@ -296,9 +297,7 @@ class PlexManager(commands.Cog):
            
     def remove_nonsub(self, memberID):
         if memberID not in exemptsubs:
-            plexUsername, note = self.find_user_in_db("Plex", memberID)
-            self.delete_from_plex(plexname)
-            self.delete_from_ombi(plexname)
+            self.delete_from_plex(memberID)
     
     @tasks.loop(seconds=SUB_CHECK_TIME*(3600*24))
     async def check_subs(self):
@@ -376,17 +375,20 @@ class PlexManager(commands.Cog):
         Add a Discord user to Plex
         """
         if not REACT_TO_ADD:
+            added = False
             await ctx.send('Adding ' + PlexUsername + ' to Plex. Please wait about 60 seconds...')
             try:
                 winner_role = discord.utils.get(ctx.message.guild.roles, name=WINNER_ROLE_NAME)
-                await self.add_to_plex(PlexUsername)
                 if winner_role in user.roles:
-                    await self.add_user_to_db(user.id, PlexUsername, 'w')
+                    added = await self.add_to_plex(PlexUsername, user.id, 'w')
                 else:
-                    await self.add_user_to_db(user.id, PlexUsername, 's')
-                role = discord.utils.get(ctx.message.guild.roles, name=afterApprovedRoleName)
-                await user.add_roles(role, reason="Access membership channels")
-                await ctx.send(user.mention + " You've been invited, " + PlexUsername + ". Welcome to " + PLEX_SERVER_NAME + "!")
+                    added = await self.add_to_plex(PlexUsername, user.id, 's')
+                if added:
+                    role = discord.utils.get(ctx.message.guild.roles, name=afterApprovedRoleName)
+                    await user.add_roles(role, reason="Access membership channels")
+                    await ctx.send(user.mention + " You've been invited, " + PlexUsername + ". Welcome to " + PLEX_SERVER_NAME + "!")
+                else:
+                    await ctx.send(user.name + " could not be added to Plex.")
             except plexapi.exceptions.BadRequest:
                 await ctx.send(PlexUsername + " is not a valid Plex username.")
         else:
@@ -394,6 +396,7 @@ class PlexManager(commands.Cog):
             
     @pm_add.error
     async def pm_add_error(self, ctx, error):
+        print(error)
         await ctx.send("Please mention the Discord user to add to Plex, as well as their Plex username.")
             
     @pm.command(name="remove",alias=["uninvite","delete","rem"])
@@ -403,9 +406,9 @@ class PlexManager(commands.Cog):
         Remove a Discord user from Plex
         """
         if not REACT_TO_ADD:
-            plexUsername, note = await self.find_user_in_db("Plex",user.id)
-            await self.delete_from_plex(plexUsername)
-            await remove_user_from_db(user.id)
+            plexUsername, note = self.find_user_in_db("Plex",user.id)
+            self.delete_from_plex(plexUsername)
+            self.remove_user_from_db(user.id)
             role = discord.utils.get(ctx.message.guild.roles, name=afterApprovedRoleName)
             await user.remove_roles(role, reason="Removed from Plex")
             await ctx.send("You've been removed from " + PLEX_SERVER_NAME + ", " + user.mention + ".")
@@ -424,10 +427,7 @@ class PlexManager(commands.Cog):
         """
         await ctx.send('Starting ' + PLEX_SERVER_NAME + ' trial for ' + PlexUsername + '. Please wait about 60 seconds...')
         try:
-            plex.myPlexAccount().inviteFriend(user=PlexUsername,server=plex,sections=None, allowSync=False, allowCameraUpload=False, allowChannels=False, filterMovies=None, filterTelevision=None, filterMusic=None)
-            asyncio.sleep(60)
-            await self.add_to_tautulli(PlexUsername)
-            await self.add_user_to_db(user.id, PlexUsername, 't')
+            await self.add_to_plex(PlexUsername, user.id, 't')
             role = discord.utils.get(ctx.message.guild.roles, name=TRIAL_ROLE_NAME)
             await user.add_roles(role, reason="Trial started.")
             await user.create_dm()
@@ -528,14 +528,9 @@ class PlexManager(commands.Cog):
             try:
                 winner_role = discord.utils.get(reaction.message.guild.roles, name=WINNER_ROLE_NAME)
                 if winner_role in reaction.message.author.roles:
-                    f=open(WINNER_FILE,"a")
-                    f.write(str(plexname)+",")
-                    f.close()
-                await self.add_to_plex(plexname)
-                if winner_role in reaction.message.author.roles:
-                    await self.add_user_to_db(reaction.message.author.id, plexname, 'w')
+                    await self.add_to_plex(plexname, reaction.message.author.id, 'w')
                 else:
-                    await self.add_user_to_db(reaction.message.author.id, plexname, 's')
+                    await self.add_to_plex(plexname, reaction.message.author.id, 's')
                 member = reaction.message.author
                 role = discord.utils.get(reaction.message.guild.roles, name=afterApprovedRoleName)
                 await member.add_roles(role, reason="Access membership channels")
@@ -547,7 +542,7 @@ class PlexManager(commands.Cog):
     async def on_reaction_remove(self, reaction, user):
         if (REACT_TO_ADD) and (reaction.emoji.name == approvedEmojiName) and (user.name in ADMIN_USERNAME): #Listen for users removed
             plexname = reaction.message.content.strip() #Only include username, nothing else
-            await self.delete_from_plex(plexname)
+            self.delete_from_plex(plexname)
             await reaction.message.channel.send(reaction.message.author.mention + " (" + plexname + "), you have been removed from " + PLEX_SERVER_NAME + ". To appeal this removal, please send a Direct Message to <@" + ADMIN_ID + ">")
 
     def __init__(self, bot):
