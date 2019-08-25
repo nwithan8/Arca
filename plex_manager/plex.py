@@ -157,7 +157,7 @@ class PlexManager(commands.Cog):
         
     def delete_from_plex(self, id):
         try:
-            plexname, note = self.find_user_in_db("Plex",id)
+            plexname, note = self.find_user_in_db("Plex", id)
             plex.myPlexAccount().removeFriend(user=plexname)
             if note != 't':
                 self.delete_from_ombi(plexname) # Error if trying to remove trial user that doesn't exist in Ombi?
@@ -165,6 +165,7 @@ class PlexManager(commands.Cog):
             self.remove_user_from_db(id)
             return True
         except plexapi.exceptions.NotFound:
+            print("Not found")
             return False
         
     def describe_table(self, table):
@@ -215,17 +216,19 @@ class PlexManager(commands.Cog):
             
     def find_user_in_db(self, PlexOrDiscord, data):
         myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
+        r1 = ""
+        r2 = ""
         if myConnection.is_connected():
             cursor = myConnection.cursor()
             query = "SELECT " + ("PlexUsername, Note" if PlexOrDiscord == "Plex" else "DiscordID") + " FROM users WHERE " + ("DiscordID" if PlexOrDiscord == "Plex" else "PlexUsername") + " = '" + str(data) + "'"
             cursor.execute(str(query))
             results = cursor.fetchone()
-            cursor.close()
-            myConnection.close()
             if PlexOrDiscord == "Plex":
                 return results[0], results[1]
             else:
                 return results[0]
+            cursor.close()
+            myConnection.close()
         
     async def purge_winners(self, ctx):
         try:
@@ -406,12 +409,15 @@ class PlexManager(commands.Cog):
         Remove a Discord user from Plex
         """
         if not REACT_TO_ADD:
-            plexUsername, note = self.find_user_in_db("Plex",user.id)
-            self.delete_from_plex(plexUsername)
-            self.remove_user_from_db(user.id)
-            role = discord.utils.get(ctx.message.guild.roles, name=afterApprovedRoleName)
-            await user.remove_roles(role, reason="Removed from Plex")
-            await ctx.send("You've been removed from " + PLEX_SERVER_NAME + ", " + user.mention + ".")
+            print(user.id)
+            deleted = self.delete_from_plex(user.id)
+            print(deleted)
+            if deleted:
+                role = discord.utils.get(ctx.message.guild.roles, name=afterApprovedRoleName)
+                await user.remove_roles(role, reason="Removed from Plex")
+                await ctx.send("You've been removed from " + PLEX_SERVER_NAME + ", " + user.mention + ".")
+            else:
+                await ctx.send("User could not be removed.")
         else:
             await ctx.send('This function is disabled. Please remove a reaction from usernames to remove from Plex.')
     
