@@ -233,59 +233,68 @@ class PlexManager(commands.Cog):
             if myConnection.is_connected():
                 cur = myConnection.cursor()
                 cur.execute("SELECT PlexUsername FROM users WHERE Note = 'w'")
-                for u in cur:
+                for u in cur.fetchall():
                     monitorlist.append(u[0])
                 cur.close()
                 myConnection.close()
+                print("Winners: ")
                 print(monitorlist)
                 data = self.t_request("get_users_table","length=1000")
                 removed_list = ""
+                error_message = ""
                 for i in data['response']['data']['data']:
                     try:
                         if str(i['friendly_name']) in monitorlist:
-                            #print(i['friendly_name'] + " is in the monitor list, checking...")
                             PlexUsername = (self.t_request("get_user","user_id="+str(i['user_id'])))['response']['data']['username']
-                            print(PlexUsername)
                             if i['duration'] is None:
-                                mention_id = self.remove_winner(str(PlexUsername), ctx)
+                                print(PlexUsername + " has not watched anything. Purging...")
+                                mention_id = await self.remove_winner(str(PlexUsername))
                                 removed_list = removed_list + (mention_id if mention_id != None else "")
                             elif i['last_seen'] is None:
-                                mention_id = self.remove_winner(str(PlexUsername),ctx)
+                                print(PlexUsername + " has never been seen. Purging...")
+                                mention_id = await self.remove_winner(str(PlexUsername))
                                 removed_list = removed_list + (mention_id if mention_id != None else "")
                             elif i['duration']/3600 < WINNER_THRESHOLD:
-                                mention_id = self.remove_winner(str(PlexUsername),ctx)
+                                print(PlexUsername + " has NOT met the duration requirements. Purging...")
+                                mention_id = await self.remove_winner(str(PlexUsername))
                                 removed_list = removed_list + (mention_id if mention_id != None else "")
                             elif time.time()-i['last_seen'] > 1209600:
-                                mention_id = self.remove_winner(str(PlexUsername),ctx)
+                                print(PlexUsername + " last seen too long ago. Purging...")
+                                mention_id = await self.remove_winner(str(PlexUsername))
                                 removed_list = removed_list + (mention_id if mention_id != None else "")
                             else:
-                                print(PlexUsername + " has met the requirements")
+                                print(PlexUsername + " has met the requirements, and will not be purged.")
                     except Exception as e:
                         print(e)
+                        error_message = error_message = "Error checking " + str(i['friendly_name']) + ". "
+                        pass
                 if removed_list != "":
                     await ctx.send(removed_list + "You have been removed as a Winner due to inactivity.")
                 else:
                     await ctx.send("No winners purged.")
+                if error_message != "":
+                    await ctx.send(error_message)
         except Exception as e:
             print(e)
             await ctx.send("Something went wrong. Please try again later.")
         
-        
-    ##### MAKE EDITS WHEN DEPLOYING #####
-    async def remove_winner(self, username,ctx):
-        #self.delete_from_plex(username)
+    async def remove_winner(self, username):
+        try:
+            self.delete_from_plex(username)
+        except plexapi.exceptions.BadRequest:
+            pass
         id = self.find_user_in_db("Discord", username)
         if id != None:
-            user = ctx.message.server.get_member(id)
-            #await user.create_dm()
-            #await user.dm_channel.send("You have been removed from " + str(PLEX_SERVER_NAME) + " due to inactivity.")
-            #await user.remove_roles(discord.utils.get(self.bot.get_guild(SERVER_ID).roles, name="Winner"), reason="Inactive winner")
+            user = self.bot.get_user(int(id))
+            await user.create_dm()
+            await user.dm_channel.send("You have been removed from " + str(PLEX_SERVER_NAME) + " due to inactivity.")
+            await user.remove_roles(discord.utils.get(self.bot.get_guild(SERVER_ID).roles, name="Winner"), reason="Inactive winner")
             self.remove_user_from_db(id)
             return "<@" + id + ">, "
         else:
             return None
-    
-    async def remove_nonsub(self, memberID):
+           
+    def remove_nonsub(self, memberID):
         if memberID not in exemptsubs:
             plexUsername, note = self.find_user_in_db("Plex", memberID)
             self.delete_from_plex(plexname)
@@ -304,7 +313,7 @@ class PlexManager(commands.Cog):
                 exemptRoles.append(r)
         for member in self.bot.get_guild(SERVER_ID).members:
             if not any(x in member.roles for x in exemptRoles):
-                await self.remove_nonsub(member.id)
+                self.remove_nonsub(member.id)
         myConnection.close()
         
     @tasks.loop(seconds=TRIAL_CHECK_FREQUENCY*60)
@@ -375,10 +384,8 @@ class PlexManager(commands.Cog):
                     await self.add_user_to_db(user.id, PlexUsername, 'w')
                 else:
                     await self.add_user_to_db(user.id, PlexUsername, 's')
-                #await self.log("Discord user " + user.name + " (ID: " + str(user.id) + ") is Plex user " + PlexUsername, "v")
                 role = discord.utils.get(ctx.message.guild.roles, name=afterApprovedRoleName)
                 await user.add_roles(role, reason="Access membership channels")
-                #await self.log("Added " + afterApprovedRoleName + " role to " + str(user.name), "v")
                 await ctx.send(user.mention + " You've been invited, " + PlexUsername + ". Welcome to " + PLEX_SERVER_NAME + "!")
             except plexapi.exceptions.BadRequest:
                 await ctx.send(PlexUsername + " is not a valid Plex username.")
@@ -470,7 +477,7 @@ class PlexManager(commands.Cog):
         if ctx.invoked_subcommand is None:
             await ctx.send("What subcommand?")
             
-    @pm_info.command(name="plex", aliases=["p", "P"])
+    @pm_info.command(name="plex", aliases=["p"])
     @commands.has_role(ADMIN_ROLE_NAME)
     async def pm_info_plex(self, ctx, PlexUsername: str):
         """
@@ -489,7 +496,7 @@ class PlexManager(commands.Cog):
                 embed.add_field(name=str(n[i][0]),value=val,inline=False)
         await ctx.send(embed=embed)
         
-    @pm_info.command(name="discord", aliases=["d","D"])
+    @pm_info.command(name="discord", aliases=["d"])
     @commands.has_role(ADMIN_ROLE_NAME)
     async def pm_info_discord(self, ctx, user: discord.Member):
         """
