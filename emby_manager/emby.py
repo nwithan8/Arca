@@ -247,11 +247,11 @@ class Emby(commands.Cog):
             query = "SELECT * FROM users"
             cur.execute(str(query))
             exemptRoles = []
-            allRoles = self.bot.get_guild(SERVER_ID).roles
+            allRoles = self.bot.get_guild(int(SERVER_ID)).roles
             for r in allRoles:
                 if r.name in subRoles:
                     exemptRoles.append(r)
-            for member in self.bot.get_guild(SERVER_ID).members:
+            for member in self.bot.get_guild(int(SERVER_ID)).members:
                 if not any(x in member.roles for x in exemptRoles):
                     await self.remove_nonsub(member.id)
             myConnection.close()
@@ -265,10 +265,10 @@ class Emby(commands.Cog):
             cur = myConnection.cursor(buffered=True)
             query = "SELECT DiscordID FROM users WHERE ExpirationStamp<=" + str(int(time.time())) + " AND Note = 't'";
             cur.execute(str(query))
-            trial_role = discord.utils.get(self.bot.get_guild(SERVER_ID).roles, name=TRIAL_ROLE_NAME)
+            trial_role = discord.utils.get(self.bot.get_guild(int(SERVER_ID)).roles, name=TRIAL_ROLE_NAME)
             for u in cur:
                 await self.remove_from_emby(u[0])
-                user = self.bot.get_guild(SERVER_ID).get_member(u[0])
+                user = self.bot.get_guild(int(SERVER_ID)).get_member(u[0])
                 await user.create_dm()
                 await user.dm_channel.send(TRIAL_END_NOTIFICATION)
                 await user.remove_roles(trial_role, reason="Trial has ended.")

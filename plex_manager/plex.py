@@ -292,7 +292,7 @@ class PlexManager(commands.Cog):
             user = self.bot.get_user(int(id))
             await user.create_dm()
             await user.dm_channel.send("You have been removed from " + str(PLEX_SERVER_NAME) + " due to inactivity.")
-            await user.remove_roles(discord.utils.get(self.bot.get_guild(SERVER_ID).roles, name="Winner"), reason="Inactive winner")
+            await user.remove_roles(discord.utils.get(self.bot.get_guild(int(SERVER_ID)).roles, name="Winner"), reason="Inactive winner")
             self.remove_user_from_db(id)
             return "<@" + id + ">, "
         else:
@@ -311,11 +311,11 @@ class PlexManager(commands.Cog):
             query = "SELECT * FROM users"
             cur.execute(str(query))
             exemptRoles = []
-            allRoles = self.bot.get_guild(SERVER_ID).roles
+            allRoles = self.bot.get_guild(int(SERVER_ID)).roles
             for r in allRoles:
                 if r.name in subRoles:
                     exemptRoles.append(r)
-            for member in self.bot.get_guild(SERVER_ID).members:
+            for member in self.bot.get_guild(int(SERVER_ID)).members:
                 if not any(x in member.roles for x in exemptRoles):
                     self.remove_nonsub(member.id)
             myConnection.close()
@@ -329,11 +329,11 @@ class PlexManager(commands.Cog):
             cur = myConnection.cursor(buffered=True)
             query = "SELECT PlexUsername, DiscordID FROM users WHERE ExpirationStamp<=" + str(int(time.time())) + " AND Note = 't'";
             cur.execute(str(query))
-            trial_role = discord.utils.get(self.bot.get_guild(SERVER_ID).roles, name=TRIAL_ROLE_NAME)
+            trial_role = discord.utils.get(self.bot.get_guild(int(SERVER_ID)).roles, name=TRIAL_ROLE_NAME)
             for u in cur:
                 self.delete_from_plex(u[0])
                 self.delete_from_tautulli(u[0])
-                user = self.bot.get_guild(SERVER_ID).get_member(u[1])
+                user = self.bot.get_guild(int(SERVER_ID)).get_member(u[1])
                 await user.create_dm()
                 await user.dm_channel.send(TRIAL_END_NOTIFICATION)
                 await user.remove_roles(trial_role, reason="Trial has ended.")
