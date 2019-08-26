@@ -241,21 +241,15 @@ class Emby(commands.Cog):
     @tasks.loop(seconds=SUB_CHECK_TIME*(3600*24))
     async def check_subs(self):
         print("Checking Emby subs...")
-        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
-        if myConnection.is_connected():
-            cur = myConnection.cursor(buffered=True)
-            query = "SELECT * FROM users"
-            cur.execute(str(query))
-            exemptRoles = []
-            allRoles = self.bot.get_guild(int(SERVER_ID)).roles
-            for r in allRoles:
-                if r.name in subRoles:
-                    exemptRoles.append(r)
-            for member in self.bot.get_guild(int(SERVER_ID)).members:
-                if not any(x in member.roles for x in exemptRoles):
-                    self.remove_nonsub(member.id)
-            myConnection.close()
-        print("Emby Subs check completed.")
+        exemptRoles = []
+        allRoles = self.bot.get_guild(int(SERVER_ID)).roles
+        for r in allRoles:
+            if r.name in subRoles:
+                exemptRoles.append(r)
+        for member in self.bot.get_guild(int(SERVER_ID)).members:
+            if not any(x in member.roles for x in exemptRoles):
+                self.remove_nonsub(member.id)
+        print("Emby subs check complete.")
         
     @tasks.loop(seconds=TRIAL_CHECK_FREQUENCY*60)
     async def check_trials(self):
@@ -272,7 +266,6 @@ class Emby(commands.Cog):
                 await user.create_dm()
                 await user.dm_channel.send(TRIAL_END_NOTIFICATION)
                 await user.remove_roles(trial_role, reason="Trial has ended.")
-                self.remove_user_from_db(u[0])
             cur.close()
             myConnection.close()
         print("Emby Trials check completed.")
