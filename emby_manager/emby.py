@@ -456,7 +456,7 @@ class Emby(commands.Cog):
         await ctx.send(embed=embed)
         
     @commands.Bot.listen()
-    async def on_ready():
+    async def on_ready(self):
         self.check_trials.start()
         self.check_subs.start()
             
