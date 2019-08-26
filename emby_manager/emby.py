@@ -270,7 +270,7 @@ class Emby(commands.Cog):
                     await user.remove_roles(trial_role, reason="Trial has ended.")
                 except Exception as e:
                     print(e)
-                    print("Discord user " + u[0] + " not found.")
+                    print("Discord user " + str(u[0]) + " not found.")
             cur.close()
             myConnection.close()
         print("Emby Trials check completed.")
