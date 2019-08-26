@@ -253,7 +253,7 @@ class Jellyfin(commands.Cog):
                     exemptRoles.append(r)
             for member in self.bot.get_guild(int(SERVER_ID)).members:
                 if not any(x in member.roles for x in exemptRoles):
-                    await self.remove_nonsub(member.id)
+                    self.remove_nonsub(member.id)
             myConnection.close()
         print("Jellyfin Subs check completed.")
         
@@ -267,12 +267,12 @@ class Jellyfin(commands.Cog):
             cur.execute(str(query))
             trial_role = discord.utils.get(self.bot.get_guild(int(SERVER_ID)).roles, name=TRIAL_ROLE_NAME)
             for u in cur:
-                await self.remove_from_jellyfin(u[0])
+                self.remove_from_jellyfin(u[0])
                 user = self.bot.get_guild(int(SERVER_ID)).get_member(u[0])
                 await user.create_dm()
                 await user.dm_channel.send(TRIAL_END_NOTIFICATION)
                 await user.remove_roles(trial_role, reason="Trial has ended.")
-                await self.remove_user_from_db(u[0])
+                self.remove_user_from_db(u[0])
             cur.close()
             myConnection.close()
         print("Jellyfin Trials check completed.")
