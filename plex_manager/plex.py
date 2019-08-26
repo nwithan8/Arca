@@ -304,22 +304,26 @@ class PlexManager(commands.Cog):
     
     @tasks.loop(seconds=SUB_CHECK_TIME*(3600*24))
     async def check_subs(self):
+        print("Checking subs...")
         myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
-        cur = myConnection.cursor(buffered=True)
-        query = "SELECT * FROM users"
-        cur.execute(str(query))
-        exemptRoles = []
-        allRoles = self.bot.get_guild(SERVER_ID).roles
-        for r in allRoles:
-            if r.name in subRoles:
-                exemptRoles.append(r)
-        for member in self.bot.get_guild(SERVER_ID).members:
-            if not any(x in member.roles for x in exemptRoles):
-                self.remove_nonsub(member.id)
-        myConnection.close()
+        if myConnection.is_connected():
+            cur = myConnection.cursor(buffered=True)
+            query = "SELECT * FROM users"
+            cur.execute(str(query))
+            exemptRoles = []
+            allRoles = self.bot.get_guild(SERVER_ID).roles
+            for r in allRoles:
+                if r.name in subRoles:
+                    exemptRoles.append(r)
+            for member in self.bot.get_guild(SERVER_ID).members:
+                if not any(x in member.roles for x in exemptRoles):
+                    self.remove_nonsub(member.id)
+            myConnection.close()
+        print("Subs check complete.")
         
     @tasks.loop(seconds=TRIAL_CHECK_FREQUENCY*60)
     async def check_trials(self):
+        print("Checking trials...")
         myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
         if myConnection.is_connected():
             cur = myConnection.cursor(buffered=True)
@@ -336,6 +340,7 @@ class PlexManager(commands.Cog):
                 self.remove_user_from_db(u[1])
             cur.close()
             myConnection.close()
+        print("Trials check complete.")
         
     @commands.group(name="pm",aliases=["PM","PlexMan","plexman"],pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
@@ -554,3 +559,5 @@ class PlexManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         print("Plex Manager ready to go.")
+        self.check_trials.start()
+        self.check_subs.start()
