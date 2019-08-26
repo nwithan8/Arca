@@ -555,9 +555,12 @@ class PlexManager(commands.Cog):
             plexname = reaction.message.content.strip() #Only include username, nothing else
             self.delete_from_plex(plexname)
             await reaction.message.channel.send(reaction.message.author.mention + " (" + plexname + "), you have been removed from " + PLEX_SERVER_NAME + ". To appeal this removal, please send a Direct Message to <@" + ADMIN_ID + ">")
+            
+    @client.event
+    async def on_ready():
+        self.check_trials.start()
+        self.check_subs.start()
 
     def __init__(self, bot):
         self.bot = bot
         print("Plex Manager ready to go.")
-        self.check_trials.start()
-        self.check_subs.start()

@@ -454,9 +454,12 @@ class Emby(commands.Cog):
             if d[i] != None:
                 embed.add_field(name=str(n[i][0]),value=val,inline=False)
         await ctx.send(embed=embed)
+        
+    @client.event
+    async def on_ready():
+        self.check_trials.start()
+        self.check_subs.start()
             
     def __init__(self, bot):
         self.bot = bot
         print("Emby Manager ready to go.")
-        self.check_trials.start()
-        self.check_subs.start()
