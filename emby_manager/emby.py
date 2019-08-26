@@ -455,7 +455,7 @@ class Emby(commands.Cog):
                 embed.add_field(name=str(n[i][0]),value=val,inline=False)
         await ctx.send(embed=embed)
         
-    @client.event
+    @commands.Cog.listener()
     async def on_ready():
         self.check_trials.start()
         self.check_subs.start()
