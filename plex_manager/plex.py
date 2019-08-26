@@ -325,8 +325,9 @@ class PlexManager(commands.Cog):
             cur.execute(str(query))
             trial_role = discord.utils.get(self.bot.get_guild(int(SERVER_ID)).roles, name=TRIAL_ROLE_NAME)
             for u in cur:
-                self.delete_from_plex(u[0])
-                user = self.bot.get_guild(int(SERVER_ID)).get_member(u[0])
+                print("Ending trial for " + str(u[0]))
+                self.delete_from_plex(int(u[0]))
+                user = self.bot.get_guild(int(SERVER_ID)).get_member(int(u[0]))
                 await user.create_dm()
                 await user.dm_channel.send(TRIAL_END_NOTIFICATION)
                 await user.remove_roles(trial_role, reason="Trial has ended.")
