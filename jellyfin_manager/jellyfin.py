@@ -449,6 +449,10 @@ class Jellyfin(commands.Cog):
                 embed.add_field(name=str(n[i][0]),value=val,inline=False)
         await ctx.send(embed=embed)
         
+    @jellyfin_info.error
+    async def jellyfin_info_error(self, ctx, error):
+        await ctx.send("User not found.")
+        
     @commands.Cog.listener()
     async def on_ready(self):
         self.check_trials.start()

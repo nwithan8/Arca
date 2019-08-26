@@ -327,10 +327,14 @@ class PlexManager(commands.Cog):
             for u in cur:
                 print("Ending trial for " + str(u[0]))
                 self.delete_from_plex(int(u[0]))
-                user = self.bot.get_guild(int(SERVER_ID)).get_member(int(u[0]))
-                await user.create_dm()
-                await user.dm_channel.send(TRIAL_END_NOTIFICATION)
-                await user.remove_roles(trial_role, reason="Trial has ended.")
+                try:
+                    user = self.bot.get_guild(int(SERVER_ID)).get_member(int(u[0]))
+                    await user.create_dm()
+                    await user.dm_channel.send(TRIAL_END_NOTIFICATION)
+                    await user.remove_roles(trial_role, reason="Trial has ended.")
+                except Exception as e:
+                    print(e)
+                    print("Discord user " + u[0] + " not found.")
             cur.close()
             myConnection.close()
         print("Plex trials check complete.")

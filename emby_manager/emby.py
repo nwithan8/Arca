@@ -263,10 +263,14 @@ class Emby(commands.Cog):
             for u in cur:
                 print("Ending trial for " + str(u[0]))
                 self.remove_from_emby(int(u[0]))
-                user = self.bot.get_guild(int(SERVER_ID)).get_member(int(u[0]))
-                await user.create_dm()
-                await user.dm_channel.send(TRIAL_END_NOTIFICATION)
-                await user.remove_roles(trial_role, reason="Trial has ended.")
+                try:
+                    user = self.bot.get_guild(int(SERVER_ID)).get_member(int(u[0]))
+                    await user.create_dm()
+                    await user.dm_channel.send(TRIAL_END_NOTIFICATION)
+                    await user.remove_roles(trial_role, reason="Trial has ended.")
+                except Exception as e:
+                    print(e)
+                    print("Discord user " + u[0] + " not found.")
             cur.close()
             myConnection.close()
         print("Emby Trials check completed.")
@@ -448,6 +452,10 @@ class Emby(commands.Cog):
             if d[i] != None:
                 embed.add_field(name=str(n[i][0]),value=val,inline=False)
         await ctx.send(embed=embed)
+        
+    @emby_info.error
+    async def emby_info_error(self, ctx, error):
+        await ctx.send("User not found.")
         
     @commands.Cog.listener()
     async def on_ready(self):
