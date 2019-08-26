@@ -304,7 +304,7 @@ class PlexManager(commands.Cog):
     
     @tasks.loop(seconds=SUB_CHECK_TIME*(3600*24))
     async def check_subs(self):
-        print("Checking subs...")
+        print("Checking Plex subs...")
         myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
         if myConnection.is_connected():
             cur = myConnection.cursor(buffered=True)
@@ -319,11 +319,11 @@ class PlexManager(commands.Cog):
                 if not any(x in member.roles for x in exemptRoles):
                     self.remove_nonsub(member.id)
             myConnection.close()
-        print("Subs check complete.")
+        print("Plex subs check complete.")
         
     @tasks.loop(seconds=TRIAL_CHECK_FREQUENCY*60)
     async def check_trials(self):
-        print("Checking trials...")
+        print("Checking Plex trials...")
         myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
         if myConnection.is_connected():
             cur = myConnection.cursor(buffered=True)
@@ -340,7 +340,7 @@ class PlexManager(commands.Cog):
                 self.remove_user_from_db(u[1])
             cur.close()
             myConnection.close()
-        print("Trials check complete.")
+        print("Plex trials check complete.")
         
     @commands.group(name="pm",aliases=["PM","PlexMan","plexman"],pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)

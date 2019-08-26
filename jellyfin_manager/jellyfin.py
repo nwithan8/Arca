@@ -166,16 +166,25 @@ class Jellyfin(commands.Cog):
         except Exception as e:
             print(e)
     
-    def check_db(self, data, type):
+    def describe_table(self, table):
         conn = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
         response = ""
         if conn.is_connected():
             cur = conn.cursor(buffered=True)
-            query = "SELECT * FROM users WHERE " + ("DiscordID" if type == "Discord" else "JellyfinUsername") + " = " + str(data)
+            cur.execute("DESCRIBE " + str(table))
+            response = cur.fetchall()
+            cur.close()
+            conn.close()
+            return response
+            
+    def pull_user_from_db(self, type, data):
+        conn = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
+        response = ""
+        if conn.is_connected():
+            cur = conn.cursor(buffered=True)
+            query = "SELECT * FROM users WHERE " + ("DiscordID" if type == "Discord" else "JellyfinID") + " = '" + str(data) + "'"
             cur.execute(query)
-            for el in cur.fetchone:
-                for i in range(0, len(cur.description)):
-                    response = response + cur.description[i][0] + " " + el[i] + "\n"
+            response = cur.fetchone()
             cur.close()
             conn.close()
             return response
@@ -214,28 +223,43 @@ class Jellyfin(commands.Cog):
             myConnection.close()
             return result
         
+    def find_username_in_db(self, JellyfinOrDiscord, data):
+        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
+        if myConnection.is_connected():
+            cursor = myConnection.cursor()
+            query = "SELECT " + ("JellyfinUsername" if JellyfinOrDiscord == "Jellyfin" else "DiscordID") + " FROM users WHERE " + ("DiscordID" if JellyfinOrDiscord == "Jellyfin" else "JellyfinUsername") + " = '" + str(data) + "'"
+            cursor.execute(str(query))
+            result = cursor.fetchall()
+            cursor.close()
+            myConnection.close()
+            return result
+        
     def remove_nonsub(self, memberID):
         if memberID not in exemptsubs:
             self.remove_from_jellyfin(memberID)
         
     @tasks.loop(seconds=SUB_CHECK_TIME*(3600*24))
     async def check_subs(self):
+        print("Checking Jellyfin subs...")
         myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
-        cur = myConnection.cursor(buffered=True)
-        query = "SELECT * FROM users"
-        cur.execute(str(query))
-        exemptRoles = []
-        allRoles = self.bot.get_guild(SERVER_ID).roles
-        for r in allRoles:
-            if r.name in subRoles:
-                exemptRoles.append(r)
-        for member in self.bot.get_guild(SERVER_ID).members:
-            if not any(x in member.roles for x in exemptRoles):
-                await self.remove_nonsub(member.id)
-        myConnection.close()
+        if myConnection.is_connected():
+            cur = myConnection.cursor(buffered=True)
+            query = "SELECT * FROM users"
+            cur.execute(str(query))
+            exemptRoles = []
+            allRoles = self.bot.get_guild(SERVER_ID).roles
+            for r in allRoles:
+                if r.name in subRoles:
+                    exemptRoles.append(r)
+            for member in self.bot.get_guild(SERVER_ID).members:
+                if not any(x in member.roles for x in exemptRoles):
+                    await self.remove_nonsub(member.id)
+            myConnection.close()
+        print("Jellyfin Subs check completed.")
         
     @tasks.loop(seconds=TRIAL_CHECK_FREQUENCY*60)
     async def check_trials(self):
+        print("Checking Jellyfin trials...")
         myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
         if myConnection.is_connected():
             cur = myConnection.cursor(buffered=True)
@@ -251,6 +275,7 @@ class Jellyfin(commands.Cog):
                 await self.remove_user_from_db(u[0])
             cur.close()
             myConnection.close()
+        print("Jellyfin Trials check completed.")
         
     def password(self, length):
         """Generate a random string of letters and digits """
@@ -353,7 +378,85 @@ class Jellyfin(commands.Cog):
     @jellyfin_count.error
     async def jellyfin_count_error(self, ctx, error):
         await ctx.send("Something went wrong. Please try again later.")
+        
+    @jellyfin.group(name="find", aliases=["id"], pass_context=True)
+    @commands.has_role(ADMIN_ROLE_NAME)
+    async def jellyfin_find(self, ctx: commands.Context):
+        """
+        Find Discord or Jellyfin user
+        """
+        if ctx.invoked_subcommand is None:
+            await ctx.send("What subcommand?")
+        
+    @jellyfin_find.command(name="jellyfin", aliases=["e"])
+    async def jellyfin_find_jellyfin(self, ctx: commands.Context, user: discord.Member):
+        """
+        Find Discord member's Jellyfin username
+        """
+        name, note = self.find_user_in_db("Jellyfin", user.id)
+        await ctx.send(user.mention + " is Jellyfin user: " + name + (" [Trial]" if note == 't' else " [Subscriber]"))
+        
+    @jellyfin_find.command(name="discord", aliases=["d"])
+    async def jellyfin_find_discord(self, ctx: commands.Context, JellyfinUsername: str):
+        """
+        Find Jellyfin user's Discord name
+        """
+        id = self.find_user_in_db("Discord", JellyfinUsername)
+        await ctx.send(JellyfinUsername + " is Discord user: " + self.bot.get_user(int(id)).mention)
+            
+    @jellyfin_find.error
+    async def jellyfin_find_error(self, ctx, error):
+        await ctx.send("User not found.")
+            
+    @jellyfin.group(name="info")
+    async def jellyfin_info(self, ctx: commands.Context):
+        """
+        Get database entry for a user
+        """
+        if ctx.invoked_subcommand is None:
+            await ctx.send("What subcommand?")
+            
+    @jellyfin_info.command(name="jellyfin", aliases=["e"])
+    @commands.has_role(ADMIN_ROLE_NAME)
+    async def jellyfin_info_jellyfin(self, ctx, JellyfinUsername: str):
+        """
+        Get database entry for Jellyfin username
+        """
+        embed = discord.Embed(title=("Info for " + str(JellyfinUsername)))
+        n = self.describe_table("users")
+        d = self.pull_user_from_db("Jellyfin", JellyfinUsername)
+        for i in range(0,len(n)):
+            val=str(d[i])
+            if str(n[i][0]) == "DiscordID":
+                val=val+" ("+self.bot.get_user(int(d[i])).mention+")"
+            if str(n[i][0]) == "Note":
+                val=("Trial" if d[i] == 't' else "Subscriber")
+            if d[i] != None:
+                embed.add_field(name=str(n[i][0]),value=val,inline=False)
+        await ctx.send(embed=embed)
+        
+    @jellyfin_info.command(name="discord", aliases=["d"])
+    @commands.has_role(ADMIN_ROLE_NAME)
+    async def jellyfin_info_discord(self, ctx, user: discord.Member):
+        """
+        Get database entry for Discord user
+        """
+        embed = discord.Embed(title=("Info for " + user.name))
+        n = self.describe_table("users")
+        d = self.pull_user_from_db("Discord", user.id)
+        for i in range(0,len(n)):
+            name=str(n[i][0])
+            val=str(d[i])
+            if str(n[i][0]) == "DiscordID":
+                val=val+" ("+self.bot.get_user(int(d[i])).mention+")"
+            if str(n[i][0]) == "Note":
+                val=("Trial" if d[i] == 't' else "Subscriber")
+            if d[i] != None:
+                embed.add_field(name=str(n[i][0]),value=val,inline=False)
+        await ctx.send(embed=embed)
             
     def __init__(self, bot):
         self.bot = bot
         print("Jellyfin Manager ready to go.")
+        self.check_trials.start()
+        self.check_subs.start()
