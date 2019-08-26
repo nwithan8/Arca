@@ -556,7 +556,7 @@ class PlexManager(commands.Cog):
             self.delete_from_plex(plexname)
             await reaction.message.channel.send(reaction.message.author.mention + " (" + plexname + "), you have been removed from " + PLEX_SERVER_NAME + ". To appeal this removal, please send a Direct Message to <@" + ADMIN_ID + ">")
             
-    @commands.Cog.listener()
+    @bot.listen()
     async def on_ready():
         self.check_trials.start()
         self.check_subs.start()
