@@ -322,19 +322,22 @@ class ESPN(commands.Cog):
         if team_id == None:
             await ctx.send("Couldn't find that team.")
         else:
-            await ctx.send(team_name + " schedule: http://www.espn.com/" + league + "/team/schedule/_/name/"+team_id)
-            #try:
-            #    soup = BeautifulSoup(requests.get("http://www.espn.com/"+league+"/team/schedule/_/name/" + str(searched_id)).content)
-            #    raw_schedule = soup.find("tbody", {"class": "Table2__tbody"})
-            #    if not raw_schedule:
-            #        await ctx.send("Couldn't find that team's schedule.")
-            #    else:
-            #        print(raw_schedule)
-            #        for sec in raw_schedule.findAll("tr", {"class":"Table2__tr Table2__tr--sm Table2__even"}):
-            #            print(sec.get(
-            #except:
-            #    await ctx.send("Sorry, couldn't reach ESPN.com")
-            
+            if league in ["ncf", "ncb", "ncw"]:
+                await ctx.send(team_name + " schedule: http://www.espn.com/" + league + "/team/schedule/_/id/"+team_id)
+            else:
+                await ctx.send(team_name + " schedule: http://www.espn.com/" + league + "/team/schedule/_/name/"+team_id)
+                #try:
+                #    soup = BeautifulSoup(requests.get("http://www.espn.com/"+league+"/team/schedule/_/name/" + str(searched_id)).content)
+                #    raw_schedule = soup.find("tbody", {"class": "Table2__tbody"})
+                #    if not raw_schedule:
+                #        await ctx.send("Couldn't find that team's schedule.")
+                #    else:
+                #        print(raw_schedule)
+                #        for sec in raw_schedule.findAll("tr", {"class":"Table2__tr Table2__tr--sm Table2__even"}):
+                #            print(sec.get(
+                #except:
+                #    await ctx.send("Sorry, couldn't reach ESPN.com")
+                
     @espn_sched.error
     async def espn_sched_error(self, ctx, error):
         await ctx.send("Please include <league> <team>")
