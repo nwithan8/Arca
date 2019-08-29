@@ -8,3 +8,4 @@ asyncio
 bs4
 feedparser
 PlexAPI
+progress
