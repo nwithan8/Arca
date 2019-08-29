@@ -8,6 +8,8 @@ from bs4 import BeautifulSoup
 import requests
 from collections import defaultdict
 import json
+from progress.bar import Bar
+import sys
 
 team_codes={}
 
@@ -16,6 +18,19 @@ college_leagues = ['ncf','ncb','ncw']
 all_leagues = pro_leagues + college_leagues
 
 #Future support: 'tennis', 'soccer'
+
+# Dictionary layout differs between pro and college leagues:
+# Pro Leagues:
+# 'league':
+#   {'3_letter_team_tag': 'full_team_name', }
+#
+# ex. full_team_name = team_codes[league][3_letter_team_tag]
+#
+# College Leagues:
+# 'league':
+#   {'school_ID_#' (decided by ESPN): ['full_team_name', 'school_name', 'mascot_name'], }
+#
+# ex. full_team_name = team_codes[league][school_ID_#][0]
 
 class Team(object):
     def __init__(self, first_name, second_name, code, initials):
@@ -124,26 +139,13 @@ class ESPN(commands.Cog):
     @tasks.loop(count=1)
     #@commands.command(name="teams")
     async def teams(self):
-        # make master dict
-        leagues_string = "{"
-        for league in all_leagues:
-            team_codes[str(league)] = 0
-        
-        # grab codes for each team, store in league dicts, store in master dict
-        for league in pro_leagues:
-            temp_dict = {}
-            soup = BeautifulSoup(requests.get("http://www.espn.com/" + league + "/teams").content)
-            for sec in soup.findAll("section", {"class": "TeamLinks flex items-center"}):
-                temp_dict[str(re.search('/name/(.*)/', str(sec.a.get('href'))).group(1))] = sec.find("img", {"class": "aspect-ratio--child"}).get('title')
-            team_codes[league] = temp_dict
-            
-        # same, but college has numbers rather than initials as codes
-        for league in college_leagues:
-            temp_dict = {}
-            soup = BeautifulSoup(requests.get("http://www.espn.com/" + league + "/teams").content)
-            for sec in soup.findAll("section", {"class": "TeamLinks flex items-center"}):
-                temp_dict[str(re.search('/id/(.*)/', str(sec.a.get('href'))).group(1))] = sec.find("img", {"class": "aspect-ratio--child"}).get('title')
-            team_codes[league] = temp_dict
+        global team_codes
+        # To avoid 10+ minutes of webscraping, dictionary now comes prebuilt in seperate file.
+        # Dramatically reduces boot time.
+        # As long as no new teams are made (or ESPN changes their backend), values will still be valid
+        with open('espn/espn_dict.txt', 'r') as f:
+            team_codes = eval(f.read())
+        f.close()
             
         print("Teams updated.")
         print("ESPN ready.")
@@ -160,7 +162,7 @@ class ESPN(commands.Cog):
     async def espn_prob(self, ctx: commands.Context, league: str, *, team: str):
         """
         ESPN's "win probability" for a team's current game
-        Supported leagues: NFL, NBA, MLB, NHL, CFB, CBBW
+        Supported leagues: NFL, NBA, WNBA, MLB, NHL, CFB, CBBW
         """
         league = self.fix_league(league)
         try:
@@ -183,10 +185,11 @@ class ESPN(commands.Cog):
                     else:
                         prob = probholder.find("img").nextSibling.strip().replace('%','')
                         team_id = re.search('/500/(.*).png&amp', str(probholder)).group(1)
+                        name = (team_codes[league][team_id] if league in pro_leagues else team_codes[league][team_id][0])
                         if float(prob) < 100:
-                            embed.add_field(name="The " + team_codes[league][team_id] + " have a " + prob + "% chance of winning.", value="http://www.espn.com/"+league+"/game?gameId="+str(searched_id),inline=False)
+                            embed.add_field(name="The " + name + " have a " + prob + "% chance of winning.", value="http://www.espn.com/"+league+"/game?gameId="+str(searched_id),inline=False)
                         else:
-                            embed.add_field(name="The " + team_codes[league][team_id] + " won.", value="http://www.espn.com/"+league+"/game?gameId="+str(searched_id),inline=False)
+                            embed.add_field(name="The " + name + " won.", value="http://www.espn.com/"+league+"/game?gameId="+str(searched_id),inline=False)
                         await ctx.send(embed=embed)
                 except:
                     await ctx.send("Sorry, couldn't reach ESPN.com")
@@ -250,7 +253,7 @@ class ESPN(commands.Cog):
         """
         Live score of a team's current game
         Use team name, or 'all' to get all current games
-        Supported leagues: NFL, NBA, MLB, NHL, CFB, CBBM, CBBW
+        Supported leagues: NFL, NBA, WNBA, MLB, NHL, CFB, CBBM, CBBW
         """
         league = self.fix_league(league)
         try:
@@ -294,7 +297,7 @@ class ESPN(commands.Cog):
                             respond = True
                             break
                 if not respond:
-                    await ctx.send("That team wasn't found. Either they aren't playing, or the name is incorrect.\nTry again with a different team name (i.e. \"Boston\", not \"Red Sox\").\nFor multi-word names, use quotes, such as \"San Francisco\"")
+                    await ctx.send("That team wasn't found. Either they aren't playing, or the name is incorrect.\nTry again with a different team name (i.e. \"Boston\", not \"Red Sox\").")
                 else:
                     await ctx.send(embed=embed)
         except Exception as e:
@@ -309,38 +312,56 @@ class ESPN(commands.Cog):
     async def espn_sched(self, ctx: commands.Context, league: str, *, team: str):
         """
         A link to a team's schedule
-        Supported leagues: NFL, NBA, MLB, NHL
+        Supported leagues: NFL, NBA, WNBA MLB, NHL
         """
         league = self.fix_league(league)
         team_id = None
         team_name = None
-        for t, c in team_codes[league].items():
-            if team.lower() in c.lower():
-                team_name = c
-                team_id = t
-                break
-        if team_id == None:
-            await ctx.send("Couldn't find that team.")
-        else:
-            if league in ["ncf", "ncb", "ncw"]:
-                await ctx.send(team_name + " schedule: http://www.espn.com/" + league + "/team/schedule/_/id/"+team_id)
+        if league in all_leagues:
+            if league in pro_leagues:
+                for t, c in team_codes[league].items():
+                    if team.lower() in c.lower():
+                        team_name = c
+                        team_id = t
+                        break
+            elif league in college_leagues:
+                for t, c in team_codes[league].items():
+                    if (team.lower() == c[0].lower() or team.lower() == c[1].lower()):
+                        team_name = c[0]
+                        team_id = t
+                        break
+            if team_id == None:
+                await ctx.send("Couldn't find that team.")
             else:
-                await ctx.send(team_name + " schedule: http://www.espn.com/" + league + "/team/schedule/_/name/"+team_id)
-                #try:
-                #    soup = BeautifulSoup(requests.get("http://www.espn.com/"+league+"/team/schedule/_/name/" + str(searched_id)).content)
-                #    raw_schedule = soup.find("tbody", {"class": "Table2__tbody"})
-                #    if not raw_schedule:
-                #        await ctx.send("Couldn't find that team's schedule.")
-                #    else:
-                #        print(raw_schedule)
-                #        for sec in raw_schedule.findAll("tr", {"class":"Table2__tr Table2__tr--sm Table2__even"}):
-                #            print(sec.get(
-                #except:
-                #    await ctx.send("Sorry, couldn't reach ESPN.com")
+                if league in ["ncf", "ncb", "ncw"]:
+                    await ctx.send(team_name + " schedule: http://www.espn.com/" + league + "/team/schedule/_/id/"+team_id)
+                else:
+                    await ctx.send(team_name + " schedule: http://www.espn.com/" + league + "/team/schedule/_/name/"+team_id)
+                    #try:
+                    #    soup = BeautifulSoup(requests.get("http://www.espn.com/"+league+"/team/schedule/_/name/" + str(searched_id)).content)
+                    #    raw_schedule = soup.find("tbody", {"class": "Table2__tbody"})
+                    #    if not raw_schedule:
+                    #        await ctx.send("Couldn't find that team's schedule.")
+                    #    else:
+                    #        print(raw_schedule)
+                    #        for sec in raw_schedule.findAll("tr", {"class":"Table2__tr Table2__tr--sm Table2__even"}):
+                    #            print(sec.get(
+                    #except:
+                    #    await ctx.send("Sorry, couldn't reach ESPN.com")
+        else:
+            await ctx.send("Couldn't find that league.\nUse 'ESPN league' to see supported leagues.")
                 
     @espn_sched.error
     async def espn_sched_error(self, ctx, error):
         await ctx.send("Please include <league> <team>")
+        
+    @espn.command(name="leagues",aliases=['league','conf','confs','conference','conferences'])
+    async def espn_leagues(self, ctx: commands.Context):
+        r = ""
+        for l in all_leagues:
+            r = r + l.upper() + ", "
+        r = r[:-2]
+        await ctx.send("Supported leagues:\n" + r)
         
     def __init__(self, bot):
         self.bot = bot
