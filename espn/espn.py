@@ -288,6 +288,34 @@ class ESPN(commands.Cog):
                             embed.set_thumbnail(url="https://image.flaticon.com/icons/png/128/870/870901.png")
                     embed.add_field(name='\u200b',value="http://www.espn.com/"+league+"/scoreboard",inline=False)
                     respond = True
+                elif team == 'live':
+                    fc = 0
+                    live_keywords = []
+                    if league in ['mlb']:
+                        live_keywords = ['top','bot']
+                    else:
+                        live_keywords = ['in ','end']
+                    for g in scores:
+                        if any(d in scores[g][6].lower() for d in live_keywords):
+                            embed.add_field(name=("(" + scores[g][1] + ") " if scores[g][1] != '' else '') + ("**"+scores[g][0]+"** " if int(scores[g][2]) > int(scores[g][5]) else scores[g][0]+" ")+scores[g][2]+" - "+ ("(" + scores[g][4] + ") " if scores[g][4] != '' else '') + ("**"+scores[g][3]+"** " if int(scores[g][5]) > int(scores[g][2]) else scores[g][3]+" ")+scores[g][5],value=scores[g][6]+("" if not str(g)[0].isdigit() else " - [Live](http://www.espn.com/"+league+"/game?gameId="+g+")"),inline=False)
+                            fc = fc + 1
+                            if fc >= 23:
+                                embed.add_field(name='\u200b',value="http://www.espn.com/"+league+"/scoreboard",inline=False)
+                                embed.title = "ESPN Scoreboard (Page " + str(page_count) + ")"
+                                page_count = page_count + 1
+                                await ctx.send(embed=embed)
+                                embed = discord.Embed(title="ESPN Scoreboard (Page " + str(page_count) + ")")
+                                embed.set_thumbnail(url="https://image.flaticon.com/icons/png/128/870/870901.png")
+                                fc = 0
+                            if len(embed) > 5900:
+                                embed.add_field(name='\u200b',value="http://www.espn.com/"+league+"/scoreboard",inline=False)
+                                embed.title = "ESPN Scoreboard (Page " + str(page_count) + ")"
+                                page_count = page_count + 1
+                                await ctx.send(embed=embed)
+                                embed = discord.Embed(title="ESPN Scoreboard (Page " + str(page_count) + ")")
+                                embed.set_thumbnail(url="https://image.flaticon.com/icons/png/128/870/870901.png")
+                            respond = True # check this in loop, otherwise could end up returning blank embed
+                    embed.add_field(name='\u200b',value="http://www.espn.com/"+league+"/scoreboard",inline=False)
                 else:
                     for g in scores:
                         if (scores[g][0].lower().strip() == team.lower().strip()) or (scores[g][3].lower().strip() == team.lower().strip()):
@@ -297,7 +325,10 @@ class ESPN(commands.Cog):
                             respond = True
                             break
                 if not respond:
-                    await ctx.send("That team wasn't found. Either they aren't playing, or the name is incorrect.\nTry again with a different team name (i.e. \"Boston\", not \"Red Sox\").")
+                    if team == "all" or team == "live":
+                        await ctx.send("No games were found.")
+                    else:
+                        await ctx.send("That team wasn't found. Either they aren't playing, or the name is incorrect.\nTry again with a different team name (i.e. \"Boston\", not \"Red Sox\").")
                 else:
                     await ctx.send(embed=embed)
         except Exception as e:
