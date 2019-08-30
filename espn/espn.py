@@ -22,9 +22,9 @@ all_leagues = pro_leagues + college_leagues
 # Dictionary layout differs between pro and college leagues:
 # Pro Leagues:
 # 'league':
-#   {'3_letter_team_tag': 'full_team_name', }
+#   {'3_letter_team_tag': ['full_team_name', 'location_name', 'mascot_name'],}
 #
-# ex. full_team_name = team_codes[league][3_letter_team_tag]
+# ex. full_team_name = team_codes[league][3_letter_team_tag][0]
 #
 # College Leagues:
 # 'league':
@@ -44,9 +44,9 @@ class ESPN(commands.Cog):
         league = league.lower()
         if (league == "cfb"):
             league = "ncf"
-        if (league == "cbbm"):
+        if (league in ["cbbm","ncaam"]):
             league = "ncb"
-        if (league == "cbbw"):
+        if (league in ["cbbw","ncaaw"]):
             league = "ncw"
         return league
     
@@ -178,14 +178,14 @@ class ESPN(commands.Cog):
                 embed = discord.Embed(title=("(" + scores[searched_id][1] + ") " if scores[searched_id][1] != '' else '') + scores[searched_id][0] + " " + scores[searched_id][2] + " - " + ("(" + scores[searched_id][4] + ") " if scores[searched_id][4] != '' else '') + scores[searched_id][3] + " " + scores[searched_id][5] + " " + scores[searched_id][6])
                 embed.set_thumbnail(url="https://image.flaticon.com/icons/png/128/870/870901.png")
                 try:
-                    soup = BeautifulSoup(requests.get("http://www.espn.com/"+league+"/game?gameId=" + str(searched_id)).content, features="lxml")
+                    soup = BeautifulSoup(requests.get("http://www.espn.com/"+league+"/game?gameId=" + str(searched_id)).content)
                     probholder = soup.find("span", {"class": "header-win-percentage"})
                     if not probholder:
                         await ctx.send("Couldn't find that game.")
                     else:
                         prob = probholder.find("img").nextSibling.strip().replace('%','')
                         team_id = re.search('/500/(.*).png&amp', str(probholder)).group(1)
-                        name = (team_codes[league][team_id] if league in pro_leagues else team_codes[league][team_id][0])
+                        name = (team_codes[league][team_id][0] if league in pro_leagues else team_codes[league][team_id][0])
                         if float(prob) < 100:
                             embed.add_field(name="The " + name + " have a " + prob + "% chance of winning.", value="http://www.espn.com/"+league+"/game?gameId="+str(searched_id),inline=False)
                         else:
@@ -294,7 +294,7 @@ class ESPN(commands.Cog):
                     if league in ['mlb']:
                         live_keywords = ['top','bot']
                     else:
-                        live_keywords = ['in ','end', 'halftime']
+                        live_keywords = ['in ','end']
                     for g in scores:
                         if any(d in scores[g][6].lower() for d in live_keywords):
                             embed.add_field(name=("(" + scores[g][1] + ") " if scores[g][1] != '' else '') + ("**"+scores[g][0]+"** " if int(scores[g][2]) > int(scores[g][5]) else scores[g][0]+" ")+scores[g][2]+" - "+ ("(" + scores[g][4] + ") " if scores[g][4] != '' else '') + ("**"+scores[g][3]+"** " if int(scores[g][5]) > int(scores[g][2]) else scores[g][3]+" ")+scores[g][5],value=scores[g][6]+("" if not str(g)[0].isdigit() else " - [Live](http://www.espn.com/"+league+"/game?gameId="+g+")"),inline=False)
@@ -351,8 +351,8 @@ class ESPN(commands.Cog):
         if league in all_leagues:
             if league in pro_leagues:
                 for t, c in team_codes[league].items():
-                    if team.lower() in c.lower():
-                        team_name = c
+                    if (team.lower() in c[0].lower() or team.lower() == c[1].lower()):
+                        team_name = c[0]
                         team_id = t
                         break
             elif league in college_leagues:
@@ -369,7 +369,7 @@ class ESPN(commands.Cog):
                 else:
                     await ctx.send(team_name + " schedule: http://www.espn.com/" + league + "/team/schedule/_/name/"+team_id)
                     #try:
-                    #    soup = BeautifulSoup(requests.get("http://www.espn.com/"+league+"/team/schedule/_/name/" + str(searched_id)).content, features="lxml")
+                    #    soup = BeautifulSoup(requests.get("http://www.espn.com/"+league+"/team/schedule/_/name/" + str(searched_id)).content)
                     #    raw_schedule = soup.find("tbody", {"class": "Table2__tbody"})
                     #    if not raw_schedule:
                     #        await ctx.send("Couldn't find that team's schedule.")
