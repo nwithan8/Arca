@@ -294,7 +294,7 @@ class ESPN(commands.Cog):
                     if league in ['mlb']:
                         live_keywords = ['top','bot']
                     else:
-                        live_keywords = ['in ','end']
+                        live_keywords = ['in ','end', 'halftime']
                     for g in scores:
                         if any(d in scores[g][6].lower() for d in live_keywords):
                             embed.add_field(name=("(" + scores[g][1] + ") " if scores[g][1] != '' else '') + ("**"+scores[g][0]+"** " if int(scores[g][2]) > int(scores[g][5]) else scores[g][0]+" ")+scores[g][2]+" - "+ ("(" + scores[g][4] + ") " if scores[g][4] != '' else '') + ("**"+scores[g][3]+"** " if int(scores[g][5]) > int(scores[g][2]) else scores[g][3]+" ")+scores[g][5],value=scores[g][6]+("" if not str(g)[0].isdigit() else " - [Live](http://www.espn.com/"+league+"/game?gameId="+g+")"),inline=False)
