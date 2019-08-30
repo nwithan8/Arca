@@ -178,7 +178,7 @@ class ESPN(commands.Cog):
                 embed = discord.Embed(title=("(" + scores[searched_id][1] + ") " if scores[searched_id][1] != '' else '') + scores[searched_id][0] + " " + scores[searched_id][2] + " - " + ("(" + scores[searched_id][4] + ") " if scores[searched_id][4] != '' else '') + scores[searched_id][3] + " " + scores[searched_id][5] + " " + scores[searched_id][6])
                 embed.set_thumbnail(url="https://image.flaticon.com/icons/png/128/870/870901.png")
                 try:
-                    soup = BeautifulSoup(requests.get("http://www.espn.com/"+league+"/game?gameId=" + str(searched_id)).content)
+                    soup = BeautifulSoup(requests.get("http://www.espn.com/"+league+"/game?gameId=" + str(searched_id)).content, features="lxml")
                     probholder = soup.find("span", {"class": "header-win-percentage"})
                     if not probholder:
                         await ctx.send("Couldn't find that game.")
@@ -369,7 +369,7 @@ class ESPN(commands.Cog):
                 else:
                     await ctx.send(team_name + " schedule: http://www.espn.com/" + league + "/team/schedule/_/name/"+team_id)
                     #try:
-                    #    soup = BeautifulSoup(requests.get("http://www.espn.com/"+league+"/team/schedule/_/name/" + str(searched_id)).content)
+                    #    soup = BeautifulSoup(requests.get("http://www.espn.com/"+league+"/team/schedule/_/name/" + str(searched_id)).content, features="lxml")
                     #    raw_schedule = soup.find("tbody", {"class": "Table2__tbody"})
                     #    if not raw_schedule:
                     #        await ctx.send("Couldn't find that team's schedule.")
