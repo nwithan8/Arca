@@ -162,7 +162,7 @@ class ESPN(commands.Cog):
     async def espn_prob(self, ctx: commands.Context, league: str, *, team: str):
         """
         ESPN's "win probability" for a team's current game
-        Supported leagues: NFL, NBA, WNBA, MLB, NHL, CFB, CBBW
+        Supported leagues: NFL, NBA, WNBA, MLB, NHL, CFB, CBBM, CBBW
         """
         league = self.fix_league(league)
         try:
@@ -251,8 +251,8 @@ class ESPN(commands.Cog):
     @espn.command(name="score")
     async def espn_score(self, ctx: commands.Context, league: str, *, team: str):
         """
-        Live score of a team's current game
-        Use team name, or 'all' to get all current games
+        Score of a team's current game
+        Use team name, 'all' or 'live'
         Supported leagues: NFL, NBA, WNBA, MLB, NHL, CFB, CBBM, CBBW
         """
         league = self.fix_league(league)
@@ -343,7 +343,7 @@ class ESPN(commands.Cog):
     async def espn_sched(self, ctx: commands.Context, league: str, *, team: str):
         """
         A link to a team's schedule
-        Supported leagues: NFL, NBA, WNBA MLB, NHL
+        Supported leagues: NFL, NBA, WNBA, MLB, NHL, CFB, CBBM, CBBW
         """
         league = self.fix_league(league)
         team_id = None
@@ -386,8 +386,50 @@ class ESPN(commands.Cog):
     async def espn_sched_error(self, ctx, error):
         await ctx.send("Please include <league> <team>")
         
+    @espn.command(name="stats", aliases=["record","rank"])
+    async def espn_stats(self, ctx: commands.Context, league: str, *, team: str):
+        """
+        Get record, ranking and stats for a team
+        Supported leagues: NFL, NBA, WNBA, MLB, NHL, CFB, CBBM, CBBW
+        """
+        league = self.fix_league(league)
+        team_id = None
+        team_name = None
+        if league in all_leagues:
+            if league in pro_leagues:
+                for t, c in team_codes[league].items():
+                    if (team.lower() in c[0].lower() or team.lower() == c[1].lower()):
+                        team_name = c[0]
+                        team_id = t
+                        break
+            elif league in college_leagues:
+                for t, c in team_codes[league].items():
+                    if (team.lower() == c[0].lower() or team.lower() == c[1].lower()):
+                        team_name = c[0]
+                        team_id = t
+                        break
+            if team_id == None:
+                await ctx.send("Couldn't find that team.")
+            else:
+                soup = BeautifulSoup(requests.get("http://www.espn.com/" + league + "/team/stats/_/" + ("id/" if league in college_leagues else "name/") + team_id).content, features="lxml").find("ul", {"class": "list flex ClubhouseHeader__Record n8 ml4"}).findAll("li")
+                embed = discord.Embed(title=str(team_codes[league][team_id][0]))
+                embed.set_thumbnail(url="https://image.flaticon.com/icons/png/128/870/870901.png")
+                embed.add_field(name=str(soup[0].text), value=str(soup[1].text),inline=False)
+                if league in ["ncf", "ncb", "ncw"]:
+                    embed.add_field(name='\u200b', value="http://www.espn.com/" + league + "/team/stats/_/id/"+team_id,inline=False)
+                else:
+                    embed.add_field(name='\u200b', value="http://www.espn.com/" + league + "/team/stats/_/name/"+team_id,inline=False)
+                await ctx.send(embed=embed)
+                    
+    @espn_stats.error
+    async def espn_stats_error(self, ctx, error):
+        await ctx.send("Please include <league> <team>")
+        
     @espn.command(name="leagues",aliases=['league','conf','confs','conference','conferences'])
     async def espn_leagues(self, ctx: commands.Context):
+        """
+        Show supported leagues
+        """
         r = ""
         for l in all_leagues:
             r = r + l.upper() + ", "
