@@ -411,18 +411,22 @@ class ESPN(commands.Cog):
             if team_id == None:
                 await ctx.send("Couldn't find that team.")
             else:
-                soup = BeautifulSoup(requests.get("http://www.espn.com/" + league + "/team/stats/_/" + ("id/" if league in college_leagues else "name/") + team_id).content, features="lxml").find("ul", {"class": "list flex ClubhouseHeader__Record n8 ml4"}).findAll("li")
-                embed = discord.Embed(title=str(team_codes[league][team_id][0]))
-                embed.set_thumbnail(url="https://image.flaticon.com/icons/png/128/870/870901.png")
-                embed.add_field(name=str(soup[0].text), value=str(soup[1].text),inline=False)
-                if league in ["ncf", "ncb", "ncw"]:
-                    embed.add_field(name='\u200b', value="http://www.espn.com/" + league + "/team/stats/_/id/"+team_id,inline=False)
-                else:
-                    embed.add_field(name='\u200b', value="http://www.espn.com/" + league + "/team/stats/_/name/"+team_id,inline=False)
-                await ctx.send(embed=embed)
+                try:
+                    soup = BeautifulSoup(requests.get("http://www.espn.com/" + league + "/team/stats/_/" + ("id/" if league in college_leagues else "name/") + team_id).content, features="lxml").find("ul", {"class": "list flex ClubhouseHeader__Record n8 ml4"}).findAll("li")
+                    embed = discord.Embed(title=str(team_codes[league][team_id][0]))
+                    embed.set_thumbnail(url="https://image.flaticon.com/icons/png/128/870/870901.png")
+                    embed.add_field(name=str(soup[0].text), value=str(soup[1].text),inline=False)
+                    if league in ["ncf", "ncb", "ncw"]:
+                        embed.add_field(name='\u200b', value="http://www.espn.com/" + league + "/team/stats/_/id/"+team_id,inline=False)
+                    else:
+                        embed.add_field(name='\u200b', value="http://www.espn.com/" + league + "/team/stats/_/name/"+team_id,inline=False)
+                    await ctx.send(embed=embed)
+                except (TypeError, AttributeError, IndexError):
+                    await ctx.send("No record found for that team.")
                     
     @espn_stats.error
     async def espn_stats_error(self, ctx, error):
+        print(error)
         await ctx.send("Please include <league> <team>")
         
     @espn.command(name="leagues",aliases=['league','conf','confs','conference','conferences'])
