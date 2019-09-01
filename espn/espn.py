@@ -364,10 +364,34 @@ class ESPN(commands.Cog):
             if team_id == None:
                 await ctx.send("Couldn't find that team.")
             else:
+                fc = 0
+                res = team_name + " Schedule:\n"
+                try:
+                    table = BeautifulSoup(requests.get("http://www.espn.com/" + league + "/team/schedule/_/" + ("name/" if league in pro_leagues else "id/") + str(team_id)).content, features="lxml").find('tbody',{"class":"Table2__tbody"}).findAll('tr')
+                    week_count = 0
+                    addition = ""
+                    for row in table:
+                        cols = row.findAll("td",{"class":"Table2__td"})
+                        if league == 'nfl':
+                            if cols[0].text.isdigit():
+                                if int(cols[0].text) < week_count:
+                                    break
+                                week_count = int(cols[0].text)
+                                res = res + cols[0].text + "\t" + cols[1].text + ("\t" + cols[2].text + "\t" + cols[3].text if "bye" not in cols[1].text.lower() else "") + "\n"
+                        else:
+                            if any(v in cols[0].text.lower() for v in ['sun','mon','tue','wed','thu','fri','sat']):
+                                addition = cols[0].text + "\t" + cols[1].text + ("\t" + cols[2].text if "bye" not in cols[1].text.lower() else "") + "\n"
+                                if (len(res) + len(addition)) > 2000:
+                                    await ctx.send(res)
+                                    res = cols[0].text + "\t" + cols[1].text + ("\t" + cols[2].text if "bye" not in cols[1].text.lower() else "") + "\n"
+                                else:
+                                    res = res + cols[0].text + "\t" + cols[1].text + ("\t" + cols[2].text if "bye" not in cols[1].text.lower() else "") + "\n"
+                except (TypeError, AttributeError, IndexError):
+                    res = res
                 if league in ["ncf", "ncb", "ncw"]:
-                    await ctx.send(team_name + " schedule: http://www.espn.com/" + league + "/team/schedule/_/id/"+team_id)
+                    await ctx.send((res + "\n" if res != "" else "") + "http://www.espn.com/" + league + "/team/schedule/_/id/"+team_id)
                 else:
-                    await ctx.send(team_name + " schedule: http://www.espn.com/" + league + "/team/schedule/_/name/"+team_id)
+                    await ctx.send((res + "\n" if res != "" else "") + "http://www.espn.com/" + league + "/team/schedule/_/name/"+team_id)
                     #try:
                     #    soup = BeautifulSoup(requests.get("http://www.espn.com/"+league+"/team/schedule/_/name/" + str(searched_id)).content)
                     #    raw_schedule = soup.find("tbody", {"class": "Table2__tbody"})
@@ -384,6 +408,7 @@ class ESPN(commands.Cog):
                 
     @espn_sched.error
     async def espn_sched_error(self, ctx, error):
+        print(error)
         await ctx.send("Please include <league> <team>")
         
     @espn.command(name="stats", aliases=["record","rank"])
