@@ -158,14 +158,17 @@ class PlexManager(commands.Cog):
     def delete_from_plex(self, id):
         try:
             plexname, note = self.find_user_in_db("Plex", id)
-            plex.myPlexAccount().removeFriend(user=plexname)
-            if note != 't':
-                self.delete_from_ombi(plexname) # Error if trying to remove trial user that doesn't exist in Ombi?
-            self.delete_from_tautulli(plexname)
-            self.remove_user_from_db(id)
-            return True
+            if plexname != None:
+                plex.myPlexAccount().removeFriend(user=plexname)
+                if note != 't':
+                    self.delete_from_ombi(plexname) # Error if trying to remove trial user that doesn't exist in Ombi?
+                self.delete_from_tautulli(plexname)
+                self.remove_user_from_db(id)
+                return True
+            else:
+                return False
         except plexapi.exceptions.NotFound:
-            print("Not found")
+            #print("Not found")
             return False
         
     def describe_table(self, table):
@@ -219,23 +222,38 @@ class PlexManager(commands.Cog):
         r1 = ""
         r2 = ""
         if myConnection.is_connected():
-            cursor = myConnection.cursor()
+            cursor = myConnection.cursor(buffered=True)
             query = "SELECT " + ("PlexUsername, Note" if PlexOrDiscord == "Plex" else "DiscordID") + " FROM users WHERE " + ("DiscordID" if PlexOrDiscord == "Plex" else "PlexUsername") + " = '" + str(data) + "'"
             cursor.execute(str(query))
             results = cursor.fetchone()
             if PlexOrDiscord == "Plex":
-                return results[0], results[1]
+                if cursor.rowcount > 0:
+                    r1 = results[0]
+                    r2 = results[1]
+                    cursor.close()
+                    myConnection.close()
+                    return r1, r2
+                else:
+                    cursor.close()
+                    myConnection.close()
+                    return None, None
             else:
-                return results[0]
-            cursor.close()
-            myConnection.close()
+                if cursor.rowcount > 0:
+                    r1 = results[0]
+                    cursor.close()
+                    myConnection.close()
+                    return r1
+                else:
+                    cursor.close()
+                    myConnection.close()
+                    return None
         
     async def purge_winners(self, ctx):
         try:
             myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
             monitorlist = []
             if myConnection.is_connected():
-                cur = myConnection.cursor()
+                cur = myConnection.cursor(buffered=True)
                 cur.execute("SELECT PlexUsername FROM users WHERE Note = 'w'")
                 for u in cur.fetchall():
                     monitorlist.append(u[0])
@@ -347,6 +365,24 @@ class PlexManager(commands.Cog):
         """
         if ctx.invoked_subcommand is None:
             await ctx.send("What subcommand?")
+            
+    @pm.command(name="winners", pass_context=True)
+    @commands.has_role(ADMIN_ROLE_NAME)
+    async def pm_winners(self, ctx: commands.Context):
+        """
+        List winners' Plex usernames
+        """
+        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
+        if myConnection.is_connected():
+            try:
+                response = "Winners:"
+                cur = myConnection.cursor(buffered=True)
+                cur.execute("SELECT PlexUsername FROM users WHERE Note = 'w'")
+                for u in cur.fetchall():
+                    response = response + "\n" + (u[0])
+                await ctx.send(response)
+            except Exception as e:
+                await ctx.send("Error pulling winners from database.")
         
     @pm.command(name="purge", pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
@@ -463,7 +499,10 @@ class PlexManager(commands.Cog):
         Find Discord member's Plex username
         """
         name, note = self.find_user_in_db("Plex", user.id)
-        await ctx.send(user.mention + " is Plex user: " + name + (" [Trial]" if note == 't' else " [Subscriber]"))
+        if name != None:
+            await ctx.send(user.mention + " is Plex user: " + name + (" [Trial]" if note == 't' else " [Subscriber]"))
+        else:
+            await ctx.send("User not found.")
         
     @pm_find.command(name="discord", aliases=["d"])
     async def pm_find_discord(self, ctx: commands.Context, PlexUsername: str):
@@ -471,11 +510,14 @@ class PlexManager(commands.Cog):
         Find Plex user's Discord name
         """
         id = self.find_user_in_db("Discord", PlexUsername)
-        await ctx.send(PlexUsername + " is Discord user: " + self.bot.get_user(int(id)).mention)
+        if id != None:
+            await ctx.send(PlexUsername + " is Discord user: " + self.bot.get_user(int(id)).mention)
+        else:
+            await ctx.send("User not found.")
             
     @pm_find.error
     async def pm_find_error(self, ctx, error):
-        await ctx.send("User not found.")
+        await ctx.send("An error occurred while looking for that user.")
             
     @pm.group(name="info")
     async def pm_info(self, ctx: commands.Context):
