@@ -41,10 +41,14 @@ imdbf = ImdbFacade()
 imdb = Imdb()
 
 owner_players = []
-emoji_numbers = [u"1\u20e3",u"2\u20e3",u"3\u20e3",u"4\u20e3",u"5\u20e3"]
+#Numbers 1-9
+emoji_numbers = [u"1\u20e3",u"2\u20e3",u"3\u20e3",u"4\u20e3",u"5\u20e3",u"6\u20e3",u"7\u20e3",u"8\u20e3",u"9\u20e3"]
+session_ids = []
 
 shows = defaultdict(list)
 movies = defaultdict(list)
+
+terminate_message = "Please direct message @Nate in the Discord server."
 
 class Plex(commands.Cog):
     
@@ -304,22 +308,47 @@ class Plex(commands.Cog):
             overview_message = "Sessions: " + str(stream_count) + (" stream" if int(stream_count) == 1 else " streams") + ((" (" + str(transcode_count) + (" transcode" if int(transcode_count) == 1 else " transcodes") + ")") if int(transcode_count) > 0 else "") + ((" | Bandwidth: " + str(round(Decimal(float(total_bandwidth)/1024),1)) + " Mbps" + ((" (LAN: " + str(round(Decimal(float(lan_bandwidth)/1024),1)) + " Mbps)") if int(lan_bandwidth) > 0 else "")) if int(total_bandwidth) > 0 else "")
             sessions = json_data['response']['data']['sessions']
             count = 0
-            session_ids = []
             final_message = overview_message + "\n"
             for session in sessions:
-                count = count + 1
-                stream_message = "**(" + str(count) + ")** " + self.selectIcon(str(session['state'])) + " " + str(session['username']) + ": *" + str(session["full_title"]) + "*\n"
-                stream_message = stream_message + "__Player__: " + str(session['product']) + " (" + str(session['player']) + ")\n"
-                stream_message = stream_message + "__Quality__: " + str(session['quality_profile']) + " (" + (str(round(Decimal(float(session['bandwidth'])/1024),1)) if session['bandwidth'] is not "" else "O") + " Mbps)" + (" (Transcode)" if str(session['stream_container_decision']) == 'transcode' else "")
-                final_message = final_message + "\n" + stream_message + "\n"
+                try:
+                    count = count + 1
+                    stream_message = "**(" + str(count) + ")** " + self.selectIcon(str(session['state'])) + " " + str(session['username']) + ": *" + str(session["full_title"]) + "*\n"
+                    stream_message = stream_message + "__Player__: " + str(session['product']) + " (" + str(session['player']) + ")\n"
+                    stream_message = stream_message + "__Quality__: " + str(session['quality_profile']) + " (" + (str(round(Decimal(float(session['bandwidth'])/1024),1)) if session['bandwidth'] is not "" else "O") + " Mbps)" + (" (Transcode)" if str(session['stream_container_decision']) == 'transcode' else "")
+                    final_message = final_message + "\n" + stream_message + "\n"
+                    session_ids.append(str(session['session_id']))
+                except ValueError:
+                    session_ids.append("000")
+                    pass
+            print(final_message)
             if int(stream_count) > 0:
-                await ctx.send(final_message)
+                sent_message = await ctx.send(final_message + "\nTo terminate a stream, react with the stream number.")
+                for i in range(count):
+                    await sent_message.add_reaction(emoji_numbers[i])
+                manage_streams = True
+                while manage_streams:
+                    def check(reaction, user):
+                            return user != sent_message.author
+                    try:
+                        reaction, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
+                        if reaction and str(reaction.emoji) in emoji_numbers:
+                            try:
+                                loc = emoji_numbers.index(str(reaction.emoji))
+                                self.request('terminate_session','session_id='+str(session_ids[loc])+'&message='+str(terminate_message))
+                                end_notification = await ctx.send(content="Stream " + str(loc+1) + " was ended.")
+                                await end_notification.delete(delay=1.0)
+                            except:
+                                end_notification = await ctx.send(content="Something went wrong.")
+                                await end_notification.delete(delay=1.0)
+                    except asyncio.TimeoutError:
+                        await sent_message.delete()
+                        manage_streams = False
             else:
                 await ctx.send("No current activity.")
         except KeyError:
             await ctx.send("**Connection error.**")
             
-    @plex.command(name="new",alias=["added"],pass_context=True)
+    @plex.command(name="new", alias=["added"], pass_context=True)
     async def new(self, ctx: commands.Context):
         """
         See recently added content
@@ -337,7 +366,6 @@ class Plex(commands.Cog):
         while nav:
             def check(reaction, user):
                 return user != ra_embed.author
-            
             try:
                 if cur == 0:
                     await ra_embed.add_reaction(u"\u27A1") #arrow_right
