@@ -28,6 +28,9 @@ database = 'PlexDiscord'
 
 # Plex Server settings
 PLEX_SERVER_NAME = os.environ.get("PLEX_SERVER_NAME")
+PLEX_SERVER_ALT_NAME = ""
+if "PLEX_SERVER_ALT_NAME" in os.environ:
+    PLEX_SERVER_ALT_NAME = os.environ.get("PLEX_SERVER_ALT_NAME")
 
 # Ombi settings
 USE_OMBI = True
@@ -358,13 +361,43 @@ class PlexManager(commands.Cog):
         print("Plex trials check complete.")
         
     @commands.group(name="pm",aliases=["PM","PlexMan","plexman"],pass_context=True)
-    @commands.has_role(ADMIN_ROLE_NAME)
     async def pm(self, ctx: commands.Context):
         """
         Plex admin commands
         """
         if ctx.invoked_subcommand is None:
             await ctx.send("What subcommand?")
+            
+    @pm.command(name="access", pass_context=True)
+    ### Anyone can use this command
+    async def pm_access(self, ctx: commands.Context, PlexUsername: str = None):
+        """
+        Check if you or another user has access to the Plex server
+        """
+        hasAccess = False
+        name = ""
+        if PlexUsername is None:
+            name, note = self.find_user_in_db("Plex", ctx.message.author.id)
+        else:
+            name = PlexUsername
+        if name != None:
+            for u in plex.myPlexAccount().users():
+                if u.username == name:
+                    for s in u.servers:
+                        if s.name == PLEX_SERVER_NAME or s.name == PLEX_SERVER_ALT_NAME:
+                            hasAccess = True
+                            break
+                    break
+            if hasAccess:
+                await ctx.send(("You have" if PlexUsername is None else name + " has") + " access to " + PLEX_SERVER_NAME)
+            else:
+                await ctx.send(("You do not have" if PlexUsername is None else name + " does not have") + " access to " + PLEX_SERVER_NAME)
+        else:
+            await ctx.send("User not found.")
+            
+    @pm_access.error
+    async def pm_access_error(self, ctx, error):
+        await ctx.send("Sorry, something went wrong.")
             
     @pm.command(name="winners", pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
@@ -401,7 +434,7 @@ class PlexManager(commands.Cog):
         count = 0
         for u in plex.myPlexAccount().users():
             for s in u.servers:
-                if s.name == "PLEX_SERVER_NAME":
+                if s.name == PLEX_SERVER_NAME:
                         count+=1
         await ctx.send(PLEX_SERVER_NAME + " has " + str(count) + " subscribers")
         
@@ -505,6 +538,7 @@ class PlexManager(commands.Cog):
             await ctx.send("User not found.")
         
     @pm_find.command(name="discord", aliases=["d"])
+    @commands.has_role(ADMIN_ROLE_NAME)
     async def pm_find_discord(self, ctx: commands.Context, PlexUsername: str):
         """
         Find Plex user's Discord name
