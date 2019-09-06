@@ -398,6 +398,21 @@ class PlexManager(commands.Cog):
     @pm_access.error
     async def pm_access_error(self, ctx, error):
         await ctx.send("Sorry, something went wrong.")
+        
+    @pm.command(name="status", aliases=['ping','up','online'], pass_context=True)
+    async def pm_status(self, ctx: commands.Context):
+        """
+        Check if the Plex server is online
+        """
+        r = requests.get(os.environ.get('PLEX_URL') + "/identity", timeout=10)
+        if r.status_code != 200:
+            await ctx.send(PLEX_SERVER_NAME + " is having connection issues right now.")
+        else:
+            await ctx.send(PLEX_SERVER_NAME + " is up and running.")
+            
+    @pm_status.error
+    async def pm_status_error(self, ctx, error):
+        await ctx.send("Sorry, I couldn't test the connection.")
             
     @pm.command(name="winners", pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
