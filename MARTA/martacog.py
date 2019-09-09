@@ -25,7 +25,7 @@ stations = {
     ],
     "ARTS CENTER STATION": [
     [
-        'arts center'
+        'artscenter'
     ],
     "1255 West Peachtree St Atlanta, GA 30309",
     "https://itsmarta.com/Arts-Center.aspx"
@@ -74,14 +74,14 @@ stations = {
     ],
     "CIVIC CENTER STATION": [
     [
-        'civic center'
+        'civiccenter'
     ],
     "435 West Peachtree St, NW Atlanta, GA 30308",
     "https://itsmarta.com/Civic-Center.aspx"
     ],
     "COLLEGE PARK STATION": [
     [
-        'college park'
+        'collegepark'
     ],
     "3800 Main St Atlanta, GA 30337",
     "https://itsmarta.com/College-Park.aspx"
@@ -95,16 +95,16 @@ stations = {
     ],
     "OMNI DOME STATION": [
     [
-        'omni dome',
+        'omnidome',
         'dome',
-        'mercedes benz',
+        'mercedesbenz',
         'mercedes-benz',
         'cnn',
-        'state farm arena',
-        'philips arena',
+        'statefarmarena',
+        'philipsarena',
         'gwcc',
-        'georgia world congress center',
-        'world congress center'
+        'georgiaworldcongresscenter',
+        'worldcongresscenter'
     ],
     "100 Centennial Olympic Park Atlanta, GA 30303",
     "https://itsmarta.com/Omni.aspx"
@@ -125,14 +125,14 @@ stations = {
     ],
     "EAST LAKE STATION": [
     [
-        'east lake'
+        'eastlake'
     ],
     "2260 College Ave Atlanta, GA 30307",
     "https://itsmarta.com/East-Lake.aspx"
     ],
     "EAST POINT STATION": [
     [
-        'east point'
+        'eastpoint'
     ],
     "2848 East Main St East Point, GA 30344",
     "https://itsmarta.com/East-Point.aspx"
@@ -140,15 +140,14 @@ stations = {
     "EDGEWOOD CANDLER PARK STATION": [
     [
         'edgewood',
-        'candler park'
+        'candlerpark'
     ],
     "1475 DeKalb Ave, NE Atlanta, GA 30307",
     "https://itsmarta.com/Edgewood-Candler-Park.aspx"
     ],
     "FIVE POINTS STATION": [
     [
-        'five points',
-        '5 points',
+        'fivepoints',
         '5points'
     ],
     "30 Alabama St SW Atlanta, GA 30303",
@@ -163,7 +162,7 @@ stations = {
     ],
     "GEORGIA STATE STATION": [
     [
-        'georgia state',
+        'georgiastate',
         'gsu',
         'school'
     ],
@@ -172,16 +171,16 @@ stations = {
     ],
     "HAMILTON E HOLMES STATION": [
     [
-        'hamilton e holmes',
-        'h.e. holmes',
-        'he holmes'
+        'hamiltoneholmes',
+        'h.e.holmes',
+        'heholmes'
     ],
     "70 Hamilton E Holmes Dr, NW Atlanta, GA 30311",
     "https://itsmarta.com/Hamilton-E-Holmes.aspx"
     ],
     "INDIAN CREEK STATION": [
     [
-        'indian creek'
+        'indiancreek'
     ],
     "901 Durham Park Rd Stone Mountain, GA 30083",
     "https://itsmarta.com/Indian-Creek.aspx"
@@ -189,7 +188,7 @@ stations = {
     "INMAN PARK STATION": [
     [
         'inman',
-        'inman park'
+        'inmanpark'
     ],
     "055 DeKalb Ave, NE Atlanta, GA 30307",
     "https://itsmarta.com/Inman-Park.aspx"
@@ -203,7 +202,7 @@ stations = {
     ],
     "KING MEMORIAL STATION": [
     [
-        'king memorial',
+        'kingmemorial',
         'mlk'
     ],
     "377 Decatur St, SE Atlanta, GA 30312",
@@ -232,7 +231,8 @@ stations = {
     ],
     "MEDICAL CENTER STATION": [
     [
-        'medical center'
+        'medicalcenter',
+        'medcenter'
     ],
     "5711 Peachtree-Dunwoody Rd, NE Atlanta, GA 30342",
     "https://itsmarta.com/Medical-Center.aspx"
@@ -246,10 +246,10 @@ stations = {
     ],
     "NORTH AVE STATION": [
     [
-        'north ave',
-        'north avenue',
+        'northave',
+        'northavenue',
         'gt',
-        'georgia tech',
+        'georgiatech',
         'tech'
     ],
     "713 West Peachtree St, NW Atlanta, GA 30308",
@@ -257,7 +257,7 @@ stations = {
     ],
     "NORTH SPRINGS STATION": [
     [
-        'north springs'
+        'northsprings'
     ],
     "7010 Peachtree Dunwoody Rd Sandy Springs, GA 30328",
     "https://itsmarta.com/North-Springs.aspx"
@@ -265,42 +265,42 @@ stations = {
     "OAKLAND CITY STATION": [
     [
         'oakland',
-        'oakland city'
+        'oaklandcity'
     ],
     "1400 Lee St, SW Atlanta, GA 30310",
     "https://itsmarta.com/Oakland-City.aspx"
     ],
     "PEACHTREE CENTER STATION": [
     [
-        'peachtree center'
+        'peachtreecenter'
     ],
     "216 Peachtree St, NE Atlanta, GA 30303",
     "https://itsmarta.com/Peachtree-Center.aspx"
     ],
     "SANDY SPRINGS STATION": [
     [
-        'sandy springs'
+        'sandysprings'
     ],
     "1101 Mount Vernon Hwy Atlanta, GA 30338",
     "https://itsmarta.com/Sandy-Springs.aspx"
     ],
     "VINE CITY STATION": [
     [
-        'vine city'
+        'vinecity'
     ],
     "502 Rhodes St, NW Atlanta, GA 30314",
     "https://itsmarta.com/Vine-City.aspx"
     ],
     "WEST END STATION": [
     [
-        'west end'
+        'westend'
     ],
     "680 Lee St, SW Atlanta, GA 30310",
     "https://itsmarta.com/West-End.aspx"
     ],
     "WEST LAKE STATION": [
     [
-        'west lake'
+        'westlake'
     ],
     "80 Anderson Ave, SW Atlanta, GA 30314",
     "https://itsmarta.com/West-Lake.aspx"
