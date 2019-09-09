@@ -397,7 +397,7 @@ class MARTA(commands.Cog):
     async def marta_trains(self, ctx: commands.Context, station: str=None, direction: str=None, line: str=None):
         """
         Get live train schedules
-        Optional: 'line' (Red, Gold, Blue, Green) and 'direction' (N, S, E, W)
+        Optional: 'direction' (N, S, E, W) and 'line' (Red, Gold, Blue, Green)
         Must include both 'line' and 'direction'
         """
         found=False
