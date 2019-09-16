@@ -11,6 +11,7 @@ Cog Function
 | jellyfin_manager | 1.2.0 | <details><summary>Manage a Jellyfin Media Server</summary><p>Commands:<p><ul><li><b>add</b> - Create Jellyfin user</li><li><b>remove</b> - Delete Jellyfin user</li><li><b>count</b> - Get the number of enabled users on the Jellyfin server</li></ul> |
 | core | 0.3.0 | <details><summary>Manage cogs for Discord bot</summary><p>Commands:<p><ul><li><b>import</b> - Import new cogs</li><li><b>add</b> - Add new cog repo (.git links)</li><li><b>load</b> - Load a cog from a downloaded repo</li></ul> |
 | news | 1.0.0 | <details><summary>Get news headlines</summary><p>Commands:<p><ul><li><b>brief</b> - Get 5 top headlines</li><li><b>top</b> - Top headlines from a specific media outlet</li><li><b>sports</b> - Sports news headlines</li><li><b>u.s.</b> - U.S. news headlines</li><li><b>world</b> - World news headlines</li></ul> |
+| marta | 1.0.0 | <details><summary>Get MARTA train info</summary><p>MARTA is the Metro Atlanta Rapid Transit Authority, the light-rail system in Atlanta, Georgia</p><p>Commands:<p><ul><li><b>trains</b> - Get live train arrival times</li><li><b>time</b> - How long to go from one station to another</li><li><b>stations</b> - List available stations</li></ul> |
 	
  # Installation
  1. ```git clone https://github.com/nwithan8/nwithan8-cogs.git```
