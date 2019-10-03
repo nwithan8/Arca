@@ -419,9 +419,7 @@ class Plex(commands.Cog):
                     if results != "":
                         embed.add_field(name=k.capitalize() + ("s" if len(results_list) > 1 else ""),value=str(results),inline=False)
         await ctx.send(embed=embed)
-            
-def setup(bot):
-    bot.add_cog(Plex(bot))
+    
     def __init__(self, bot):
         self.bot = bot
         print("Plex - updating libraries...")
