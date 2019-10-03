@@ -351,7 +351,7 @@ class ESPN(commands.Cog):
         if league in all_leagues:
             if league in pro_leagues:
                 for t, c in team_codes[league].items():
-                    if (team.lower() in c[0].lower() or team.lower() == c[1].lower()):
+                    if (team.lower() in c[0].lower() or team.lower() in c[3]):
                         team_name = c[0]
                         team_id = t
                         break
@@ -367,11 +367,11 @@ class ESPN(commands.Cog):
                 fc = 0
                 res = team_name + " Schedule:\n"
                 try:
-                    table = BeautifulSoup(requests.get("http://www.espn.com/" + league + "/team/schedule/_/" + ("name/" if league in pro_leagues else "id/") + str(team_id)).content, features="lxml").find('tbody',{"class":"Table2__tbody"}).findAll('tr')
+                    table = BeautifulSoup(requests.get("http://www.espn.com/" + league + "/team/schedule/_/" + ("name/" if league in pro_leagues else "id/") + str(team_id)).content, features="lxml").find('tbody',{"class":"Table__TBODY"}).findAll('tr')
                     week_count = 0
                     addition = ""
                     for row in table:
-                        cols = row.findAll("td",{"class":"Table2__td"})
+                        cols = row.findAll("td",{"class":"Table__TD"})
                         if league == 'nfl':
                             if cols[0].text.isdigit():
                                 if int(cols[0].text) < week_count:
