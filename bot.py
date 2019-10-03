@@ -6,18 +6,23 @@ import sys, traceback, os
 
 PREFIX="*"
 
-bot = commands.Bot(command_prefix=PREFIX)
+bot = commands.Bot(command_prefix=PREFIX, case_insensitive=False)
 
 formatter = commands.HelpCommand(show_check_failure=False)
 
 exts = [
-"espn.__init__",
-"plex.plex",
-"core.manager",
-"plex_manager.__init__",
-"jellyfin_manager.__init__",
-"emby_manager.__init__",
-"news.__init__"]
+#"espn.__init__",
+"espn.__initdemo__",
+"plex.__init__",
+#"core.manager",
+#"plex_manager.__init__",
+#"jellyfin_manager.__init__"
+#"emby_manager.__init__",
+#"news.__init__"
+#"crashy.__init__"
+#"MARTA.__inittest__"
+#"MARTA.__init__"
+]
 
 for ext in exts:
     bot.load_extension(ext)
