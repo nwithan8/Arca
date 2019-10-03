@@ -349,7 +349,7 @@ class Plex(commands.Cog):
             await ctx.send("**Connection error.**")
             
     @plex.command(name="new", alias=["added"], pass_context=True)
-    async def new(self, ctx: commands.Context):
+    async def plex_new(self, ctx: commands.Context):
         """
         See recently added content
         """
@@ -398,11 +398,32 @@ class Plex(commands.Cog):
                         e.description = "(" + str(cur+1) + "/" + str(count) + ") " + str(listing['grandparent_title'] if listing['grandparent_title'] != "" else (listing['parent_title'] if listing['parent_title'] != "" else listing['full_title'])) + " - [Watch Now](https://app.plex.tv/desktop#!/server/" + PLEX_SERVER_ID + "/details?key=%2Flibrary%2Fmetadata%2F" + str(recently_added['response']['data']['recently_added'][cur]['rating_key']) + ")"
                         await ra_embed.edit(embed=e)
                         await ra_embed.clear_reactions()
+                        
+    @plex.command(name="search", alias=["find"], pass_context=True)
+    async def plex_search(self, ctx: commands.Context, *, searchTerm: str):
+        json_data = self.request("search", "query="+searchTerm)['response']['data']
+        embed = discord.Embed(title="'" + searchTerm + "' Search Results")
+        if json_data['results_count'] > 0:
+            for k, l in json_data['results_list'].items():
+                results = ""
+                results_list = []
+                if k.lower() not in ['episode']: # ignore episode titles
+                    for r in l:
+                        if searchTerm.lower() in str(r['title']).lower():
+                            if r['title'] in results_list or k == 'collection':
+                                results_list.append(r['title'] + " - " + r['library_name'])
+                                results = results + "[" + r['title'] + " - " + r['library_name'] + "](https://app.plex.tv/desktop#!/server/" + PLEX_SERVER_ID + "/details?key=%2Flibrary%2Fmetadata%2F" + str(r['rating_key']) + ")" + "\n"
+                            else:
+                                results_list.append(r['title'])
+                                results = results + "[" + r['title'] + "](https://app.plex.tv/desktop#!/server/" + PLEX_SERVER_ID + "/details?key=%2Flibrary%2Fmetadata%2F" + str(r['rating_key']) + ")" + "\n"
+                    if results != "":
+                        embed.add_field(name=k.capitalize() + ("s" if len(results_list) > 1 else ""),value=str(results),inline=False)
+        await ctx.send(embed=embed)
             
+def setup(bot):
+    bot.add_cog(Plex(bot))
     def __init__(self, bot):
         self.bot = bot
         print("Plex - updating libraries...")
         self.getLibraries.start()
         
-def setup(bot):
-    bot.add_cog(Plex(bot))
