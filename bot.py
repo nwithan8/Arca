@@ -12,12 +12,14 @@ formatter = commands.HelpCommand(show_check_failure=False)
 
 exts = [
 "espn.__init__",
-"plex.plex",
+"plex.__init__",
 "core.manager",
 "plex_manager.__init__",
 "jellyfin_manager.__init__",
 "emby_manager.__init__",
-"news.__init__"]
+"news.__init__",
+"MARTA.__init__"
+]
 
 for ext in exts:
     bot.load_extension(ext)
