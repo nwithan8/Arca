@@ -13,10 +13,10 @@ formatter = commands.HelpCommand(show_check_failure=False)
 exts = [
 "espn.__init__",
 "plex.__init__",
-"core.manager",
+#"core.manager",
 "plex_manager.__init__",
 "jellyfin_manager.__init__",
-"emby_manager.__init__",
+#"emby_manager.__init__",
 "news.__init__",
 "MARTA.__init__"
 ]
