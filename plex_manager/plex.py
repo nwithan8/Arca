@@ -455,6 +455,7 @@ class PlexManager(commands.Cog):
         
     @pm_count.error
     async def pm_count_error(self, ctx, error):
+        print(error)
         await ctx.send("Something went wrong. Please try again later.")
         
     @pm.command(name="add",alias=["invite","new"])
