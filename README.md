@@ -24,6 +24,8 @@ Cog Function
  
  Individual cogs can also be installed to pre-existing bots as well.
  
+ Demo video: https://www.youtube.com/watch?v=6etsv5b0IRs
+ 
  # Usage
  Default bot prefix is ```*```
  Prefix can be changed in ```bot.py```
