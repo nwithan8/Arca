@@ -25,6 +25,7 @@ Cog Function
  Individual cogs can also be installed to pre-existing bots as well.
  
  Demo video: https://www.youtube.com/watch?v=6etsv5b0IRs
+ Setup Tutorial: https://www.youtube.com/watch?v=G0iw7aRXB3M
  
  # Usage
  Default bot prefix is ```*```
