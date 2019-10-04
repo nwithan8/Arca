@@ -31,7 +31,7 @@ TAUTULLI_KEY=
     Tautulli API key (https://www.reddit.com/r/Tautulli/comments/ai05ba/i_feel_dumb_where_is_the_api_key/)
     
     
-OMBI_URL='https://ombi.crashcourse.info:443/'
+OMBI_URL=''
     Ombi URL (format: 'http://myip.com:port')
 OMBI_KEY=
     Ombi API key (https://github.com/tidusjar/Ombi/wiki/Ombi-Settings)
