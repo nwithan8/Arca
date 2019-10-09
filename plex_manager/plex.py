@@ -559,6 +559,10 @@ class PlexManager(commands.Cog):
                     await ctx.send("User added to the database.")
             else:
                 await ctx.send("User already exists in the database.")
+                
+    @pm_import.error
+    async def pm_import_error(self, ctx, error):
+        await ctx.send("Please mention the Discord user to add to the database, including their Plex username and sub type.")
         
     @pm.group(name="find", aliases=["id"], pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
