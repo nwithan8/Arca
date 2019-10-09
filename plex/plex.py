@@ -237,13 +237,13 @@ class Plex(commands.Cog):
         size = 0
         for l in self.request("get_libraries",None)['response']['data']:
             if l['section_type'] == 'movie':
-                size = size + self.request("get_library_media_info","section_id="+str(l['section_id']))['response']['data']['total_file_size']
+                size = size + self.request("get_library_media_info","section_id="+str(l['section_id'])+"&length=100000")['response']['data']['total_file_size']
                 embed.add_field(name=str(l['count']) + " movies",value=str(l['section_name']),inline=False)
             elif l['section_type'] == 'show':
-                size = size + self.request("get_library_media_info","section_id="+str(l['section_id']))['response']['data']['total_file_size']
+                size = size + self.request("get_library_media_info","section_id="+str(l['section_id'])+"&length=100000")['response']['data']['total_file_size']
                 embed.add_field(name=str(l['count']) + " shows, " + str(l['parent_count']) + " seasons, " + str(l['child_count']) + " episodes",value=str(l['section_name']),inline=False)
             elif l['section_type'] == 'artist':
-                size = size + self.request("get_library_media_info","section_id="+str(l['section_id']))['response']['data']['total_file_size']
+                size = size + self.request("get_library_media_info","section_id="+str(l['section_id'])+"&length=100000")['response']['data']['total_file_size']
                 embed.add_field(name=str(l['count']) + " artists, " + str(l['parent_count']) + " albums, " + str(l['child_count']) + " songs",value=str(l['section_name']),inline=False)
         embed.add_field(name='\u200b',value="Total: "+self.filesize(size))
         await ctx.send(embed=embed)
