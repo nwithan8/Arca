@@ -401,6 +401,9 @@ class Plex(commands.Cog):
                         
     @plex.command(name="search", alias=["find"], pass_context=True)
     async def plex_search(self, ctx: commands.Context, *, searchTerm: str):
+        """
+        Search for Plex content
+        """
         json_data = self.request("search", "query="+searchTerm)['response']['data']
         embed = discord.Embed(title="'" + searchTerm + "' Search Results")
         if json_data['results_count'] > 0:
