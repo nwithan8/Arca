@@ -148,7 +148,7 @@ class PlexManager(commands.Cog):
     async def add_to_plex(self, plexname, discordId, note):
         try:
             plex.myPlexAccount().inviteFriend(user=plexname,server=plex,sections=None, allowSync=False, allowCameraUpload=False, allowChannels=False, filterMovies=None, filterTelevision=None, filterMusic=None)
-            self.add_user_to_db(discordId, plexname, note)
+            garbage = self.add_user_to_db(discordId, plexname, note)
             await asyncio.sleep(60)
             self.add_to_tautulli(plexname)
             if note != 't': # Trial members do not have access to Ombi
@@ -198,18 +198,22 @@ class PlexManager(commands.Cog):
             return response
 
     def add_user_to_db(self, discordId, plexUsername, note):
+        result = False
         myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
         if myConnection.is_connected():
             cursor = myConnection.cursor(buffered=True)
             query = ""
             if note == 't':
-                query = "INSERT INTO users (DiscordID, PlexUsername, ExpirationStamp, Note) VALUES ('" + str(discordId) + "','" + str(plexUsername) + "','" + str(int(time.time()) + (3600 * TRIAL_LENGTH)) + "','" + str(note) + "')"
+                query = "INSERT INTO users (DiscordID, PlexUsername, ExpirationStamp, Note) VALUES ('" + str(discordId) + "','" + str(plexUsername) + "','" + str(int(time.time()) + (3600 * TRIAL_LENGTH)) + "','" + str(note) + "') ON DUPLICATE KEY UPDATE ExpirationStamp='" + str(int(time.time()) + (3600 * TRIAL_LENGTH)) + "'"
             else:
-                query = "INSERT INTO users (DiscordID, PlexUsername, Note) VALUES ('" + str(discordId) + "','" + str(plexUsername) + "','" + str(note) + "')"
+                query = "INSERT IGNORE INTO users (DiscordID, PlexUsername, Note) VALUES ('" + str(discordId) + "','" + str(plexUsername) + "','" + str(note) + "')"
             cursor.execute(str(query))
+            if int(cursor.rowcount) > 0:
+                result = True
             myConnection.commit()
             cursor.close()
             myConnection.close()
+            return result
             
     def remove_user_from_db(self, id):
         myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
@@ -532,6 +536,29 @@ class PlexManager(commands.Cog):
     @pm_trial.error
     async def pm_trial_error(self, ctx, error):
         await ctx.send("Please mention the Discord user to add to Plex, as well as their Plex username.")
+        
+    @pm.command(name="import")
+    @commands.has_role(ADMIN_ROLE_NAME)
+    async def pm_import(self, ctx: commands.Context, user: discord.Member, PlexUsername: str, subType: str):
+        """
+        Add existing Plex users to the database.
+        user - tag a Discord user
+        PlexUsername - Plex username or email of the Discord user
+        subType - custom note for tracking subscriber type; MUST be less than 5 letters.
+        Default in database: 's' for Subscriber, 'w' for Winner, 't' for Trial.
+        NOTE: subType 't' will make a new 24-hour timestamp for the user.
+        """
+        if len(subType) > 4:
+            await ctx.send("subType must be less than 5 characters long.")
+        else:
+            new_entry = self.add_user_to_db(user.id, PlexUsername, subType)
+            if new_entry:
+                if subType == 't':
+                    await ctx.send("Trial user was added/new timestamp issued.")
+                else:
+                    await ctx.send("User added to the database.")
+            else:
+                await ctx.send("User already exists in the database.")
         
     @pm.group(name="find", aliases=["id"], pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
