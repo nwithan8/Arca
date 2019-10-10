@@ -1,0 +1,310 @@
+import discord
+from discord.ext import commands, tasks
+import requests
+import asyncio
+import datetime
+import time
+from plexapi.server import PlexServer
+import plexapi
+from plexapi.myplex import MyPlexAccount
+#import mysql.connector
+import urllib
+import json
+import re
+from discord.ext import commands
+import sys, traceback, os
+
+# Plex Server settings
+PLEX_SERVER_NAME = os.environ.get("PLEX_SERVER_NAME")
+PLEX_SERVER_ALT_NAME = ""
+if "PLEX_SERVER_ALT_NAME" in os.environ:
+    PLEX_SERVER_ALT_NAME = os.environ.get("PLEX_SERVER_ALT_NAME")
+
+# Ombi settings
+USE_OMBI = True
+
+# Tautulli settings
+USE_TAUTULLI = True
+
+# Discord (Admin) settings
+SERVER_ID = os.environ.get('DISCORD_SERVER_ID')
+ADMIN_ID = os.environ.get('ADMIN_ID')
+ADMIN_ROLE_NAME = "Admin"
+afterApprovedRoleName = "Invited"
+subRoles = ["Monthly Subscriber","Yearly Subscriber", "Winner", "Bot"] # Exempt from removal
+exemptsubs = [ADMIN_ID] # Discord IDs for users exempt from subscriber checks/deletion, separated by commas
+SUB_CHECK_TIME = 7 # days
+
+REACT_TO_ADD = False
+# False:
+# The Discord administrator types "pm add <@DiscordUser> <PlexUsername>".
+# The mentioned Discord user will be associated with the corresponding Plex username.
+# "pm remove <@DiscordUser>" will remove the mentioned Discord user's Plex access.
+#
+# True:
+# A user posts their Plex username in a Discord channel.
+# The "ADMIN_ID" Discord administrator reacts to the message with the "approvedEmojiName" emoji. (Must be that emoji, must be that one Discord administrator)
+# The bot then automatically adds the user to Plex and other services.
+# This works for regular users, as well as those with the WINNER_ROLE_NAME role. This DOES NOT WORK for those with the TRIAL_ROLE_NAME role
+# Users must be the one to post their username, since the bot links the posting user with the corresponding Plex username.
+# Removing the emoji will trigger an uninvite.
+#
+# React-to-add is faster (one-click add, rather than typing), but requires users to post their own username.
+# Also, if the bot reboots, it will not see reactions added to messages prior to it coming online (adding/removing reactions to older messages will not trigger the add/remove functions)
+
+approvedEmojiName = "approved"
+
+# Trial settings
+TRIAL_ROLE_NAME = "Trial Member"
+TRIAL_LENGTH = 24 # hours
+TRIAL_INSTRUCTIONS = "Hello, welcome to " + PLEX_SERVER_NAME + "! You have been granted a " + str(TRIAL_LENGTH) + "-hour trial!"
+TRIAL_CHECK_FREQUENCY = 15 # minutes
+TRIAL_END_NOTIFICATION = "Hello, your " + str(TRIAL_LENGTH) + "-hour trial of " + PLEX_SERVER_NAME + " has ended."
+
+# Winner settings
+WINNER_ROLE_NAME = "Winner"
+WINNER_THRESHOLD = 2 # hours
+
+AUTO_WINNERS = False
+# True:
+# Messages from the indicated GIVEAWAY_BOT_ID user will be scanned for mentioned Discord users (winners).
+# The winners will be auto-assigned the TEMP_WINNER_ROLE_NAME. That role gives them access to a specificed WINNER_CHANNEL channel
+# Users then post their Plex username (ONLY their Plex username) in the channel, which is processed by the bot.
+# The bot invites the Plex username, and associates the Discord user author of the message with the Plex username in the database.
+# The user is then have the TEMP_WINNER_ROLE_NAME role removed (which removes them from the WINNER_CHANNEL channel), and assigned the final WINNER_ROLE_NAME role.
+TEMP_WINNER_ROLE_NAME = "Uninvited Winner"
+WINNER_CHANNEL = '' # Channel ID
+
+# Logging settings
+FRIENDLY_LOGGING = False
+#FRIENDLY_LOG_CHANNEL_ID = ###########
+VERBOSE_LOGGING = False
+#VERBOSE_LOG_CHANNEL_ID = ###############
+
+
+
+### DO NOT EDIT
+plex = PlexServer(os.environ.get('PLEX_URL'), os.environ.get('PLEX_TOKEN'))
+if USE_OMBI:
+    OMBI_URL = os.environ.get('OMBI_URL') + "/api/v1/"
+    ombi_import = OMBI_URL + 'Job/plexuserimporter'
+    ombi_users = OMBI_URL + 'Identity/Users'
+    ombi_delete = OMBI_URL + 'Identity/'
+    ombi_movie_count = OMBI_URL + 'Request/movie/total'
+    ombi_movie_id = OMBI_URL + 'Request/movie/1/'
+    ombi_approve_movie = OMBI_URL + 'Request/movie/approve'
+    ombi_tv_count = OMBI_URL + 'Request/tv/total'
+    ombi_tv_id = OMBI_URL + 'Request/tv/1/'
+    ombi_approve_tv = OMBI_URL + 'Request/tv/approve'
+    approve_header = {'ApiKey': os.environ.get('OMBI_KEY'), 'accept': 'application/json', 'Content-Type': 'application/json-patch+json'}
+    ombi_headers = {'ApiKey': os.environ.get('OMBI_KEY')}
+if USE_TAUTULLI:
+    TAUTULLI_URL = os.environ.get('TAUTULLI_URL') + "/api/v2?apikey=" + os.environ.get('TAUTULLI_KEY') + "&cmd="
+
+
+
+### Code below ###
+
+class PlexManager(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+                
+    def t_request(self, cmd, params):
+        return json.loads(requests.get(os.environ.get('TAUTULLI_URL') + "/api/v2?apikey=" + os.environ.get('TAUTULLI_KEY') + "&cmd=" + str(cmd) + (("&" + str(params)) if params != None else "")).text)
+    
+    def add_to_tautulli(self, plexname):
+        if USE_TAUTULLI == False:
+            pass
+        else:
+            response = self.t_request("refresh_users_list",None)
+        
+    def delete_from_tautulli(self, plexname):
+        if not USE_TAUTULLI:
+            pass
+        else:
+            response = self.t_request("delete_user","user_id=" + str(plexname))
+            #requests.get(TAUTULLI_URL + "delete_user&user_id=" + str(plexname))
+        
+    def add_to_ombi(self, plexname):
+        if USE_OMBI == False:
+            pass
+        else:
+            requests.post(ombi_import,headers=ombi_headers)
+
+    def delete_from_ombi(self, plexname):
+        if USE_OMBI == False:
+            pass
+        else:
+            data = requests.get(ombi_users,headers=ombi_headers).json()
+            id = ""
+            for i in data:
+                if i['userName'].lower() == plexname:
+                    id = i['id']
+            delete = str(ombi_delete) + str(id)
+            requests.delete(delete, headers=ombi_headers)
+
+    async def add_to_plex(self, plexname, note):
+        try:
+            plex.myPlexAccount().inviteFriend(user=plexname,server=plex,sections=None, allowSync=False, allowCameraUpload=False, allowChannels=False, filterMovies=None, filterTelevision=None, filterMusic=None)
+            await asyncio.sleep(60)
+            self.add_to_tautulli(plexname)
+            if note != 't': # Trial members do not have access to Ombi
+                self.add_to_ombi(plexname)
+            return True
+        except Exception as e:
+            print(e)
+            return False
+        
+    def delete_from_plex(self, plexname):
+        try:
+            plex.myPlexAccount().removeFriend(user=plexname)
+            self.delete_from_ombi(plexname) # Error if trying to remove trial user that doesn't exist in Ombi?
+            self.delete_from_tautulli(plexname)
+            return True
+        except plexapi.exceptions.NotFound:
+            #print("Not found")
+            return False
+        
+    @commands.group(name="pm",aliases=["PM","PlexMan","plexman"],pass_context=True)
+    async def pm(self, ctx: commands.Context):
+        """
+        Plex admin commands
+        """
+        if ctx.invoked_subcommand is None:
+            await ctx.send("What subcommand?")
+            
+    @pm.command(name="access", pass_context=True)
+    ### Anyone can use this command
+    async def pm_access(self, ctx: commands.Context, PlexUsername: str):
+        """
+        Check if you or another user has access to the Plex server
+        """
+        hasAccess = False
+        name = PlexUsername
+        if name != None:
+            for u in plex.myPlexAccount().users():
+                if u.username == name:
+                    for s in u.servers:
+                        if s.name == PLEX_SERVER_NAME or s.name == PLEX_SERVER_ALT_NAME:
+                            hasAccess = True
+                            break
+                    break
+            if hasAccess:
+                await ctx.send(("You have" if PlexUsername is None else name + " has") + " access to " + PLEX_SERVER_NAME)
+            else:
+                await ctx.send(("You do not have" if PlexUsername is None else name + " does not have") + " access to " + PLEX_SERVER_NAME)
+        else:
+            await ctx.send("User not found.")
+            
+    @pm_access.error
+    async def pm_access_error(self, ctx, error):
+        await ctx.send("Sorry, something went wrong.")
+        
+    @pm.command(name="status", aliases=['ping','up','online'], pass_context=True)
+    async def pm_status(self, ctx: commands.Context):
+        """
+        Check if the Plex server is online
+        """
+        r = requests.get(os.environ.get('PLEX_URL') + "/identity", timeout=10)
+        if r.status_code != 200:
+            await ctx.send(PLEX_SERVER_NAME + " is having connection issues right now.")
+        else:
+            await ctx.send(PLEX_SERVER_NAME + " is up and running.")
+            
+    @pm_status.error
+    async def pm_status_error(self, ctx, error):
+        await ctx.send("Sorry, I couldn't test the connection.")
+        
+    @pm.command(name="count")
+    @commands.has_role(ADMIN_ROLE_NAME)
+    async def pm_count(self, ctx: commands.Context):
+        """
+        Check Plex share count
+        """
+        count = 0
+        for u in plex.myPlexAccount().users():
+            for s in u.servers:
+                if s.name == PLEX_SERVER_NAME:
+                        count+=1
+        await ctx.send(PLEX_SERVER_NAME + " has " + str(count) + " subscribers")
+        
+    @pm_count.error
+    async def pm_count_error(self, ctx, error):
+        print(error)
+        await ctx.send("Something went wrong. Please try again later.")
+        
+    @pm.command(name="add",alias=["invite","new"])
+    @commands.has_role(ADMIN_ROLE_NAME)
+    async def pm_add(self, ctx: commands.Context, user: discord.Member, PlexUsername: str):
+        """
+        Add a Discord user to Plex
+        Mention the Discord user and their Plex username
+        """
+        if not REACT_TO_ADD:
+            added = False
+            await ctx.send('Adding ' + PlexUsername + ' to Plex. Please wait about 60 seconds...')
+            try:
+                added = await self.add_to_plex(PlexUsername, 's')
+                if added:
+                    role = discord.utils.get(ctx.message.guild.roles, name=afterApprovedRoleName)
+                    await user.add_roles(role, reason="Access membership channels")
+                    await ctx.send(user.mention + " You've been invited, " + PlexUsername + ". Welcome to " + PLEX_SERVER_NAME + "!")
+                else:
+                    await ctx.send(user.name + " could not be added to Plex.")
+            except plexapi.exceptions.BadRequest:
+                await ctx.send(PlexUsername + " is not a valid Plex username.")
+        else:
+            await ctx.send('This function is disabled. Please react to usernames to add to Plex.')
+            
+    @pm_add.error
+    async def pm_add_error(self, ctx, error):
+        print(error)
+        await ctx.send("Please mention the Discord user to add to Plex, as well as their Plex username.")
+            
+    @pm.command(name="remove",alias=["uninvite","delete","rem"])
+    @commands.has_role(ADMIN_ROLE_NAME)
+    async def pm_remove(self, ctx: commands.Context, user: discord.Member, PlexUsername: str):
+        """
+        Remove a Discord user from Plex
+        Mention the Discord user and their Plex username
+        """
+        if not REACT_TO_ADD:
+            deleted = self.delete_from_plex(PlexUsername)
+            if deleted:
+                role = discord.utils.get(ctx.message.guild.roles, name=afterApprovedRoleName)
+                await user.remove_roles(role, reason="Removed from Plex")
+                await ctx.send("You've been removed from " + PLEX_SERVER_NAME + ", " + user.mention + ".")
+            else:
+                await ctx.send("User could not be removed.")
+        else:
+            await ctx.send('This function is disabled. Please remove a reaction from usernames to remove from Plex.')
+        
+    @commands.Cog.listener()
+    async def on_reaction_add(self, reaction, user):
+        if (REACT_TO_ADD) and (reaction.emoji.name == approvedEmojiName) and (user.id in ADMIN_ID): #Add user to Plex and Tautulli
+            plexname = reaction.message.content.strip() #Only include username, nothing else
+            await reaction.message.channel.send("Adding " + plexname + ". Please wait about 60 seconds...")
+            try:
+                await self.add_to_plex(plexname, 's')
+                member = reaction.message.author
+                role = discord.utils.get(reaction.message.guild.roles, name=afterApprovedRoleName)
+                await member.add_roles(role, reason="Access membership channels")
+                await reaction.message.channel.send(member.mention + " You've been invited, " + plexname + ". Welcome to " + PLEX_SERVER_NAME + "!")
+            except plexapi.exceptions.BadRequest:
+                await reaction.message.channel.send(reaction.message.author.mention + ", " + plexname + " is not a valid Plex username.")
+
+    @commands.Cog.listener()
+    async def on_reaction_remove(self, reaction, user):
+        if (REACT_TO_ADD) and (reaction.emoji.name == approvedEmojiName) and (user.name in ADMIN_USERNAME): #Listen for users removed
+            plexname = reaction.message.content.strip() #Only include username, nothing else
+            self.delete_from_plex(plexname)
+            await reaction.message.channel.send(reaction.message.author.mention + " (" + plexname + "), you have been removed from " + PLEX_SERVER_NAME + ". To appeal this removal, please send a Direct Message to <@" + ADMIN_ID + ">")
+            
+    @commands.Cog.listener()
+    async def on_ready(self):
+        self.check_trials.start()
+        self.check_subs.start()
+
+    def __init__(self, bot):
+        self.bot = bot
+        print("Plex Manager ready to go.")
