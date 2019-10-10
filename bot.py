@@ -14,9 +14,10 @@ exts = [
 "espn.__init__",
 "plex.__init__",
 #"core.manager",
-"plex_manager.__init__",
+#"plex_manager.__init_nodb__",
+"plex_manager.__init_db__",
 "jellyfin_manager.__init__",
-#"emby_manager.__init__",
+"emby_manager.__init__",
 "news.__init__",
 "MARTA.__init__"
 ]
