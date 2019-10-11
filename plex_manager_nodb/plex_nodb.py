@@ -320,4 +320,4 @@ class PlexManager(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        print("Plex Manager ready to go."
+        print("Plex Manager ready to go.")
