@@ -317,10 +317,7 @@ class PlexManager(commands.Cog):
                     await message.author.remove_roles(tempWinner, reason="Winner was processed successfully.")
                 except plexapi.exceptions.BadRequest:
                     await message.channel.send(message.author.mention + ", " + plexname + " is not a valid Plex username.")
-    
-    @commands.Cog.listener()
-    async def on_ready(self):
 
     def __init__(self, bot):
         self.bot = bot
-        print("Plex Manager ready to go.")
+        print("Plex Manager ready to go."
