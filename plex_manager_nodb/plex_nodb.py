@@ -54,13 +54,6 @@ REACT_TO_ADD = False
 
 approvedEmojiName = "approved"
 
-# Trial settings
-TRIAL_ROLE_NAME = "Trial Member"
-TRIAL_LENGTH = 24 # hours
-TRIAL_INSTRUCTIONS = "Hello, welcome to " + PLEX_SERVER_NAME + "! You have been granted a " + str(TRIAL_LENGTH) + "-hour trial!"
-TRIAL_CHECK_FREQUENCY = 15 # minutes
-TRIAL_END_NOTIFICATION = "Hello, your " + str(TRIAL_LENGTH) + "-hour trial of " + PLEX_SERVER_NAME + " has ended."
-
 # Winner settings
 WINNER_ROLE_NAME = "Winner"
 WINNER_THRESHOLD = 2 # hours
