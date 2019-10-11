@@ -41,7 +41,7 @@ USE_TAUTULLI = True
 SERVER_ID = os.environ.get('DISCORD_SERVER_ID')
 ADMIN_ID = os.environ.get('ADMIN_ID')
 ADMIN_ROLE_NAME = "Admin"
-afterApprovedRoleName = "Invited"
+AFTER_APPROVED_ROLE_NAME = "Invited"
 subRoles = ["Monthly Subscriber","Yearly Subscriber", "Winner", "Bot"] # Exempt from removal
 exemptsubs = [ADMIN_ID] # Discord IDs for users exempt from subscriber checks/deletion, separated by commas
 SUB_CHECK_TIME = 7 # days
@@ -487,7 +487,7 @@ class PlexManager(commands.Cog):
                 else:
                     added = await self.add_to_plex(PlexUsername, user.id, 's')
                 if added:
-                    role = discord.utils.get(ctx.message.guild.roles, name=afterApprovedRoleName)
+                    role = discord.utils.get(ctx.message.guild.roles, name=AFTER_APPROVED_ROLE_NAME)
                     await user.add_roles(role, reason="Access membership channels")
                     await ctx.send(user.mention + " You've been invited, " + PlexUsername + ". Welcome to " + PLEX_SERVER_NAME + "!")
                 else:
@@ -513,7 +513,7 @@ class PlexManager(commands.Cog):
             deleted = self.delete_from_plex(user.id)
             print(deleted)
             if deleted:
-                role = discord.utils.get(ctx.message.guild.roles, name=afterApprovedRoleName)
+                role = discord.utils.get(ctx.message.guild.roles, name=AFTER_APPROVED_ROLE_NAME)
                 await user.remove_roles(role, reason="Removed from Plex")
                 await ctx.send("You've been removed from " + PLEX_SERVER_NAME + ", " + user.mention + ".")
             else:
@@ -672,7 +672,7 @@ class PlexManager(commands.Cog):
                 else:
                     await self.add_to_plex(plexname, reaction.message.author.id, 's')
                 member = reaction.message.author
-                role = discord.utils.get(reaction.message.guild.roles, name=afterApprovedRoleName)
+                role = discord.utils.get(reaction.message.guild.roles, name=AFTER_APPROVED_ROLE_NAME)
                 await member.add_roles(role, reason="Access membership channels")
                 await reaction.message.channel.send(member.mention + " You've been invited, " + plexname + ". Welcome to " + PLEX_SERVER_NAME + "!")
             except plexapi.exceptions.BadRequest:
@@ -684,6 +684,22 @@ class PlexManager(commands.Cog):
             plexname = reaction.message.content.strip() #Only include username, nothing else
             self.delete_from_plex(plexname)
             await reaction.message.channel.send(reaction.message.author.mention + " (" + plexname + "), you have been removed from " + PLEX_SERVER_NAME + ". To appeal this removal, please send a Direct Message to <@" + ADMIN_ID + ">")
+            
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        if AUTO_WINNERS:
+            if message.author.id == GIVEAWAY_BOT_ID and "congratulations" in message.content.lower() and  message.mentions:
+                for u in message.mentions:
+                    await u.add_roles(tempWinner, reason="Winner - access winner invite channel")
+            if tempWinner in message.author.roles and message.channel.id == WINNER_CHANNEL:
+                plexname = message.content.strip() #Only include username, nothing else
+                await message.channel.send("Adding " + plexname + ". Please wait about 60 seconds...\nBe aware, you will be removed from this channel once you are added successfully.")
+                try:
+                    await self.add_to_plex(plexname, message.author.id, 'w')
+                    await message.channel.send(message.author.mention + " You've been invited, " + plexname + ". Welcome to " + PLEX_SERVER_NAME + "!")
+                    await message.author.remove_roles(tempWinner, reason="Winner was processed successfully.")
+                except plexapi.exceptions.BadRequest:
+                    await message.channel.send(message.author.mention + ", " + plexname + " is not a valid Plex username.")
             
     @commands.Cog.listener()
     async def on_ready(self):
