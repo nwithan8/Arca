@@ -101,8 +101,6 @@ if USE_TAUTULLI:
 class PlexManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-                
-    tempWinner = discord.utils.get(self.bot.get_guild(int(SERVER_ID)).roles, name=TEMP_WINNER_ROLE_NAME)
     
     def t_request(self, cmd, params):
         return json.loads(requests.get(os.environ.get('TAUTULLI_URL') + "/api/v2?apikey=" + os.environ.get('TAUTULLI_KEY') + "&cmd=" + str(cmd) + (("&" + str(params)) if params != None else "")).text)
@@ -300,14 +298,14 @@ class PlexManager(commands.Cog):
         if AUTO_WINNERS:
             if message.author.id == GIVEAWAY_BOT_ID and "congratulations" in message.content.lower() and  message.mentions:
                 for u in message.mentions:
-                    await u.add_roles(tempWinner, reason="Winner - access winner invite channel")
-            if tempWinner in message.author.roles and message.channel.id == WINNER_CHANNEL:
+                    await u.add_roles(discord.utils.get(message.guild.roles, name=TEMP_WINNER_ROLE_NAME), reason="Winner - access winner invite channel")
+            if message.channel.id == WINNER_CHANNEL and discord.utils.get(self.bot.get_guild(int(SERVER_ID)).roles, name=TEMP_WINNER_ROLE_NAME) in message.author.roles:
                 plexname = message.content.strip() #Only include username, nothing else
                 await message.channel.send("Adding " + plexname + ". Please wait about 60 seconds...\nBe aware, you will be removed from this channel once you are added successfully.")
                 try:
                     await self.add_to_plex(plexname, 'w')
                     await message.channel.send(message.author.mention + " You've been invited, " + plexname + ". Welcome to " + PLEX_SERVER_NAME + "!")
-                    await message.author.remove_roles(tempWinner, reason="Winner was processed successfully.")
+                    await message.author.remove_roles(discord.utils.get(message.guild.roles, name=TEMP_WINNER_ROLE_NAME), reason="Winner was processed successfully.")
                 except plexapi.exceptions.BadRequest:
                     await message.channel.send(message.author.mention + ", " + plexname + " is not a valid Plex username.")
 
