@@ -14,17 +14,30 @@ import re
 from discord.ext import commands
 import sys, traceback, os
 
-# Plex Server settings
-PLEX_SERVER_NAME = os.environ.get("PLEX_SERVER_NAME")
-PLEX_SERVER_ALT_NAME = ""
-if "PLEX_SERVER_ALT_NAME" in os.environ:
-    PLEX_SERVER_ALT_NAME = os.environ.get("PLEX_SERVER_ALT_NAME")
+MULTI_PLEX = False
+
+if MULTI_PLEX:
+    PLEX_SERVER_URLS_LIST = []
+    PLEX_SERVER_TOKENS_LIST = []
+    PLEX_SERVER_NAMES_LIST = []
+else:
+    # Plex Server settings
+    PLEX_SERVER_NAME = os.environ.get("PLEX_SERVER_NAME")
+    PLEX_SERVER_ALT_NAME = ""
+    if "PLEX_SERVER_ALT_NAME" in os.environ:
+        PLEX_SERVER_ALT_NAME = os.environ.get("PLEX_SERVER_ALT_NAME")
+    plex = PlexServer(os.environ.get('PLEX_URL'), os.environ.get('PLEX_TOKEN'))
 
 # Ombi settings
 USE_OMBI = True
 
 # Tautulli settings
 USE_TAUTULLI = True
+MULTI_TAUTULLI = False
+
+if MULTI_TAUTULLI:
+    TAUTULLI_URL_LIST = []
+    TAUTULLI_KEY_LIST = []
 
 # Discord (Admin) settings
 SERVER_ID = os.environ.get('DISCORD_SERVER_ID')
@@ -77,7 +90,6 @@ VERBOSE_LOGGING = False
 
 
 ### DO NOT EDIT
-plex = PlexServer(os.environ.get('PLEX_URL'), os.environ.get('PLEX_TOKEN'))
 if USE_OMBI:
     OMBI_URL = os.environ.get('OMBI_URL') + "/api/v1/"
     ombi_import = OMBI_URL + 'Job/plexuserimporter'
@@ -103,6 +115,17 @@ class PlexManager(commands.Cog):
         self.bot = bot
                 
     tempWinner = discord.utils.get(self.bot.get_guild(int(SERVER_ID)).roles, name=TEMP_WINNER_ROLE_NAME)
+    
+    def countServerSubs(self, serverNumber):
+        tempPlex = PlexServer(PLEX_SERVER_URLS_LIST[serverNumber],PLEX_SERVER_TOKENS_LIST[serverNumber])
+        tempServerName = PLEX_SERVER_NAMES_LIST[serverNumber]
+        count = 0
+        for u in tempPlex.myPlexAccount().users():
+            for s in u.servers:
+                if s.name == tempServerName:
+                        count+=1
+        return count
+        
     
     def t_request(self, cmd, params):
         return json.loads(requests.get(os.environ.get('TAUTULLI_URL') + "/api/v2?apikey=" + os.environ.get('TAUTULLI_KEY') + "&cmd=" + str(cmd) + (("&" + str(params)) if params != None else "")).text)
@@ -138,9 +161,12 @@ class PlexManager(commands.Cog):
             delete = str(ombi_delete) + str(id)
             requests.delete(delete, headers=ombi_headers)
 
-    async def add_to_plex(self, plexname, note):
+    async def add_to_plex(self, plexname, note, serverNumber = None):
+        tempPlex = plex;
+        if serverNumber != None:
+            tempPlex = PlexServer(PLEX_SERVER_URLS_LIST[serverNumber],PLEX_SERVER_TOKENS_LIST[serverNumber])
         try:
-            plex.myPlexAccount().inviteFriend(user=plexname,server=plex,sections=None, allowSync=False, allowCameraUpload=False, allowChannels=False, filterMovies=None, filterTelevision=None, filterMusic=None)
+            tempPlex.myPlexAccount().inviteFriend(user=plexname,server=plex,sections=None, allowSync=False, allowCameraUpload=False, allowChannels=False, filterMovies=None, filterTelevision=None, filterMusic=None)
             await asyncio.sleep(60)
             self.add_to_tautulli(plexname)
             if note != 't': # Trial members do not have access to Ombi
@@ -150,9 +176,12 @@ class PlexManager(commands.Cog):
             print(e)
             return False
         
-    def delete_from_plex(self, plexname):
+    def delete_from_plex(self, plexname, serverNumber = None):
+        tempPlex = plex;
+        if serverNumber != None:
+            tempPlex = PlexServer(PLEX_SERVER_URLS_LIST[serverNumber],PLEX_SERVER_TOKENS_LIST[serverNumber])
         try:
-            plex.myPlexAccount().removeFriend(user=plexname)
+            tempPlex.myPlexAccount().removeFriend(user=plexname)
             self.delete_from_ombi(plexname) # Error if trying to remove trial user that doesn't exist in Ombi?
             self.delete_from_tautulli(plexname)
             return True
@@ -176,18 +205,32 @@ class PlexManager(commands.Cog):
         """
         hasAccess = False
         name = PlexUsername
+        serverNumber = 0
         if name != None:
-            for u in plex.myPlexAccount().users():
-                if u.username == name:
-                    for s in u.servers:
-                        if s.name == PLEX_SERVER_NAME or s.name == PLEX_SERVER_ALT_NAME:
-                            hasAccess = True
+            if MULTI_PLEX:
+                for i in range(0,len(PLEX_SERVER_URLS_LIST)):
+                    tempPlex = PlexServer(PLEX_SERVER_URLS_LIST[i],PLEX_SERVER_TOKENS_LIST[i])
+                    for u in tempPlex.myPlexAccount().users():
+                        if u.username == name:
+                            for s in u.servers:
+                                if s.name == PLEX_SERVER_NAMES_LIST[i]:
+                                    hasAccess = True
+                                    serverNumber = i
+                                    break
                             break
                     break
-            if hasAccess:
-                await ctx.send(("You have" if PlexUsername is None else name + " has") + " access to " + PLEX_SERVER_NAME)
             else:
-                await ctx.send(("You do not have" if PlexUsername is None else name + " does not have") + " access to " + PLEX_SERVER_NAME)
+                for u in plex.myPlexAccount().users():
+                    if u.username == name:
+                        for s in u.servers:
+                            if s.name == PLEX_SERVER_NAME or s.name == PLEX_SERVER_ALT_NAME:
+                                hasAccess = True
+                                break
+                        break
+            if hasAccess:
+                await ctx.send(("You have" if PlexUsername is None else name + " has") + " access to " + (PLEX_SERVER_NAMES_LIST[i] if MULTI_PLEX else PLEX_SERVER_NAME))
+            else:
+                await ctx.send(("You do not have" if PlexUsername is None else name + " does not have") + " access to " + ("any of the Plex servers" if MULTI_PLEX else PLEX_SERVER_NAME))
         else:
             await ctx.send("User not found.")
             
@@ -198,13 +241,23 @@ class PlexManager(commands.Cog):
     @pm.command(name="status", aliases=['ping','up','online'], pass_context=True)
     async def pm_status(self, ctx: commands.Context):
         """
-        Check if the Plex server is online
+        Check if the Plex server(s) is/are online
         """
-        r = requests.get(os.environ.get('PLEX_URL') + "/identity", timeout=10)
-        if r.status_code != 200:
-            await ctx.send(PLEX_SERVER_NAME + " is having connection issues right now.")
+        if MULTI_PLEX:
+            statuses = ""
+            for i in range(0,len(PLEX_SERVER_URLS_LIST)):
+                r = requests.get(PLEX_SERVER_URLS_LIST[i] + "/identity", timeout=10)
+                if r.status_code != 200:
+                    statuses = statuses + PLEX_SERVER_NAME + " is having connection issues right now."
+                else:
+                   statuses = statuses + PLEX_SERVER_NAME + " is up and running."
+            await ctx.send(statuses)
         else:
-            await ctx.send(PLEX_SERVER_NAME + " is up and running.")
+            r = requests.get(os.environ.get('PLEX_URL') + "/identity", timeout=10)
+            if r.status_code != 200:
+                await ctx.send(PLEX_SERVER_NAME + " is having connection issues right now.")
+            else:
+                await ctx.send(PLEX_SERVER_NAME + " is up and running.")
             
     @pm_status.error
     async def pm_status_error(self, ctx, error):
@@ -212,16 +265,29 @@ class PlexManager(commands.Cog):
         
     @pm.command(name="count")
     @commands.has_role(ADMIN_ROLE_NAME)
-    async def pm_count(self, ctx: commands.Context):
+    async def pm_count(self, ctx: commands.Context, serverNumber: int = None):
         """
         Check Plex share count
+        Include optional serverNumber to check a specific Plex server (if using multiple servers)
         """
-        count = 0
-        for u in plex.myPlexAccount().users():
-            for s in u.servers:
-                if s.name == PLEX_SERVER_NAME:
-                        count+=1
-        await ctx.send(PLEX_SERVER_NAME + " has " + str(count) + " subscribers")
+        if MULTI_PLEX:
+            if serverNumber == None:
+                totals = ""
+                for i in range(0,len(PLEX_SERVER_URLS_LIST)):
+                    totals = totals + PLEX_SERVER_NAMES_LIST[i] + " has " + str(self.countServerSubs(i)) + " users\n"
+                await ctx.send(totals)
+            else:
+                if serverNumber <= len(PLEX_SERVER_URLS_LIST):
+                    await ctx.send(PLEX_SERVER_NAMES_LIST[serverNumber-1] + " has " + str(self.countServerSubs(serverNumber-1)) + " users")
+                else:
+                    await ctx.send("That server number does not exist.")
+        else:
+            count = 0
+            for u in plex.myPlexAccount().users():
+                for s in u.servers:
+                    if s.name == PLEX_SERVER_NAME or s.name == PLEX_SERVER_ALT_NAME:
+                            count+=1
+            await ctx.send(PLEX_SERVER_NAME + " has " + str(count) + " users")
         
     @pm_count.error
     async def pm_count_error(self, ctx, error):
@@ -230,24 +296,45 @@ class PlexManager(commands.Cog):
         
     @pm.command(name="add",alias=["invite","new"])
     @commands.has_role(ADMIN_ROLE_NAME)
-    async def pm_add(self, ctx: commands.Context, user: discord.Member, PlexUsername: str):
+    async def pm_add(self, ctx: commands.Context, user: discord.Member, PlexUsername: str, serverNumber: int = None):
         """
         Add a Discord user to Plex
         Mention the Discord user and their Plex username
+        Include optional serverNumber to add to a specific server (if using multiple Plex servers)
         """
         if not REACT_TO_ADD:
             added = False
-            await ctx.send('Adding ' + PlexUsername + ' to Plex. Please wait about 60 seconds...')
-            try:
-                added = await self.add_to_plex(PlexUsername, 's')
-                if added:
-                    role = discord.utils.get(ctx.message.guild.roles, name=AFTER_APPROVED_ROLE_NAME)
-                    await user.add_roles(role, reason="Access membership channels")
-                    await ctx.send(user.mention + " You've been invited, " + PlexUsername + ". Welcome to " + PLEX_SERVER_NAME + "!")
+            if MULTI_PLEX:
+                if serverNumber == None: # No specific number indicated. Defaults adding to the least-fill server
+                    smallestCount = 100
+                    for i in range(0,len(PLEX_SERVER_URLS_LIST)):
+                        if self.countServerSubs(i) < smallestCount:
+                            serverNumber = i
                 else:
-                    await ctx.send(user.name + " could not be added to Plex.")
-            except plexapi.exceptions.BadRequest:
-                await ctx.send(PlexUsername + " is not a valid Plex username.")
+                    serverNumber = serverNumber - 1
+                await ctx.send('Adding ' + PlexUsername + ' to ' + PLEX_SERVER_NAMES_LIST[serverNumber] + '. Please wait about 60 seconds...')
+                try:
+                    added = await self.add_to_plex(PlexUsername, 's', serverNumber)
+                    if added:
+                        role = discord.utils.get(ctx.message.guild.roles, name=AFTER_APPROVED_ROLE_NAME)
+                        await user.add_roles(role, reason="Access membership channels")
+                        await ctx.send(user.mention + " You've been invited, " + PlexUsername + ". Welcome to " + PLEX_SERVER_NAME + "!")
+                    else:
+                        await ctx.send(user.name + " could not be added to that server.")
+                except plexapi.exceptions.BadRequest:
+                    await ctx.send(PlexUsername + " is not a valid Plex username.")   
+            else:
+                await ctx.send('Adding ' + PlexUsername + ' to ' + PLEX_SERVER_NAMES_LIST[serverNumber] + '. Please wait about 60 seconds...')
+                try:
+                    added = await self.add_to_plex(PlexUsername, 's')
+                    if added:
+                        role = discord.utils.get(ctx.message.guild.roles, name=AFTER_APPROVED_ROLE_NAME)
+                        await user.add_roles(role, reason="Access membership channels")
+                        await ctx.send(user.mention + " You've been invited, " + PlexUsername + ". Welcome to " + PLEX_SERVER_NAME + "!")
+                    else:
+                        await ctx.send(user.name + " could not be added to Plex.")
+                except plexapi.exceptions.BadRequest:
+                    await ctx.send(PlexUsername + " is not a valid Plex username.")
         else:
             await ctx.send('This function is disabled. Please react to usernames to add to Plex.')
             
@@ -258,21 +345,37 @@ class PlexManager(commands.Cog):
             
     @pm.command(name="remove",alias=["uninvite","delete","rem"])
     @commands.has_role(ADMIN_ROLE_NAME)
-    async def pm_remove(self, ctx: commands.Context, user: discord.Member, PlexUsername: str):
+    async def pm_remove(self, ctx: commands.Context, user: discord.Member, PlexUsername: str, serverNumber: int = None):
         """
         Remove a Discord user from Plex
         Mention the Discord user and their Plex username
+        Need to include which server to remove the user from
         """
         if not REACT_TO_ADD:
-            deleted = self.delete_from_plex(PlexUsername)
-            if deleted:
-                role = discord.utils.get(ctx.message.guild.roles, name=AFTER_APPROVED_ROLE_NAME)
-                await user.remove_roles(role, reason="Removed from Plex")
-                await ctx.send("You've been removed from " + PLEX_SERVER_NAME + ", " + user.mention + ".")
+            if MULTI_PLEX:
+                if serverNumber <= len(PLEX_SERVER_URLS_LIST):
+                    serverNumber = serverNumber - 1
+                else:
+                    await ctx.send("That server number does not exist.")
+                deleted = self.delete_from_plex(PlexUsername, serverNumber)
+                if deleted:
+                    role = discord.utils.get(ctx.message.guild.roles, name=AFTER_APPROVED_ROLE_NAME)
+                    await user.remove_roles(role, reason="Removed from Plex")
+                    await ctx.send("You've been removed from " + PLEX_SERVER_NAME + ", " + user.mention + ".")
+                else:
+                    await ctx.send("User could not be removed.")
             else:
-                await ctx.send("User could not be removed.")
-        else:
-            await ctx.send('This function is disabled. Please remove a reaction from usernames to remove from Plex.')
+                await ctx.send('This function is disabled. Please remove a reaction from usernames to remove from Plex.')
+            else:
+                deleted = self.delete_from_plex(PlexUsername)
+                if deleted:
+                    role = discord.utils.get(ctx.message.guild.roles, name=AFTER_APPROVED_ROLE_NAME)
+                    await user.remove_roles(role, reason="Removed from Plex")
+                    await ctx.send("You've been removed from " + PLEX_SERVER_NAME + ", " + user.mention + ".")
+                else:
+                    await ctx.send("User could not be removed.")
+            else:
+                await ctx.send('This function is disabled. Please remove a reaction from usernames to remove from Plex.')
         
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):

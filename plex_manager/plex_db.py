@@ -25,17 +25,30 @@ dbusername = os.environ.get('DATABASE_USER')
 dbpassword = os.environ.get('DATABASE_PASS')
 database = 'PlexDiscord'
 
-# Plex Server settings
-PLEX_SERVER_NAME = os.environ.get("PLEX_SERVER_NAME")
-PLEX_SERVER_ALT_NAME = ""
-if "PLEX_SERVER_ALT_NAME" in os.environ:
-    PLEX_SERVER_ALT_NAME = os.environ.get("PLEX_SERVER_ALT_NAME")
+MULTI_PLEX = False
+
+if MULTI_PLEX:
+    PLEX_SERVER_URLS_LIST = []
+    PLEX_SERVER_TOKENS_LIST = []
+    PLEX_SERVER_NAMES_LIST = []
+else:
+    # Plex Server settings
+    PLEX_SERVER_NAME = os.environ.get("PLEX_SERVER_NAME")
+    PLEX_SERVER_ALT_NAME = ""
+    if "PLEX_SERVER_ALT_NAME" in os.environ:
+        PLEX_SERVER_ALT_NAME = os.environ.get("PLEX_SERVER_ALT_NAME")
+    plex = PlexServer(os.environ.get('PLEX_URL'), os.environ.get('PLEX_TOKEN'))
 
 # Ombi settings
 USE_OMBI = True
 
 # Tautulli settings
 USE_TAUTULLI = True
+MULTI_TAUTULLI = False
+
+if MULTI_TAUTULLI:
+    TAUTULLI_URL_LIST = []
+    TAUTULLI_KEY_LIST = []
 
 # Discord (Admin) settings
 SERVER_ID = os.environ.get('DISCORD_SERVER_ID')
@@ -95,7 +108,6 @@ VERBOSE_LOGGING = False
 
 
 ### DO NOT EDIT
-plex = PlexServer(os.environ.get('PLEX_URL'), os.environ.get('PLEX_TOKEN'))
 if USE_OMBI:
     OMBI_URL = os.environ.get('OMBI_URL') + "/api/v1/"
     ombi_import = OMBI_URL + 'Job/plexuserimporter'
@@ -120,8 +132,26 @@ class PlexManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
                 
-    def t_request(self, cmd, params):
-        return json.loads(requests.get(os.environ.get('TAUTULLI_URL') + "/api/v2?apikey=" + os.environ.get('TAUTULLI_KEY') + "&cmd=" + str(cmd) + (("&" + str(params)) if params != None else "")).text)
+    def lookupPlexServer():
+        
+        
+    def lookupTautServer():
+        
+    def countServerSubs(self, serverNumber):
+        tempPlex = PlexServer(PLEX_SERVER_URLS_LIST[serverNumber],PLEX_SERVER_TOKENS_LIST[serverNumber])
+        tempServerName = PLEX_SERVER_NAMES_LIST[serverNumber]
+        count = 0
+        for u in tempPlex.myPlexAccount().users():
+            for s in u.servers:
+                if s.name == tempServerName:
+                        count+=1
+        return count
+        
+    def t_request(self, cmd, params, serverNumber=None):
+        if not serverNumber:
+            return json.loads(requests.get(os.environ.get('TAUTULLI_URL') + "/api/v2?apikey=" + os.environ.get('TAUTULLI_KEY') + "&cmd=" + str(cmd) + (("&" + str(params)) if params != None else "")).text)
+        else:
+            return json.loads(requests.get(os.environ.get('TAUTULLI_URL') + "/api/v2?apikey=" + os.environ.get('TAUTULLI_KEY') + "&cmd=" + str(cmd) + (("&" + str(params)) if params != None else "")).text)
     
     def add_to_tautulli(self, plexname):
         if USE_TAUTULLI == False:
@@ -206,16 +236,16 @@ class PlexManager(commands.Cog):
             conn.close()
             return response
 
-    def add_user_to_db(self, discordId, plexUsername, note):
+    def add_user_to_db(self, discordId, plexUsername, note, serverNumber=None):
         result = False
         myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
         if myConnection.is_connected():
             cursor = myConnection.cursor(buffered=True)
             query = ""
             if note == 't':
-                query = "INSERT INTO users (DiscordID, PlexUsername, ExpirationStamp, Note) VALUES ('" + str(discordId) + "','" + str(plexUsername) + "','" + str(int(time.time()) + (3600 * TRIAL_LENGTH)) + "','" + str(note) + "') ON DUPLICATE KEY UPDATE ExpirationStamp='" + str(int(time.time()) + (3600 * TRIAL_LENGTH)) + "'"
+                query = "INSERT INTO users (DiscordID, PlexUsername, ExpirationStamp" + (", whichPlexServer" if serverNumber != None else "") + ", Note) VALUES ('" + str(discordId) + "','" + str(plexUsername) + "','" + str(int(time.time()) + (3600 * TRIAL_LENGTH)) + (("','" + str(serverNumber)) if serverNumber != None else "") + "','" + str(note) + "') ON DUPLICATE KEY UPDATE ExpirationStamp='" + str(int(time.time()) + (3600 * TRIAL_LENGTH)) + "'"
             else:
-                query = "INSERT IGNORE INTO users (DiscordID, PlexUsername, Note) VALUES ('" + str(discordId) + "','" + str(plexUsername) + "','" + str(note) + "')"
+                query = "INSERT IGNORE INTO users (DiscordID, PlexUsername" + + (", whichPlexServer" if serverNumber != None else "") + ", Note) VALUES ('" + str(discordId) + "','" + str(plexUsername) + (("','" + str(serverNumber)) if serverNumber != None else "") + "','" + str(note) + "')"
             cursor.execute(str(query))
             if int(cursor.rowcount) > 0:
                 result = True
@@ -239,7 +269,7 @@ class PlexManager(commands.Cog):
         r2 = ""
         if myConnection.is_connected():
             cursor = myConnection.cursor(buffered=True)
-            query = "SELECT " + ("PlexUsername, Note" if PlexOrDiscord == "Plex" else "DiscordID") + " FROM users WHERE " + ("DiscordID" if PlexOrDiscord == "Plex" else "PlexUsername") + " = '" + str(data) + "'"
+            query = "SELECT " + ("PlexUsername" + (", whichPlexServer" if MULTI_PLEX else "") + ", Note" if PlexOrDiscord == "Plex" else "DiscordID") + " FROM users WHERE " + ("DiscordID" if PlexOrDiscord == "Plex" else "PlexUsername") + " = '" + str(data) + "'"
             cursor.execute(str(query))
             results = cursor.fetchone()
             if PlexOrDiscord == "Plex":
@@ -389,22 +419,36 @@ class PlexManager(commands.Cog):
         """
         hasAccess = False
         name = ""
+        serverNumber = 0
         if PlexUsername is None:
             name, note = self.find_user_in_db("Plex", ctx.message.author.id)
         else:
             name = PlexUsername
         if name != None:
-            for u in plex.myPlexAccount().users():
-                if u.username == name:
-                    for s in u.servers:
-                        if s.name == PLEX_SERVER_NAME or s.name == PLEX_SERVER_ALT_NAME:
-                            hasAccess = True
+            if MULTI_PLEX:
+                for i in range(0,len(PLEX_SERVER_URLS_LIST)):
+                    tempPlex = PlexServer(PLEX_SERVER_URLS_LIST[i],PLEX_SERVER_TOKENS_LIST[i])
+                    for u in tempPlex.myPlexAccount().users():
+                        if u.username == name:
+                            for s in u.servers:
+                                if s.name == PLEX_SERVER_NAMES_LIST[i]:
+                                    hasAccess = True
+                                    serverNumber = i
+                                    break
                             break
                     break
-            if hasAccess:
-                await ctx.send(("You have" if PlexUsername is None else name + " has") + " access to " + PLEX_SERVER_NAME)
             else:
-                await ctx.send(("You do not have" if PlexUsername is None else name + " does not have") + " access to " + PLEX_SERVER_NAME)
+                for u in plex.myPlexAccount().users():
+                    if u.username == name:
+                        for s in u.servers:
+                            if s.name == PLEX_SERVER_NAME or s.name == PLEX_SERVER_ALT_NAME:
+                                hasAccess = True
+                                break
+                        break
+            if hasAccess:
+                await ctx.send(("You have" if PlexUsername is None else name + " has") + " access to " + (PLEX_SERVER_NAMES_LIST[i] if MULTI_PLEX else PLEX_SERVER_NAME))
+            else:
+                await ctx.send(("You do not have" if PlexUsername is None else name + " does not have") + " access to " + ("any of the Plex servers" if MULTI_PLEX else PLEX_SERVER_NAME))
         else:
             await ctx.send("User not found.")
             
@@ -455,16 +499,29 @@ class PlexManager(commands.Cog):
         
     @pm.command(name="count")
     @commands.has_role(ADMIN_ROLE_NAME)
-    async def pm_count(self, ctx: commands.Context):
+    async def pm_count(self, ctx: commands.Context, serverNumber: int = None):
         """
         Check Plex share count
+        Include optional serverNumber to check a specific Plex server (if using multiple servers)
         """
-        count = 0
-        for u in plex.myPlexAccount().users():
-            for s in u.servers:
-                if s.name == PLEX_SERVER_NAME:
-                        count+=1
-        await ctx.send(PLEX_SERVER_NAME + " has " + str(count) + " subscribers")
+        if MULTI_PLEX:
+            if serverNumber == None:
+                totals = ""
+                for i in range(0,len(PLEX_SERVER_URLS_LIST)):
+                    totals = totals + PLEX_SERVER_NAMES_LIST[i] + " has " + str(self.countServerSubs(i)) + " users\n"
+                await ctx.send(totals)
+            else:
+                if serverNumber <= (len(PLEX_SERVER_URLS_LIST)-1):
+                    await ctx.send(PLEX_SERVER_NAMES_LIST[serverNumber] + " has " + str(self.countServerSubs(serverNumber)) + " users")
+                else:
+                    await ctx.send("That server number does not exist.")
+        else:
+            count = 0
+            for u in plex.myPlexAccount().users():
+                for s in u.servers:
+                    if s.name == PLEX_SERVER_NAME or s.name == PLEX_SERVER_ALT_NAME:
+                            count+=1
+            await ctx.send(PLEX_SERVER_NAME + " has " + str(count) + " users")
         
     @pm_count.error
     async def pm_count_error(self, ctx, error):
@@ -473,27 +530,53 @@ class PlexManager(commands.Cog):
         
     @pm.command(name="add",alias=["invite","new"])
     @commands.has_role(ADMIN_ROLE_NAME)
-    async def pm_add(self, ctx: commands.Context, user: discord.Member, PlexUsername: str):
+    async def pm_add(self, ctx: commands.Context, user: discord.Member, PlexUsername: str, serverNumber: int = None):
         """
         Add a Discord user to Plex
+        Mention the Discord user and their Plex username
+        Include optional serverNumber to add to a specific server (if using multiple Plex servers)
         """
         if not REACT_TO_ADD:
             added = False
-            await ctx.send('Adding ' + PlexUsername + ' to Plex. Please wait about 60 seconds...')
-            try:
-                winner_role = discord.utils.get(ctx.message.guild.roles, name=WINNER_ROLE_NAME)
-                if winner_role in user.roles:
-                    added = await self.add_to_plex(PlexUsername, user.id, 'w')
+            if MULTI_PLEX:
+                if serverNumber == None: # No specific number indicated. Defaults adding to the least-fill server
+                    smallestCount = 100
+                    for i in range(0,len(PLEX_SERVER_URLS_LIST)):
+                        if self.countServerSubs(i) < smallestCount:
+                            serverNumber = i
                 else:
-                    added = await self.add_to_plex(PlexUsername, user.id, 's')
-                if added:
-                    role = discord.utils.get(ctx.message.guild.roles, name=AFTER_APPROVED_ROLE_NAME)
-                    await user.add_roles(role, reason="Access membership channels")
-                    await ctx.send(user.mention + " You've been invited, " + PlexUsername + ". Welcome to " + PLEX_SERVER_NAME + "!")
-                else:
-                    await ctx.send(user.name + " could not be added to Plex.")
-            except plexapi.exceptions.BadRequest:
-                await ctx.send(PlexUsername + " is not a valid Plex username.")
+                    serverNumber = serverNumber - 1
+                await ctx.send('Adding ' + PlexUsername + ' to ' + PLEX_SERVER_NAMES_LIST[serverNumber] + '. Please wait about 60 seconds...')
+                try:
+                    winner_role = discord.utils.get(ctx.message.guild.roles, name=WINNER_ROLE_NAME)
+                    if winner_role in user.roles:
+                        added = await self.add_to_plex(PlexUsername, user.id, 'w', serverNumber)
+                    else:
+                        added = await self.add_to_plex(PlexUsername, user.id, 's', serverNumber)
+                    if added:
+                        role = discord.utils.get(ctx.message.guild.roles, name=AFTER_APPROVED_ROLE_NAME)
+                        await user.add_roles(role, reason="Access membership channels")
+                        await ctx.send(user.mention + " You've been invited, " + PlexUsername + ". Welcome to " + PLEX_SERVER_NAMES_LIST[serverNumber] + "!")
+                    else:
+                        await ctx.send(user.name + " could not be added to that server.")
+                except plexapi.exceptions.BadRequest:
+                    await ctx.send(PlexUsername + " is not a valid Plex username.")   
+            else:
+                await ctx.send('Adding ' + PlexUsername + ' to ' + PLEX_SERVER_NAME + '. Please wait about 60 seconds...')
+                try:
+                    winner_role = discord.utils.get(ctx.message.guild.roles, name=WINNER_ROLE_NAME)
+                    if winner_role in user.roles:
+                        added = await self.add_to_plex(PlexUsername, user.id, 'w', serverNumber)
+                    else:
+                        added = await self.add_to_plex(PlexUsername, user.id, 's', serverNumber)
+                    if added:
+                        role = discord.utils.get(ctx.message.guild.roles, name=AFTER_APPROVED_ROLE_NAME)
+                        await user.add_roles(role, reason="Access membership channels")
+                        await ctx.send(user.mention + " You've been invited, " + PlexUsername + ". Welcome to " + PLEX_SERVER_NAME + "!")
+                    else:
+                        await ctx.send(user.name + " could not be added to Plex.")
+                except plexapi.exceptions.BadRequest:
+                    await ctx.send(PlexUsername + " is not a valid Plex username.")
         else:
             await ctx.send('This function is disabled. Please react to usernames to add to Plex.')
             
@@ -527,20 +610,45 @@ class PlexManager(commands.Cog):
         
     @pm.command(name="trial")
     @commands.has_role(ADMIN_ROLE_NAME)
-    async def pm_trial(self, ctx: commands.Context, user: discord.Member, PlexUsername: str):
+    async def pm_trial(self, ctx: commands.Context, user: discord.Member, PlexUsername: str, serverNumber: int = None):
         """
         Start a Plex trial
         """
-        await ctx.send('Starting ' + PLEX_SERVER_NAME + ' trial for ' + PlexUsername + '. Please wait about 60 seconds...')
-        try:
-            await self.add_to_plex(PlexUsername, user.id, 't')
-            role = discord.utils.get(ctx.message.guild.roles, name=TRIAL_ROLE_NAME)
-            await user.add_roles(role, reason="Trial started.")
-            await user.create_dm()
-            await user.dm_channel.send(TRIAL_INSTRUCTIONS)
-            await ctx.send(user.mention + ", your trial has begun. Please check your Direct Messages for details.")
-        except plexapi.exceptions.BadRequest:
-            await ctx.send(PlexUsername + " is not a valid Plex username.")
+        if MULTI_PLEX:
+            if serverNumber == None: # No specific number indicated. Defaults adding to the least-fill server
+                smallestCount = 100
+                for i in range(0,len(PLEX_SERVER_URLS_LIST)):
+                    if self.countServerSubs(i) < smallestCount:
+                        serverNumber = i
+            else:
+                serverNumber = serverNumber - 1
+            await ctx.send('Adding ' + PlexUsername + ' to ' + PLEX_SERVER_NAMES_LIST[serverNumber] + '. Please wait about 60 seconds...')
+            try:
+                added = await self.add_to_plex(PlexUsername, user.id, 't', serverNumber)
+                if added:
+                    role = discord.utils.get(ctx.message.guild.roles, name=TRIAL_ROLE_NAME)
+                    await user.add_roles(role, reason="Trial started.")
+                    await user.create_dm()
+                    await user.dm_channel.send(TRIAL_INSTRUCTIONS)
+                    await ctx.send(user.mention + ", your trial has begun. Please check your Direct Messages for details.")
+                else:
+                    await ctx.send(user.name + " could not be added to that server.")
+            except plexapi.exceptions.BadRequest:
+                await ctx.send(PlexUsername + " is not a valid Plex username.")   
+        else:
+            await ctx.send('Starting ' + PLEX_SERVER_NAME + ' trial for ' + PlexUsername + '. Please wait about 60 seconds...')
+            try:
+                added = await self.add_to_plex(PlexUsername, user.id, 't')
+                if added:
+                    role = discord.utils.get(ctx.message.guild.roles, name=TRIAL_ROLE_NAME)
+                    await user.add_roles(role, reason="Trial started.")
+                    await user.create_dm()
+                    await user.dm_channel.send(TRIAL_INSTRUCTIONS)
+                    await ctx.send(user.mention + ", your trial has begun. Please check your Direct Messages for details.")
+                else:
+                    await ctx.send(user.name + " could not be added to Plex.")
+            except plexapi.exceptions.BadRequest:
+                await ctx.send(PlexUsername + " is not a valid Plex username.")
             
     @pm_trial.error
     async def pm_trial_error(self, ctx, error):
@@ -548,7 +656,7 @@ class PlexManager(commands.Cog):
         
     @pm.command(name="import")
     @commands.has_role(ADMIN_ROLE_NAME)
-    async def pm_import(self, ctx: commands.Context, user: discord.Member, PlexUsername: str, subType: str):
+    async def pm_import(self, ctx: commands.Context, user: discord.Member, PlexUsername: str, subType: str, serverNumber: int = None):
         """
         Add existing Plex users to the database.
         user - tag a Discord user
@@ -559,6 +667,8 @@ class PlexManager(commands.Cog):
         """
         if len(subType) > 4:
             await ctx.send("subType must be less than 5 characters long.")
+        elif serverNumber != None and serverNumber > len(PLEX_SERVER_URLS_LIST):
+            await ctx.send("That server number does not exist.")
         else:
             new_entry = self.add_user_to_db(user.id, PlexUsername, subType)
             if new_entry:
