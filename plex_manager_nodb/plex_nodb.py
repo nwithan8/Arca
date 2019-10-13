@@ -305,7 +305,7 @@ class PlexManager(commands.Cog):
                 plexname = message.content.strip() #Only include username, nothing else
                 await message.channel.send("Adding " + plexname + ". Please wait about 60 seconds...\nBe aware, you will be removed from this channel once you are added successfully.")
                 try:
-                    await self.add_to_plex(plexname, message.author.id, 'w')
+                    await self.add_to_plex(plexname, 'w')
                     await message.channel.send(message.author.mention + " You've been invited, " + plexname + ". Welcome to " + PLEX_SERVER_NAME + "!")
                     await message.author.remove_roles(discord.utils.get(message.guild.roles, name=TEMP_WINNER_ROLE_NAME), reason="Winner was processed successfully.")
                 except plexapi.exceptions.BadRequest:
