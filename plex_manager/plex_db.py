@@ -83,8 +83,10 @@ AUTO_WINNERS = False
 # Users then post their Plex username (ONLY their Plex username) in the channel, which is processed by the bot.
 # The bot invites the Plex username, and associates the Discord user author of the message with the Plex username in the database.
 # The user is then have the TEMP_WINNER_ROLE_NAME role removed (which removes them from the WINNER_CHANNEL channel), and assigned the final WINNER_ROLE_NAME role.
-TEMP_WINNER_ROLE_NAME = "Uninvited Winner"
-WINNER_CHANNEL = '' # Channel ID
+if AUTO_WINNERS:
+    TEMP_WINNER_ROLE_NAME = "Uninvited Winner"
+    WINNER_CHANNEL =  # Channel ID
+    GIVEAWAY_BOT_ID = 
 
 # Logging settings
 FRIENDLY_LOGGING = False
@@ -688,9 +690,10 @@ class PlexManager(commands.Cog):
     @commands.Cog.listener()
     async def on_message(self, message):
         if AUTO_WINNERS:
-            if message.author.id == GIVEAWAY_BOT_ID and "congratulations" in message.content.lower() and  message.mentions:
+            if message.author.id == GIVEAWAY_BOT_ID and "congratulations" in message.content.lower() and message.mentions:
+                tempWinner = discord.utils.get(message.guild.roles, name=TEMP_WINNER_ROLE_NAME)
                 for u in message.mentions:
-                    await u.add_roles(discord.utils.get(message.guild.roles, name=TEMP_WINNER_ROLE_NAME), reason="Winner - access winner invite channel")
+                    await u.add_roles(tempWinner, reason="Winner - access winner invite channel")
             if message.channel.id == WINNER_CHANNEL and discord.utils.get(message.guild.roles, name=TEMP_WINNER_ROLE_NAME) in message.author.roles:
                 plexname = message.content.strip() #Only include username, nothing else
                 await message.channel.send("Adding " + plexname + ". Please wait about 60 seconds...\nBe aware, you will be removed from this channel once you are added successfully.")
