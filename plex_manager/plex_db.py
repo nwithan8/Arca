@@ -85,8 +85,8 @@ AUTO_WINNERS = False
 # The user is then have the TEMP_WINNER_ROLE_NAME role removed (which removes them from the WINNER_CHANNEL channel), and assigned the final WINNER_ROLE_NAME role.
 if AUTO_WINNERS:
     TEMP_WINNER_ROLE_NAME = "Uninvited Winner"
-    WINNER_CHANNEL =  # Channel ID
-    GIVEAWAY_BOT_ID = 
+    WINNER_CHANNEL = 0 # Channel ID
+    GIVEAWAY_BOT_ID = 0
 
 # Logging settings
 FRIENDLY_LOGGING = False
