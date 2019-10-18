@@ -7,6 +7,7 @@ import asyncio
 ADMIN_ROLE_NAME = "Admin"
 
 REGULAR_ROLES_AVAILABLE = {
+    #"Role Name": ["role", "nicknames","or keywords","to look for","in the message"],
     "Movie Night":['mw','mn','movie']
 }
 ADMIN_LOCKED_ROLES_AVAILABLE = {
