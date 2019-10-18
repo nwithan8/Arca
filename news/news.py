@@ -1,3 +1,8 @@
+"""
+Parse RSS feeds for major online media outlets
+Copyright (C) 2019 Nathan Harris
+"""
+
 from discord.ext import commands, tasks
 import discord
 import urllib

@@ -1,3 +1,8 @@
+"""
+Interact with a Plex Media Server, manage users
+Copyright (C) 2019 Nathan Harris
+"""
+
 import discord
 from discord.ext import commands, tasks
 import requests

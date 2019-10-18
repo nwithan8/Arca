@@ -1,0 +1,1 @@
+pip3 install GitPython urllib3 discord requests imdbpie mysql-connector-python asyncio bs4 feedparser PlexAPI

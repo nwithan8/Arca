@@ -11,15 +11,17 @@ bot = commands.Bot(command_prefix=PREFIX)
 formatter = commands.HelpCommand(show_check_failure=False)
 
 exts = [
-"espn.__init__",
-"plex.__init__",
+#"espn.__init__",
+#"plex.__init__",
 #"core.manager",
-#"plex_manager.__init_nodb__",
-"plex_manager.__init_db__",
-"jellyfin_manager.__init__",
-"emby_manager.__init__",
-"news.__init__",
-"MARTA.__init__"
+"plex_manager_nodb.__init__",
+#"plex_manager.__init__",
+#"jellyfin_manager.__init__",
+#"emby_manager.__init__",
+#"news.__init__",
+#"MARTA.__init__",
+#"booksonic.__init__",
+#"roles.__init__"
 ]
 
 for ext in exts:
@@ -31,4 +33,5 @@ async def on_ready():
     await bot.change_presence(status=discord.Status.idle,activity=discord.Game(name=f'the waiting game | {PREFIX}'))
     print(f'Successfully logged in and booted...!\n')
 
+print("nwithan8-cogs  Copyright (C) 2019  Nathan Harris\nThis program comes with ABSOLUTELY NO WARRANTY; for details type `show w'.\nThis is free software, and you are welcome to redistribute it\nunder certain conditions; type `show c' for details.")
 bot.run(os.environ.get("DISCORD_BOT_TOKEN"))

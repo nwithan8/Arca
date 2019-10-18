@@ -1,8 +1,3 @@
-"""
-Interact with the Metropolitan Atlanta Rapid Transit Authority's API, get live train schedules and route times
-Copyright (C) 2019 Nathan Harris
-"""
-
 import discord
 from discord.ext import commands, tasks
 from discord.utils import get
@@ -399,10 +394,10 @@ class MARTA(commands.Cog):
             await ctx.send("What about it?")
             
     @marta.command(name="trains", pass_context=True)
-    async def marta_trains(self, ctx: commands.Context, station: str=None, direction: str=None, line: str=None):
+    async def marta_trains(self, ctx: commands.Context, station: str=None, line: str=None, direction: str=None):
         """
         Get live train schedules
-        Optional: 'direction' (N, S, E, W) and 'line' (Red, Gold, Blue, Green)
+        Optional: 'line' (Red, Gold, Blue, Green) and 'direction' (N, S, E, W)
         Must include both 'line' and 'direction'
         """
         found=False
@@ -415,45 +410,37 @@ class MARTA(commands.Cog):
                 found=True
                 break
         if not found:
-            #response_obj.messages_to_send.append("Sorry, I don't know that station.")
-            #logger.info("Sorry, I don't know that station.")
-            #return response_obj
-            await ctx.send("Sorry, I don't know that station.")
+            response_obj.messages_to_send.append("Sorry, I don't know that station.")
+            logger.info("Sorry, I don't know that station.")
+            return response_obj
         else:
             trains = get_trains(station=stationName)
             if trains:
-                if direction is not None and direction.lower() in ['n','s','e','w','north','south','east','west','northbound','southbound','eastbound','westbound']:
+                if line is not None and line.lower() in ['g','r','b','gold','red','green','blue','y','yellow','o','orange'] and direction is not None and direction.lower() in ['n','s','e','w','north','south','east','west','northbound','southbound','eastbound','westbound']:
+                    if line.lower().startswith('r'):
+                        line = 'RED'
+                    elif line.lower().startswith('y') or line.lower().startswith('o') or line.lower().startswith('go'):
+                        line = 'GOLD'
+                    elif line.lower().startswith('b'):
+                        line = 'BLUE'
+                    elif line.lower().startswith('g'):
+                        line = 'GREEN'
                     if direction.lower().startswith('n'):
                         direction = 'N'
                     elif direction.lower().startswith('s'):
                         direction = 'S'
                     elif direction.lower().startswith('e'):
-                       direction = 'E'
+                        direction = 'E'
                     elif direction.lower().startswith('w'):
-                       direction = 'W'
-                    if line is not None and line.lower() in ['g','r','b','gold','red','green','blue','y','yellow','o','orange']:
-                        if line.lower().startswith('r'):
-                            line = 'RED'
-                        elif line.lower().startswith('y') or line.lower().startswith('o') or line.lower().startswith('go'):
-                            line = 'GOLD'
-                        elif line.lower().startswith('b'):
-                            line = 'BLUE'
-                        elif line.lower().startswith('g'):
-                            line = 'GREEN'
-                    else:
-                        line = None
+                        direction = 'W'
                 else:
+                    line = None
                     direction = None
                 final_trains = []
-                if direction:
-                    if line:
-                        for t in trains:
-                            if t.line == line and t.direction == direction:
-                                final_trains.append(t)
-                    else:
-                        for t in trains:
-                            if t.direction == direction:
-                                final_trains.append(t)
+                if line:
+                    for t in trains:
+                        if t.line == line and t.direction == direction:
+                            final_trains.append(t)
                 else:
                     for t in trains:
                         final_trains.append(t)

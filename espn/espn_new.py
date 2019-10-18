@@ -1,8 +1,3 @@
-"""
-Get sports scores, stats and schedules from ESPN.com
-Copyright (C) 2019 Nathan Harris
-"""
-
 from discord.ext import commands, tasks
 import discord
 import urllib
@@ -22,12 +17,14 @@ pro_leagues = ['nfl','mlb','nba','nhl','wnba']
 college_leagues = ['ncf','ncb','ncw']
 all_leagues = pro_leagues + college_leagues
 
+leagues_with_nicknames = ['nfl']
+
 #Future support: 'tennis', 'soccer'
 
 # Dictionary layout differs between pro and college leagues:
 # Pro Leagues:
 # 'league':
-#   {'3_letter_team_tag': ['full_team_name', 'location_name', 'mascot_name'],}
+#   {'3_letter_team_tag': ['full_team_name', 'location_name', 'mascot_name', ['nicknames'], 'name_for_score'],}
 #
 # ex. full_team_name = team_codes[league][3_letter_team_tag][0]
 #
@@ -322,6 +319,10 @@ class ESPN(commands.Cog):
                             respond = True # check this in loop, otherwise could end up returning blank embed
                     embed.add_field(name='\u200b',value="http://www.espn.com/"+league+"/scoreboard",inline=False)
                 else:
+                    if league in leagues_with_nicknames:
+                        for t in team_codes[league]:
+                            if team.lower().strip() in team_codes[league][t][3]:
+                                team = team_codes[league][t][4]
                     for g in scores:
                         if (scores[g][0].lower().strip() == team.lower().strip()) or (scores[g][3].lower().strip() == team.lower().strip()):
                             embed.add_field(name=("(" + scores[g][1] + ") " if scores[g][1] != '' else '') + ("**"+scores[g][0]+"** " if int(scores[g][2]) > int(scores[g][5]) else scores[g][0]+" ")+scores[g][2]+" - "+ ("(" + scores[g][4] + ") " if scores[g][4] != '' else '') + ("**"+scores[g][3]+"** " if int(scores[g][5]) > int(scores[g][2]) else scores[g][3]+" ")+scores[g][5],value=scores[g][6]+("" if not str(g)[0].isdigit() else " - [Live](http://www.espn.com/"+league+"/game?gameId="+g+")"),inline=False)
@@ -356,7 +357,7 @@ class ESPN(commands.Cog):
         if league in all_leagues:
             if league in pro_leagues:
                 for t, c in team_codes[league].items():
-                    if (team.lower() in c[0].lower() or team.lower() in c[3]):
+                    if (team.lower() in c[0].lower() or team.lower() == c[1].lower()):
                         team_name = c[0]
                         team_id = t
                         break
@@ -372,11 +373,11 @@ class ESPN(commands.Cog):
                 fc = 0
                 res = team_name + " Schedule:\n"
                 try:
-                    table = BeautifulSoup(requests.get("http://www.espn.com/" + league + "/team/schedule/_/" + ("name/" if league in pro_leagues else "id/") + str(team_id)).content, features="lxml").find('tbody',{"class":"Table__TBODY"}).findAll('tr')
+                    table = BeautifulSoup(requests.get("http://www.espn.com/" + league + "/team/schedule/_/" + ("name/" if league in pro_leagues else "id/") + str(team_id)).content, features="lxml").find('tbody',{"class":"Table2__tbody"}).findAll('tr')
                     week_count = 0
                     addition = ""
                     for row in table:
-                        cols = row.findAll("td",{"class":"Table__TD"})
+                        cols = row.findAll("td",{"class":"Table2__td"})
                         if league == 'nfl':
                             if cols[0].text.isdigit():
                                 if int(cols[0].text) < week_count:
