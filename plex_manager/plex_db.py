@@ -27,6 +27,7 @@ database = 'PlexDiscord'
 
 MULTI_PLEX = False
 
+plex = "" # Blank variable, do not edit
 if MULTI_PLEX:
     PLEX_SERVER_URLS_LIST = []
     PLEX_SERVER_TOKENS_LIST = []
@@ -136,7 +137,6 @@ class PlexManager(commands.Cog):
                 
     def lookupPlexServer():
         
-        
     def lookupTautServer():
         
     def countServerSubs(self, serverNumber):
@@ -150,23 +150,22 @@ class PlexManager(commands.Cog):
         return count
         
     def t_request(self, cmd, params, serverNumber=None):
-        if not serverNumber:
-            return json.loads(requests.get(os.environ.get('TAUTULLI_URL') + "/api/v2?apikey=" + os.environ.get('TAUTULLI_KEY') + "&cmd=" + str(cmd) + (("&" + str(params)) if params != None else "")).text)
+        if serverNumber and serverNumber < len(TAUTULLI_URL_LIST):
+            return json.loads(requests.get(TAUTULLI_URL_LIST[serverNumber-1] + "/api/v2?apikey=" + TAUTULLI_KEY_LIST[serverNumber-1] + "&cmd=" + str(cmd) + (("&" + str(params)) if params != None else "")).text)
         else:
             return json.loads(requests.get(os.environ.get('TAUTULLI_URL') + "/api/v2?apikey=" + os.environ.get('TAUTULLI_KEY') + "&cmd=" + str(cmd) + (("&" + str(params)) if params != None else "")).text)
     
-    def add_to_tautulli(self, plexname):
+    def add_to_tautulli(self, plexname, serverNumber=None):
         if USE_TAUTULLI == False:
             pass
         else:
-            response = self.t_request("refresh_users_list",None)
+            response = self.t_request("refresh_users_list",None,serverNumber)
         
-    def delete_from_tautulli(self, plexname):
+    def delete_from_tautulli(self, plexname, serverNumber=None):
         if not USE_TAUTULLI:
             pass
         else:
-            response = self.t_request("delete_user","user_id=" + str(plexname))
-            #requests.get(TAUTULLI_URL + "delete_user&user_id=" + str(plexname))
+            response = self.t_request("delete_user","user_id=" + str(plexname),serverNumber)
         
     def add_to_ombi(self, plexname):
         if USE_OMBI == False:
@@ -191,7 +190,7 @@ class PlexManager(commands.Cog):
             plex.myPlexAccount().inviteFriend(user=plexname,server=plex,sections=None, allowSync=False, allowCameraUpload=False, allowChannels=False, filterMovies=None, filterTelevision=None, filterMusic=None)
             garbage = self.add_user_to_db(discordId, plexname, note)
             await asyncio.sleep(60)
-            self.add_to_tautulli(plexname)
+            self.add_to_tautulli(plexname, serverNumber)
             if note != 't': # Trial members do not have access to Ombi
                 self.add_to_ombi(plexname)
             return True
@@ -206,7 +205,7 @@ class PlexManager(commands.Cog):
                 plex.myPlexAccount().removeFriend(user=plexname)
                 if note != 't':
                     self.delete_from_ombi(plexname) # Error if trying to remove trial user that doesn't exist in Ombi?
-                self.delete_from_tautulli(plexname)
+                self.delete_from_tautulli(plexname, serverNumber)
                 self.remove_user_from_db(id)
                 return True
             else:
