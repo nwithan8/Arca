@@ -1,5 +1,5 @@
 """
-Interact with a Plex Media Server, manage users
+#Interact with a Plex Media Server, manage users
 Copyright (C) 2019 Nathan Harris
 """
 
@@ -224,7 +224,7 @@ class PlexManager(commands.Cog):
         if name != None:
             if MULTI_PLEX:
                 for i in range(0,len(PLEX_SERVER_URLS_LIST)):
-                    tempPlex = PlexServer(PLEX_SERVER_URLS_LIST[i],PLEX_SERVER_TOKENS_LIST[serverNumber])
+                    tempPlex = PlexServer(PLEX_SERVER_URLS_LIST[i],PLEX_SERVER_TOKENS_LIST[i])
                     for u in tempPlex.myPlexAccount().users():
                         if u.username == name:
                             for s in u.servers:
