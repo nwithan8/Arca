@@ -19,23 +19,18 @@ import re
 from discord.ext import commands
 import sys, traceback, os
 
-MULTI_PLEX = True
-
-plex = "" # Blank variables, do not edit
+MULTI_PLEX = False
 PLEX_SERVER_URLS_LIST = []
 PLEX_SERVER_TOKENS_LIST = []
 PLEX_SERVER_NAMES_LIST = []
 
-if MULTI_PLEX:
-    PLEX_SERVER_URLS_LIST = [] # edit these
-    PLEX_SERVER_TOKENS_LIST = []
-    PLEX_SERVER_NAMES_LIST = []
-else:
-    # Plex Server settings
-    PLEX_SERVER_NAME = os.environ.get("PLEX_SERVER_NAME")
-    PLEX_SERVER_ALT_NAME = ""
-    if "PLEX_SERVER_ALT_NAME" in os.environ:
-        PLEX_SERVER_ALT_NAME = os.environ.get("PLEX_SERVER_ALT_NAME")
+# Plex Server settings
+plex = "" # Blank variables, do not edit
+PLEX_SERVER_NAME = os.environ.get("PLEX_SERVER_NAME")
+PLEX_SERVER_ALT_NAME = ""
+if "PLEX_SERVER_ALT_NAME" in os.environ:
+    PLEX_SERVER_ALT_NAME = os.environ.get("PLEX_SERVER_ALT_NAME")
+IF NOT MULTI_PLEX:
     plex = PlexServer(os.environ.get('PLEX_URL'), os.environ.get('PLEX_TOKEN'))
 
 # Ombi settings
@@ -44,10 +39,8 @@ USE_OMBI = False
 # Tautulli settings
 USE_TAUTULLI = False
 MULTI_TAUTULLI = False
-
-if MULTI_TAUTULLI:
-    TAUTULLI_URL_LIST = []
-    TAUTULLI_KEY_LIST = []
+TAUTULLI_URL_LIST = []
+TAUTULLI_KEY_LIST = []
 
 # Discord (Admin) settings
 SERVER_ID = os.environ.get('DISCORD_SERVER_ID')
@@ -243,7 +236,7 @@ class PlexManager(commands.Cog):
                                 break
                         break
             if hasAccess:
-                await ctx.send(("You have" if PlexUsername is None else name + " has") + " access to " + (PLEX_SERVER_NAMES_LIST[i] if MULTI_PLEX else PLEX_SERVER_NAME))
+                await ctx.send(("You have" if PlexUsername is None else name + " has") + " access to " + (PLEX_SERVER_NAMES_LIST[serverNumber] if MULTI_PLEX else PLEX_SERVER_NAME))
             else:
                 await ctx.send(("You do not have" if PlexUsername is None else name + " does not have") + " access to " + ("any of the Plex servers" if MULTI_PLEX else PLEX_SERVER_NAME))
         else:
