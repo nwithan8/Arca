@@ -1,5 +1,5 @@
 """
-#Interact with a Plex Media Server, manage users
+Interact with a Plex Media Server, manage users
 Copyright (C) 2019 Nathan Harris
 """
 
