@@ -19,11 +19,15 @@ import re
 from discord.ext import commands
 import sys, traceback, os
 
-MULTI_PLEX = False
+MULTI_PLEX = True
 
-plex = "" # Blank variable, do not edit
+plex = "" # Blank variables, do not edit
+PLEX_SERVER_URLS_LIST = []
+PLEX_SERVER_TOKENS_LIST = []
+PLEX_SERVER_NAMES_LIST = []
+
 if MULTI_PLEX:
-    PLEX_SERVER_URLS_LIST = []
+    PLEX_SERVER_URLS_LIST = [] # edit these
     PLEX_SERVER_TOKENS_LIST = []
     PLEX_SERVER_NAMES_LIST = []
 else:
@@ -35,10 +39,10 @@ else:
     plex = PlexServer(os.environ.get('PLEX_URL'), os.environ.get('PLEX_TOKEN'))
 
 # Ombi settings
-USE_OMBI = True
+USE_OMBI = False
 
 # Tautulli settings
-USE_TAUTULLI = True
+USE_TAUTULLI = False
 MULTI_TAUTULLI = False
 
 if MULTI_TAUTULLI:
@@ -247,6 +251,7 @@ class PlexManager(commands.Cog):
             
     @pm_access.error
     async def pm_access_error(self, ctx, error):
+        print(error)
         await ctx.send("Sorry, something went wrong.")
         
     @pm.command(name="status", aliases=['ping','up','online'], pass_context=True)
@@ -259,9 +264,9 @@ class PlexManager(commands.Cog):
             for i in range(0,len(PLEX_SERVER_URLS_LIST)):
                 r = requests.get(PLEX_SERVER_URLS_LIST[i] + "/identity", timeout=10)
                 if r.status_code != 200:
-                    status = status + PLEX_SERVER_NAME + " is having connection issues right now.\n"
+                    status = status + PLEX_SERVER_NAMES_LIST[i] + " is having connection issues right now.\n"
                 else:
-                   status = status + PLEX_SERVER_NAME + " is up and running.\n"
+                   status = status + PLEX_SERVER_NAMES_LIST[i] + " is up and running.\n"
         else:
             r = requests.get(os.environ.get('PLEX_URL') + "/identity", timeout=10)
             if r.status_code != 200:
@@ -272,6 +277,7 @@ class PlexManager(commands.Cog):
             
     @pm_status.error
     async def pm_status_error(self, ctx, error):
+        print(error)
         await ctx.send("Sorry, I couldn't test the " + ("connections." if MULTI_PLEX else "connection."))
         
     @pm.command(name="count")
