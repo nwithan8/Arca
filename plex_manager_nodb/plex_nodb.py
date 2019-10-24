@@ -30,7 +30,7 @@ PLEX_SERVER_NAME = os.environ.get("PLEX_SERVER_NAME")
 PLEX_SERVER_ALT_NAME = ""
 if "PLEX_SERVER_ALT_NAME" in os.environ:
     PLEX_SERVER_ALT_NAME = os.environ.get("PLEX_SERVER_ALT_NAME")
-IF NOT MULTI_PLEX:
+IF not MULTI_PLEX:
     plex = PlexServer(os.environ.get('PLEX_URL'), os.environ.get('PLEX_TOKEN'))
 
 # Ombi settings
