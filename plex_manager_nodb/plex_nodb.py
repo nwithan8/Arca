@@ -20,9 +20,6 @@ from discord.ext import commands
 import sys, traceback, os
 
 MULTI_PLEX = False
-PLEX_SERVER_URLS_LIST = []
-PLEX_SERVER_TOKENS_LIST = []
-PLEX_SERVER_NAMES_LIST = []
 
 # fill out below if using MULTI_PLEX
 PLEX_SERVER_URL = os.environ.get('PLEX_URL')
@@ -306,7 +303,7 @@ class PlexManager(commands.Cog):
         print(error)
         await ctx.send("Something went wrong. Please try again later.")
         
-    @pm.command(name="add",alias=["invite","new"])
+    @pm.command(name="add",alias=["invite","new"], pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
     async def pm_add(self, ctx: commands.Context, user: discord.Member, PlexUsername: str, serverNumber: int = None):
         """
@@ -385,6 +382,10 @@ class PlexManager(commands.Cog):
                     await ctx.send("User could not be removed.")
         else:
             await ctx.send('This function is disabled. Please remove a reaction from usernames to remove from Plex.')
+            
+    @pm_remove.error
+    async def pm_remove_error(self, ctx, error):
+        await ctx.send("Please mention the Discord user to remove from Plex.")
         
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
