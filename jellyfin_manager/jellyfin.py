@@ -23,6 +23,7 @@ import asyncio
 import random
 import string
 import time
+import csv
 
 
 #Discord-to-Jellyfin database credentials
@@ -72,6 +73,13 @@ TEMP_WINNER_ROLE_NAME = "Uninvited Winner"
 WINNER_CHANNEL = 0 # Channel ID
 GIVEAWAY_BOT_ID = 0
 
+
+# Credentials settings
+CREATE_PASSWORD = False
+NO_PASSWORD_MESSAGE = "Leave password blank on first login, but please secure your account by setting a password."
+USE_HASTEBIN = False
+HASTEBIN_URL = 'https://hastebin.com'
+
 def j_get(cmd, params):
     """
     Returns JSON
@@ -97,6 +105,10 @@ def password(length):
     lettersAndDigits = string.ascii_letters + string.digits
     return ''.join(random.choice(lettersAndDigits) for i in range(length))
 
+def hastebin(content, url=HASTEBIN_URL):
+    post = requests.post(f'{url}/documents', data=content.encode('utf-8'))
+    return url + '/' + post.json()['key']
+
 class Jellyfin(commands.Cog):
     
     def get_jellyfin_users(self):
@@ -113,14 +125,20 @@ class Jellyfin(commands.Cog):
         Add a Discord user to Jellyfin
         """
         try:
+            p = None
             payload = {
                 "Name": username
             }
             r = json.loads(j_post("Users/New", None, payload).text)
             Id = r['Id']
-            #p = self.password(length=10)
-            #r = requests.post(JELLYFIN_URL + "/Users/" + str(Id) + "/Password?api_key=" + JELLYFIN_KEY, json=payload) # CANNOT CURRENTLY SET PASSWORD FOR NEW USER
-            #print(r.status_code)
+            #p = password(length=10)
+            #payload = {
+            #    "Id": Id,
+            #    "CurrentPw": 'raspberry',
+            #    "NewPw": p,
+            #    "ResetPassword": 'true'
+            #}
+            #r = requests.post(JELLYFIN_URL + "/Users/" + str(Id) + "/Password?api_key=" + JELLYFIN_KEY, json=payload)
             self.add_user_to_db(discordId, username, Id, note)
             payload = {
                 "IsAdministrator": "false",
@@ -142,7 +160,7 @@ class Jellyfin(commands.Cog):
                     "TVHeadEnd Recordings"
                 ]
             }
-            return j_post("Users/" + str(Id) + "/Policy", None, payload).status_code
+            return j_post("Users/" + str(Id) + "/Policy", None, payload).status_code, p
         except Exception as e:
             print(e)
     
@@ -452,14 +470,17 @@ class Jellyfin(commands.Cog):
         """
         Add a Discord user to Jellyfin
         """
-        s = self.add_to_jellyfin(username, user.id, 's')
+        s, p = self.add_to_jellyfin(username, user.id, 's')
         if str(s).startswith("2"):
             await user.create_dm()
-            await user.dm_channel.send("You have been added to " + str(SERVER_NICKNAME) + "!\n" +
-                                       "Hostname: " + str(JELLYFIN_URL) + "\n" +
-                                       "Username: " + str(username) + "\n" +
-                                       "Leave password blank on first login, but please secure your account by setting a password.\n" + 
-                                       "Have fun!")
+            creds = ""
+            if USE_HASTEBIN:
+                creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" +
+                                ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
+                                )
+            else:
+                creds = "Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
+            await user.dm_channel.send("You have been added to " + str(SERVER_NICKNAME) + "!\n" + creds)
             await ctx.send("You've been added, " + user.mention + "! Please check your direct messages for login information.")
         else:
             await ctx.send("An error occurred while adding " + user.mention)
@@ -494,15 +515,18 @@ class Jellyfin(commands.Cog):
         """
         Start a trial of Jellyfin
         """
-        s = self.add_to_jellyfin(JellyfinUsername, user.id, 't')
+        s, p  = self.add_to_jellyfin(JellyfinUsername, user.id, 't')
         if str(s).startswith("2"):
             await user.create_dm()
-            await user.dm_channel.send("You have been granted a " + str(TRIAL_LENGTH) + "-hour trial to " + SERVER_NICKNAME + "!\n" +
-                                       "Hostname: " + JELLYFIN_URL + "\n" +
-                                       "Username: " + JellyfinUsername + "\n" +
-                                       "Leave password blank on first login, but please secure your account by setting a password.\n" + 
-                                       "Have fun!")
-            await ctx.send("Your trial of " + str(SERVER_NICKNAME) + " has begun, " + user.mention + "! Please check your direct messages for login information.")
+            creds = ""
+            if USE_HASTEBIN:
+                creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" +
+                                ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
+                                )
+            else:
+                creds = "Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
+            await user.dm_channel.send("You have been added to " + str(SERVER_NICKNAME) + "!\n" + creds)
+            await ctx.send("You've been added, " + user.mention + "! Please check your direct messages for login information.")
         else:
             await ctx.send("An error occurred while starting a trial for " + user.mention)
             
@@ -621,6 +645,41 @@ class Jellyfin(commands.Cog):
     async def jellyfin_info_error(self, ctx, error):
         await ctx.send("User not found.")
         
+    @jellyfin.command(name="migrate", pass_context=True)
+    async def jellyfin_migrate(self, ctx: commands.Context):
+        """
+        Migrate Plex users to Jellyfin (using a CSV file)
+        File format: Discord_Tag | Plex_Username | Jellyfin_Username
+        """
+        users = {}
+        count = 0
+        failed = []
+        with open(MIGRATION_FILE + '.csv', mode='r') as f:
+            reader = csv.DictReader(f)
+            writer = csv.writer(f)
+            for row in reader:
+                jellyfin_username = row['Discord_Tag'].split("#")[0] # Jellyfin username will be Discord username
+                user = discord.utils.get(ctx.message.guild.members, name=jellyfin_username)
+                s, p = self.add_to_jellyfin(jellyfin_username, user.id, 's') # Users added as 'Subscribers'
+                if str(s).startswith("2"):
+                    await user.create_dm()
+                    creds = ""
+                    if USE_HASTEBIN:
+                        creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" +
+                                        ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
+                                        )
+                    else:
+                        creds = "Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" +("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
+                    await user.dm_channel.send("You have been added to " + str(SERVER_NICKNAME) + "!\n" + creds)
+                    #await ctx.send("You've been added, " + user.mention + "! Please check your direct messages for login information.")
+                    data = [str(row['Discord_Tag']), str(row['Plex_Username']), str(jellyfin_username)]
+                    writer.writerow(data)
+                    count += 1
+                else:
+                    failed.append(jellyfin_username)
+            f.close()
+        await ctx.send(str(count) + " users added to Jellyfin." + ("" if len(failed) == 0 else "The following users were not added successfully: " + "\n".join(failed)))
+        
         
     @commands.Cog.listener()
     async def on_message(self, message):
@@ -631,15 +690,16 @@ class Jellyfin(commands.Cog):
                     await u.add_roles(tempWinner, reason="Winner - access winner invite channel")
             if message.channel.id == WINNER_CHANNEL and discord.utils.get(message.guild.roles, name=TEMP_WINNER_ROLE_NAME) in message.author.roles:
                 username = message.content.strip() #Only include username, nothing else
-                s = self.add_to_jellyfin(username, message.author.id, 'w')
+                s, p = self.add_to_jellyfin(username, message.author.id, 'w')
                 if str(s).startswith("2"):
                     await user.create_dm()
-                    await user.dm_channel.send("You have been added to " + str(SERVER_NICKNAME) + "!\n" +
-                                       "Hostname: " + str(JELLYFIN_URL) + "\n" +
-                                       "Username: " + str(username) + "\n" +
-                                       "Leave password blank on first login, but please secure your account by setting a password.\n" + 
-                                       "Have fun!")
-                    await ctx.send("You've been added, " + message.author.mention + "! Please check your direct messages for login information.")
+                    creds = ""
+                    if USE_HASTEBIN:
+                        creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n")
+                    else:
+                        creds = "Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" +("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
+                    await user.dm_channel.send("You have been added to " + str(SERVER_NICKNAME) + "!\n" + creds)
+                    await ctx.send("You've been added, " + user.mention + "! Please check your direct messages for login information.")
                     await message.author.remove_roles(discord.utils.get(message.guild.roles, name=TEMP_WINNER_ROLE_NAME), reason="Winner was processed successfully.")
                 else:
                     await ctx.send("An error occurred while adding " + message.author.mention)
