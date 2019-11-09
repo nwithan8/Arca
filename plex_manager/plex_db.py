@@ -73,9 +73,7 @@ SUB_CHECK_TIME = 7 # days
 # Trial settings
 TRIAL_ROLE_NAME = "Trial Member"
 TRIAL_LENGTH = 24 # hours
-TRIAL_INSTRUCTIONS = "Hello, welcome to " + PLEX_SERVER_NAME + "! You have been granted a " + str(TRIAL_LENGTH) + "-hour trial!"
 TRIAL_CHECK_FREQUENCY = 15 # minutes
-TRIAL_END_NOTIFICATION = "Hello, your " + str(TRIAL_LENGTH) + "-hour trial of " + PLEX_SERVER_NAME + " has ended."
 
 # Winner settings
 WINNER_ROLE_NAME = "Winner"
@@ -113,6 +111,12 @@ if USE_OMBI:
 class PlexManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        
+    def trial_message(self, type, serverNumber=None):
+        if type == 'start':
+            return "Hello, welcome to " + (PLEX_SERVER_NAME[serverNumber] if serverNumber else PLEX_SERVER_NAME) + "! You have been granted a " + str(TRIAL_LENGTH) + "-hour trial!"
+        else:
+            return "Hello, your " + str(TRIAL_LENGTH) + "-hour trial of " + (PLEX_SERVER_NAME[serverNumber] if serverNumber else PLEX_SERVER_NAME) + " has ended."
         
     def countServerSubs(self, serverNumber):
         tempPlex = plex
@@ -405,7 +409,7 @@ class PlexManager(commands.Cog):
                     try:
                         user = self.bot.get_guild(int(SERVER_ID)).get_member(int(u[0]))
                         await user.create_dm()
-                        await user.dm_channel.send(TRIAL_END_NOTIFICATION)
+                        await user.dm_channel.send(self.trial_message('end',num))
                         await user.remove_roles(trial_role, reason="Trial has ended.")
                     except Exception as e:
                         print(e)
@@ -636,7 +640,7 @@ class PlexManager(commands.Cog):
                     role = discord.utils.get(ctx.message.guild.roles, name=TRIAL_ROLE_NAME)
                     await user.add_roles(role, reason="Trial started.")
                     await user.create_dm()
-                    await user.dm_channel.send(TRIAL_INSTRUCTIONS)
+                    await user.dm_channel.send(self.trial_message('start', serverNumber))
                     await ctx.send(user.mention + ", your trial has begun. Please check your Direct Messages for details.")
                 else:
                     await ctx.send(user.name + " could not be added to that server.")
@@ -650,7 +654,7 @@ class PlexManager(commands.Cog):
                     role = discord.utils.get(ctx.message.guild.roles, name=TRIAL_ROLE_NAME)
                     await user.add_roles(role, reason="Trial started.")
                     await user.create_dm()
-                    await user.dm_channel.send(TRIAL_INSTRUCTIONS)
+                    await user.dm_channel.send(self.trial_message('start'))
                     await ctx.send(user.mention + ", your trial has begun. Please check your Direct Messages for details.")
                 else:
                     await ctx.send(user.name + " could not be added to Plex.")
