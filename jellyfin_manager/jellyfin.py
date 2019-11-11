@@ -14,7 +14,8 @@ import re
 import json
 import requests
 #from progress.bar import Bar
-import mysql.connector
+#import mysql.connector
+import sqlite3
 import os
 import datetime
 from decimal import *
@@ -26,12 +27,17 @@ import time
 import csv
 
 
-#Discord-to-Jellyfin database credentials
-dbhostname = os.environ.get('DATABASE_HOST')
-dbport = os.environ.get('DATABASE_PORT')
-dbusername = os.environ.get('DATABASE_USER')
-dbpassword = os.environ.get('DATABASE_PASS')
-database = 'JellyfinDiscord'
+# Discord-to-Jellyfin database credentials (MySQL)
+# DEPRECIATED
+#USE_MYSQL = False
+#dbhostname = os.environ.get('DATABASE_HOST')
+#dbport = os.environ.get('DATABASE_PORT')
+#dbusername = os.environ.get('DATABASE_USER')
+#dbpassword = os.environ.get('DATABASE_PASS')
+#database = 'JellyfinDiscord'
+
+# Discord-to-Jellyfin database (SQLite3)
+SQLITE_FILE = '/nwithan8-cogs/jellyfin_manager/JellyfinDiscord.db' # File path + name + extension (i.e. "/root/nwithan8-cogs/jellyfin_manager/JellyfinDiscord.db"
 
 '''
 Database schema:
@@ -79,6 +85,10 @@ CREATE_PASSWORD = False
 NO_PASSWORD_MESSAGE = "Leave password blank on first login, but please secure your account by setting a password."
 USE_HASTEBIN = False
 HASTEBIN_URL = 'https://hastebin.com'
+
+
+# Migrate/mass import users
+MIGRATION_FILE = "/" # file path + name (leave off ".csv" extension)
 
 def j_get(cmd, params):
     """
@@ -211,104 +221,97 @@ class Jellyfin(commands.Cog):
             print(e)
     
     def describe_table(self, table):
-        conn = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
+        conn = sqlite3.connect(SQLITE_FILE)
         response = ""
-        if conn.is_connected():
-            cur = conn.cursor(buffered=True)
-            cur.execute("DESCRIBE " + str(table))
-            response = cur.fetchall()
-            cur.close()
-            conn.close()
-            return response
+        cur = conn.cursor()
+        cur.execute("DESCRIBE " + str(table))
+        response = cur.fetchall()
+        cur.close()
+        conn.close()
+        return response
             
     def pull_user_from_db(self, type, data):
-        conn = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
+        conn = sqlite3.connect(SQLITE_FILE)
         response = ""
-        if conn.is_connected():
-            cur = conn.cursor(buffered=True)
-            query = "SELECT * FROM users WHERE " + ("DiscordID" if type == "Discord" else "JellyfinID") + " = '" + str(data) + "'"
-            cur.execute(query)
-            response = cur.fetchone()
-            cur.close()
-            conn.close()
-            return response
+        cur = conn.cursor()
+        query = "SELECT * FROM users WHERE " + ("DiscordID" if type == "Discord" else "JellyfinID") + " = '" + str(data) + "'"
+        cur.execute(query)
+        response = cur.fetchone()
+        cur.close()
+        conn.close()
+        return response
             
     def add_user_to_db(self, DiscordID, JellyfinUsername, JellyfinID, note):
-        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
-        if myConnection.is_connected():
-            cursor = myConnection.cursor(buffered=True)
-            query = ""
-            if note == 't':
-                cursor.execute("INSERT INTO users (DiscordID, JellyfinUsername, JellyfinID, ExpirationStamp, Note) VALUES (%s, %s, %s, %s, %s)", (str(DiscordID), str(JellyfinUsername), str(JellyfinID), str(int(time.time()) + (3600 * TRIAL_LENGTH)), str(note)))
-            else:
-                cursor.execute("INSERT INTO users (DiscordID, JellyfinUsername, JellyfinID, Note) VALUES (%s, %s, %s, %s)", (DiscordID, JellyfinUsername, JellyfinID, note))
-            cursor.execute(str(query))
-            myConnection.commit()
-            cursor.close()
-            myConnection.close()
+        conn = sqlite3.connect(SQLITE_FILE)
+        cur = conn.cursor()
+        query = ""
+        if note == 't':
+            cur.execute("INSERT INTO users (DiscordID, JellyfinUsername, JellyfinID, ExpirationStamp, Note) VALUES (%s, %s, %s, %s, %s)", (str(DiscordID), str(JellyfinUsername), str(JellyfinID), str(int(time.time()) + (3600 * TRIAL_LENGTH)), str(note)))
+        else:
+            cur.execute("INSERT INTO users (DiscordID, JellyfinUsername, JellyfinID, Note) VALUES (%s, %s, %s, %s)", (DiscordID, JellyfinUsername, JellyfinID, note))
+        cur.execute(str(query))
+        conn.commit()
+        cur.close()
+        conn.close()
         
     def remove_user_from_db(self, id):
-        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
-        if myConnection.is_connected():
-            cursor = myConnection.cursor(buffered=True)
-            cursor.execute(str("DELETE FROM users WHERE DiscordID = " + str(id)))
-            myConnection.commit()
-            cursor.close()
-            myConnection.close()
+        conn = sqlite3.connect(SQLITE_FILE)
+        cur = conn.cursor()
+        cur.execute(str("DELETE FROM users WHERE DiscordID = " + str(id)))
+        conn.commit()
+        cur.close()
+        conn.close()
             
     def find_user_in_db(self, JellyfinOrDiscord, data):
-        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
-        if myConnection.is_connected():
-            cursor = myConnection.cursor()
-            query = "SELECT " + ("JellyfinID" if JellyfinOrDiscord == "Jellyfin" else "DiscordID") + " FROM users WHERE " + ("DiscordID" if JellyfinOrDiscord == "Jellyfin" else "JellyfinID") + " = '" + str(data) + "'"
-            cursor.execute(str(query))
-            result = cursor.fetchall()
-            cursor.close()
-            myConnection.close()
-            return result
+        conn = sqlite3.connect(SQLITE_FILE)
+        cur = conn.cursor()
+        query = "SELECT " + ("JellyfinID" if JellyfinOrDiscord == "Jellyfin" else "DiscordID") + " FROM users WHERE " + ("DiscordID" if JellyfinOrDiscord == "Jellyfin" else "JellyfinID") + " = '" + str(data) + "'"
+        cur.execute(str(query))
+        result = cur.fetchall()
+        cur.close()
+        conn.close()
+        return result
         
     def find_username_in_db(self, JellyfinOrDiscord, data):
-        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
-        if myConnection.is_connected():
-            cursor = myConnection.cursor()
-            query = "SELECT " + ("JellyfinUsername" if JellyfinOrDiscord == "Jellyfin" else "DiscordID") + " FROM users WHERE " + ("DiscordID" if JellyfinOrDiscord == "Jellyfin" else "JellyfinUsername") + " = '" + str(data) + "'"
-            cursor.execute(str(query))
-            result = cursor.fetchall()
-            cursor.close()
-            myConnection.close()
-            return result
+        conn = sqlite3.connect(SQLITE_FILE)
+        cur = conn.cursor()
+        query = "SELECT " + ("JellyfinUsername" if JellyfinOrDiscord == "Jellyfin" else "DiscordID") + " FROM users WHERE " + ("DiscordID" if JellyfinOrDiscord == "Jellyfin" else "JellyfinUsername") + " = '" + str(data) + "'"
+        cur.execute(str(query))
+        result = cur.fetchall()
+        cur.close()
+        conn.close()
+        return result
         
     async def purge_winners(self, ctx):
         try:
-            myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
+            conn = sqlite3.connect(SQLITE_FILE)
             monitorlist = []
-            if myConnection.is_connected():
-                cur = myConnection.cursor(buffered=True)
-                cur.execute("SELECT JellyfinID FROM users WHERE Note = 'w'")
-                for u in cur.fetchall():
-                    monitorlist.append(u[0])
-                cur.close()
-                myConnection.close()
-                print("Winners: ")
-                print(monitorlist)
-                removed_list = ""
-                error_message = ""
-                for u in monitorlist:
-                    try:
-                        payload = {"CustomQueryString": "SELECT SUM(PlayDuration) FROM PlaybackActivity WHERE UserId = '" + u + "' AND DateCreated >= date(julianday(date('now'))-14)", "ReplaceUserId": "false"}
-                        # returns time watched in last 14 days, in seconds
-                        time = j_post("user_usage_stats/submit_custom_query", None, payload)['results'][0][0]
-                        if time == None:
-                            time = 0
-                        time = int(time)
-                        if time < WINNER_THRESHOLD:
-                            print(u + " has NOT met the duration requirements. Purging...")
-                            mention_id = await self.remove_winner(str(u))
-                            removed_list = removed_list + (mention_id if mention_id != None else "")
-                    except Exception as e:
-                        print(e)
-                        error_message = error_message + "Error checking " + str(u) + ". "
-                        pass
+            cur = conn.cursor()
+            cur.execute("SELECT JellyfinID FROM users WHERE Note = 'w'")
+            for u in cur.fetchall():
+                monitorlist.append(u[0])
+            cur.close()
+            conn.close()
+            print("Winners: ")
+            print(monitorlist)
+            removed_list = ""
+            error_message = ""
+            for u in monitorlist:
+                try:
+                    payload = {"CustomQueryString": "SELECT SUM(PlayDuration) FROM PlaybackActivity WHERE UserId = '" + u + "' AND DateCreated >= date(julianday(date('now'))-14)", "ReplaceUserId": "false"}
+                    # returns time watched in last 14 days, in seconds
+                    time = j_post("user_usage_stats/submit_custom_query", None, payload)['results'][0][0]
+                    if time == None:
+                        time = 0
+                    time = int(time)
+                    if time < WINNER_THRESHOLD:
+                        print(u + " has NOT met the duration requirements. Purging...")
+                        mention_id = await self.remove_winner(str(u))
+                        removed_list = removed_list + (mention_id if mention_id != None else "")
+                except Exception as e:
+                    print(e)
+                    error_message = error_message + "Error checking " + str(u) + ". "
+                    pass
             if removed_list != "":
                 await ctx.send(removed_list + "You have been removed as a Winner due to inactivity.")
             else:
@@ -355,25 +358,24 @@ class Jellyfin(commands.Cog):
     @tasks.loop(seconds=TRIAL_CHECK_FREQUENCY*60)
     async def check_trials(self):
         print("Checking Jellyfin trials...")
-        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
-        if myConnection.is_connected():
-            cur = myConnection.cursor(buffered=True)
-            query = "SELECT DiscordID FROM users WHERE ExpirationStamp<=" + str(int(time.time())) + " AND Note = 't'";
-            cur.execute(str(query))
-            trial_role = discord.utils.get(self.bot.get_guild(int(SERVER_ID)).roles, name=TRIAL_ROLE_NAME)
-            for u in cur:
-                print("Ending trial for " + str(u[0]))
-                self.remove_from_jellyfin(int(u[0]))
-                try:
-                    user = self.bot.get_guild(int(SERVER_ID)).get_member(int(u[0]))
-                    await user.create_dm()
-                    await user.dm_channel.send(TRIAL_END_NOTIFICATION)
-                    await user.remove_roles(trial_role, reason="Trial has ended.")
-                except Exception as e:
-                    print(e)
-                    print("Discord user " + str(u[0]) + " not found.")
-            cur.close()
-            myConnection.close()
+        conn = sqlite3.connect(SQLITE_FILE)
+        cur = conn.cursor()
+        query = "SELECT DiscordID FROM users WHERE ExpirationStamp<=" + str(int(time.time())) + " AND Note = 't'";
+        cur.execute(str(query))
+        trial_role = discord.utils.get(self.bot.get_guild(int(SERVER_ID)).roles, name=TRIAL_ROLE_NAME)
+        for u in cur:
+            print("Ending trial for " + str(u[0]))
+            self.remove_from_jellyfin(int(u[0]))
+            try:
+                user = self.bot.get_guild(int(SERVER_ID)).get_member(int(u[0]))
+                await user.create_dm()
+                await user.dm_channel.send(TRIAL_END_NOTIFICATION)
+                await user.remove_roles(trial_role, reason="Trial has ended.")
+            except Exception as e:
+                print(e)
+                print("Discord user " + str(u[0]) + " not found.")
+        cur.close()
+        conn.close()
         print("Jellyfin Trials check completed.")
         
     
@@ -428,17 +430,16 @@ class Jellyfin(commands.Cog):
         """
         List winners' Jellyfin usernames
         """
-        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
-        if myConnection.is_connected():
-            try:
-                response = "Winners:"
-                cur = myConnection.cursor(buffered=True)
-                cur.execute("SELECT JellyfinUsername FROM users WHERE Note = 'w'")
-                for u in cur.fetchall():
-                    response = response + "\n" + (u[0])
-                await ctx.send(response)
-            except Exception as e:
-                await ctx.send("Error pulling winners from database.")
+        conn = sqlite3.connect(SQLITE_FILE)
+        try:
+            response = "Winners:"
+            cur = conn.cursor()
+            cur.execute("SELECT JellyfinUsername FROM users WHERE Note = 'w'")
+            for u in cur.fetchall():
+                response = response + "\n" + (u[0])
+            await ctx.send(response)
+        except Exception as e:
+            await ctx.send("Error pulling winners from database.")
                 
     @jellyfin.command(name="purge", pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
