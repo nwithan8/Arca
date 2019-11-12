@@ -248,7 +248,7 @@ class Jellyfin(commands.Cog):
         if note == 't':
             cur.execute("INSERT INTO users (DiscordID, JellyfinUsername, JellyfinID, ExpirationStamp, Note) VALUES (%s, %s, %s, %s, %s)", (str(DiscordID), str(JellyfinUsername), str(JellyfinID), str(int(time.time()) + (3600 * TRIAL_LENGTH)), str(note)))
         else:
-            cur.execute("INSERT INTO users (DiscordID, JellyfinUsername, JellyfinID, Note) VALUES (%s, %s, %s, %s)", (DiscordID, JellyfinUsername, JellyfinID, note))
+            cur.execute("INSERT INTO users (DiscordID, JellyfinUsername, JellyfinID, Note) VALUES (%s, %s, %s, %s)", (str(DiscordID), str(JellyfinUsername), str(JellyfinID), str(note)))
         cur.execute(str(query))
         conn.commit()
         cur.close()
