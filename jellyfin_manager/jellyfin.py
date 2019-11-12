@@ -139,38 +139,42 @@ class Jellyfin(commands.Cog):
             payload = {
                 "Name": username
             }
-            r = json.loads(j_post("Users/New", None, payload).text)
-            Id = r['Id']
-            #p = password(length=10)
-            #payload = {
-            #    "Id": Id,
-            #    "CurrentPw": 'raspberry',
-            #    "NewPw": p,
-            #    "ResetPassword": 'true'
-            #}
-            #r = requests.post(JELLYFIN_URL + "/Users/" + str(Id) + "/Password?api_key=" + JELLYFIN_KEY, json=payload)
-            self.add_user_to_db(discordId, username, Id, note)
-            payload = {
-                "IsAdministrator": "false",
-                "IsHidden": "true",
-                "IsHiddenRemotely": "true",
-                "IsDisabled": "false",
-                "EnableRemoteControlOfOtherUsers": "false",
-                "EnableSharedDeviceControl": "false",
-                "EnableRemoteAccess": "true",
-                "EnableLiveTvManagement": "false",
-                "EnableLiveTvAccess": "false",
-                "EnableContentDeletion": "false",
-                "EnableSubtitleManagement": "false",
-                "EnableAllDevices": "true",
-                "EnableAllChannels": "false",
-                "EnablePublicSharing": "false",
-                "BlockedChannels": [
-                    "IPTV",
-                    "TVHeadEnd Recordings"
-                ]
-            }
-            return j_post("Users/" + str(Id) + "/Policy", None, payload).status_code, p
+            r = j_post("Users/New", None, payload)
+            if r.status_code != 200:
+                await ctx.send(r.reason)
+            else:
+                r = json.loads(r.text)
+                Id = r['Id']
+                #p = password(length=10)
+                #payload = {
+                #    "Id": Id,
+                #    "CurrentPw": 'raspberry',
+                #    "NewPw": p,
+                #    "ResetPassword": 'true'
+                #}
+                #r = requests.post(JELLYFIN_URL + "/Users/" + str(Id) + "/Password?api_key=" + JELLYFIN_KEY, json=payload)
+                self.add_user_to_db(discordId, username, Id, note)
+                payload = {
+                    "IsAdministrator": "false",
+                    "IsHidden": "true",
+                    "IsHiddenRemotely": "true",
+                    "IsDisabled": "false",
+                    "EnableRemoteControlOfOtherUsers": "false",
+                    "EnableSharedDeviceControl": "false",
+                    "EnableRemoteAccess": "true",
+                    "EnableLiveTvManagement": "false",
+                    "EnableLiveTvAccess": "false",
+                    "EnableContentDeletion": "false",
+                    "EnableSubtitleManagement": "false",
+                    "EnableAllDevices": "true",
+                    "EnableAllChannels": "false",
+                    "EnablePublicSharing": "false",
+                    "BlockedChannels": [
+                        "IPTV",
+                        "TVHeadEnd Recordings"
+                    ]
+                }
+                return j_post("Users/" + str(Id) + "/Policy", None, payload).status_code, p
         except Exception as e:
             print(e)
     
