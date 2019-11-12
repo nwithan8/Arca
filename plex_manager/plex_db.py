@@ -104,7 +104,7 @@ if USE_OMBI:
     approve_header = {'ApiKey': os.environ.get('OMBI_KEY'), 'accept': 'application/json', 'Content-Type': 'application/json-patch+json'}
     ombi_headers = {'ApiKey': os.environ.get('OMBI_KEY')}
 
-
+REACT_TO_ADD = False # Don't touch, in process of depreciation
 
 ### Code below ###
 
