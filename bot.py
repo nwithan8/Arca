@@ -21,7 +21,11 @@ exts = [
 #"news.__init__",
 #"MARTA.__init__",
 #"booksonic.__init__",
-#"roles.__init__"
+#"roles.__init__",
+#"yahoofantasy.__init__",
+#"smart_home.sengled_lights.__init__",
+#"smart_home.google_home.__init__",
+#"smart_home.wink.__init__"
 ]
 
 for ext in exts:
