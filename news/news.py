@@ -99,7 +99,7 @@ class News(commands.Cog):
     def get_outlet(self, data):
         if data.lower() in ['bbc','british broadcasting channel''bbc.com','cbbc']:
             return 'BBC'
-        elif data.lower() in ['cnn','cable news network','cnn.com','fake news']:
+        elif data.lower() in ['cnn','cable news network','cnn.com','fake news', 'fakenews']:
             return 'CNN'
         elif data.lower() in ['espn']:
             return 'ESPN'
@@ -157,13 +157,11 @@ class News(commands.Cog):
         """
         o = self.get_outlet(outlet)
         if o == None:
-            await ctx.send("Something went wrong.")
+            await ctx.send("That outlet is not supported.")
         else:
             embed = discord.Embed(title="Top News from "+outlets[o])
             h = self.headlines("top",o,5)
-            print(h)
             for i in h:
-                print(i.link)
                 embed.add_field(name=self.unescape(i['title']),value="["+str(time.strftime('%b %d, %Y, %I:%M %p',i.updated_parsed))+"]("+i['link']+")")
                 #embed.add_field(name=str(time.strftime('%b %d, %Y, %I:%M %p',i.updated_parsed)),value="["+self.unescape(i['title'])+"]("+i['link']+")")
             await ctx.send(embed=embed)
@@ -223,4 +221,3 @@ class News(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         print("News ready.")
-        
