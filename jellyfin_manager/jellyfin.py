@@ -620,12 +620,12 @@ class Jellyfin(commands.Cog):
         if d:
             for i in range(0,len(n)):
                 val=str(d[i])
-                if str(n[i][0]) == "DiscordID":
+                if str(n[i][1]) == "DiscordID":
                     val=val+" ("+self.bot.get_user(int(d[i])).mention+")"
-                if str(n[i][0]) == "Note":
+                if str(n[i][1]) == "Note":
                     val=("Trial" if d[i] == 't' else "Subscriber")
                 if d[i] != None:
-                    embed.add_field(name=str(n[i][0]),value=val,inline=False)
+                    embed.add_field(name=str(n[i][1]),value=val,inline=False)
             await ctx.send(embed=embed)
         else:
             await ctx.send("That user is not in the database.")
@@ -642,12 +642,12 @@ class Jellyfin(commands.Cog):
             for i in range(0,len(n)):
                 name=str(n[i][0])
                 val=str(d[i])
-                if str(n[i][0]) == "DiscordID":
+                if str(n[i][1]) == "DiscordID":
                     val=val+" ("+self.bot.get_user(int(d[i])).mention+")"
-                if str(n[i][0]) == "Note":
+                if str(n[i][1]) == "Note":
                     val=("Trial" if d[i] == 't' else "Subscriber")
                 if d[i] != None:
-                    embed.add_field(name=str(n[i][0]),value=val,inline=False)
+                    embed.add_field(name=str(n[i][1]),value=val,inline=False)
             await ctx.send(embed=embed)
         else:
             await ctx.send("That user is not in the database.")
