@@ -245,14 +245,14 @@ class Jellyfin(commands.Cog):
         conn.close()
         return response
             
-    def add_user_to_db(self, DiscordID, JellyfinUsername, JellyfinID, note):
+    def add_user_to_db(self, DiscordId, JellyfinName, JellyfinId, note):
         conn = sqlite3.connect(SQLITE_FILE)
         cur = conn.cursor()
         query = ""
         if note == 't':
-            cur.execute("INSERT INTO users (DiscordID, JellyfinUsername, JellyfinID, ExpirationStamp, Note) VALUES ({did}, {ju}, {jid}, {time}, {note})".format(did=str(DiscordID), ju=str(JellyfinUsername), jid=str(JellyfinID), time=str(int(time.time()) + (3600 * TRIAL_LENGTH)), note=str(note)))
+            cur.execute("INSERT INTO users (DiscordID, JellyfinUsername, JellyfinID, ExpirationStamp, Note) VALUES ({did}, {ju}, {jid}, {time}, {note})".format(did=str(DiscordId), ju=str(JellyfinName), jid=str(JellyfinId), time=str(int(time.time()) + (3600 * TRIAL_LENGTH)), note=str(note)))
         else:
-            cur.execute("INSERT INTO users (DiscordID, JellyfinUsername, JellyfinID, Note) VALUES ({did}, {ju}, {jid}, {note})".format(did=str(DiscordID), ju=str(JellyfinUsername), jid=str(JellyfinID), note=str(note)))
+            cur.execute("INSERT INTO users (DiscordID, JellyfinUsername, JellyfinID, Note) VALUES ({did}, {ju}, {jid}, {note})".format(did=str(DiscordID), ju=str(JellyfinName), jid=str(JellyfinId), note=str(note)))
         cur.execute(str(query))
         conn.commit()
         cur.close()
