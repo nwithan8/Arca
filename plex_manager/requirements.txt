@@ -2,6 +2,5 @@ discord
 requests
 imdbpie
 mysql-connector-python
-sqlite3
 asyncio
 PlexAPI
