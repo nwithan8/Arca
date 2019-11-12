@@ -14,7 +14,7 @@ exts = [
 #"espn.__init__",
 #"plex.__init__",
 #"core.manager",
-"plex_manager_nodb.__init__",
+#"plex_manager_nodb.__init__",
 #"plex_manager.__init__",
 #"jellyfin_manager.__init__",
 #"emby_manager.__init__",
