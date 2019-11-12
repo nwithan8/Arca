@@ -12,7 +12,8 @@ import time
 from plexapi.server import PlexServer
 import plexapi
 from plexapi.myplex import MyPlexAccount
-import mysql.connector
+#import mysql.connector
+import sqlite3
 import urllib
 import json
 import re
@@ -23,12 +24,17 @@ import sys, traceback, os
 # PlexDiscord.users
 # (DiscordID BIGINT, PlexUsername 'VARCHAR(100)', PlexEmail 'VARCHAR(320)', ServerNum INT, ExpirationStamp INT, Note 'VARCHAR(5)')
 
-# Discord-to-Plex database credentials
-dbhostname = os.environ.get('DATABASE_HOST')
-dbport = os.environ.get('DATABASE_PORT')
-dbusername = os.environ.get('DATABASE_USER')
-dbpassword = os.environ.get('DATABASE_PASS')
-database = 'PlexDiscord'
+# Discord-to-Plex database credentials (MySQL)
+# DEPRECIATED
+#USE_MYSQL = False
+#dbhostname = os.environ.get('DATABASE_HOST')
+#dbport = os.environ.get('DATABASE_PORT')
+#dbusername = os.environ.get('DATABASE_USER')
+#dbpassword = os.environ.get('DATABASE_PASS')
+#database = 'PlexDiscord'
+
+# Discord-to-Plex database (SQLite3)
+SQLITE_FILE = '/nwithan8-cogs/jellyfin_manager/PlexDiscord.db' # File path + name + extension (i.e. "/root/nwithan8-cogs/plex_manager/PlexDiscord.db"
 
 MULTI_PLEX = False
 
@@ -214,148 +220,141 @@ class PlexManager(commands.Cog):
             return False, serverNumber
                 
     def get_server_number(self, type, data):
-        conn = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
+        conn = sqlite3.connect(SQLITE_FILE)
         response = ""
-        if conn.is_connected():
-            cur = conn.cursor(buffered=True)
-            query = "SELECT ServerNum FROM users WHERE " + ("DiscordID" if type == "Discord" else "PlexUsername") + " = '" + str(data) + "'"
-            cur.execute(query)
-            response = cur.fetchone()
-            cur.close()
-            conn.close()
-            return response
+        cur = conn.cursor(buffered=True)
+        query = "SELECT ServerNum FROM users WHERE " + ("DiscordID" if type == "Discord" else "PlexUsername") + " = '" + str(data) + "'"
+        cur.execute(query)
+        response = cur.fetchone()
+        cur.close()
+        conn.close()
+        return response
     
     def describe_table(self, table):
-        conn = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
+        conn = sqlite3.connect(SQLITE_FILE)
         response = ""
-        if conn.is_connected():
-            cur = conn.cursor(buffered=True)
-            cur.execute("DESCRIBE " + str(table))
-            response = cur.fetchall()
-            cur.close()
-            conn.close()
-            return response
+        cur = conn.cursor(buffered=True)
+        cur.execute("PRAGMA table_info([" + str(table) + "])")
+        response = cur.fetchall()
+        cur.close()
+        conn.close()
+        return response
             
     def pull_user_from_db(self, type, data):
-        conn = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
+        conn = sqlite3.connect(SQLITE_FILE)
         response = ""
-        if conn.is_connected():
-            cur = conn.cursor(buffered=True)
-            query = "SELECT * FROM users WHERE " + ("DiscordID" if type == "Discord" else "PlexUsername") + " = '" + str(data) + "'"
-            cur.execute(query)
-            response = cur.fetchone()
-            cur.close()
-            conn.close()
-            return response
+        cur = conn.cursor(buffered=True)
+        query = "SELECT * FROM users WHERE " + ("DiscordID" if type == "Discord" else "PlexUsername") + " = '" + str(data) + "'"
+        cur.execute(query)
+        response = cur.fetchone()
+        cur.close()
+        conn.close()
+        return response
 
     def add_user_to_db(self, discordId, plexUsername, note, serverNumber=None):
         result = False
-        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
-        if myConnection.is_connected():
-            cursor = myConnection.cursor(buffered=True)
-            query = ""
-            if note == 't':
-                query = "INSERT INTO users (DiscordID, PlexUsername, ExpirationStamp" + (", ServerNum" if serverNumber != None else "") + ", Note) VALUES ('" + str(discordId) + "','" + str(plexUsername) + "','" + str(int(time.time()) + (3600 * TRIAL_LENGTH)) + (("','" + str(serverNumber)) if serverNumber != None else "") + "','" + str(note) + "') ON DUPLICATE KEY UPDATE ExpirationStamp='" + str(int(time.time()) + (3600 * TRIAL_LENGTH)) + "'"
-            else:
-                query = "INSERT IGNORE INTO users (DiscordID, PlexUsername" + + (", ServerNum" if serverNumber != None else "") + ", Note) VALUES ('" + str(discordId) + "','" + str(plexUsername) + (("','" + str(serverNumber)) if serverNumber != None else "") + "','" + str(note) + "')"
-            cursor.execute(str(query))
-            if int(cursor.rowcount) > 0:
-                result = True
-            myConnection.commit()
-            cursor.close()
-            myConnection.close()
-            return result
+        conn = sqlite3.connect(SQLITE_FILE)
+        cur = conn.cursor(buffered=True)
+        query = ""
+        if note == 't':
+            query = "INSERT INTO users (DiscordID, PlexUsername, ExpirationStamp" + (", ServerNum" if serverNumber != None else "") + ", Note) VALUES ('" + str(discordId) + "','" + str(plexUsername) + "','" + str(int(time.time()) + (3600 * TRIAL_LENGTH)) + (("','" + str(serverNumber)) if serverNumber != None else "") + "','" + str(note) + "') ON DUPLICATE KEY UPDATE ExpirationStamp='" + str(int(time.time()) + (3600 * TRIAL_LENGTH)) + "'"
+        else:
+            query = "INSERT IGNORE INTO users (DiscordID, PlexUsername" + + (", ServerNum" if serverNumber != None else "") + ", Note) VALUES ('" + str(discordId) + "','" + str(plexUsername) + (("','" + str(serverNumber)) if serverNumber != None else "") + "','" + str(note) + "')"
+            cur.execute(str(query))
+        if int(cur.rowcount) > 0:
+            result = True
+        conn.commit()
+        cur.close()
+        conn.close()
+        return result
             
     def remove_user_from_db(self, id):
-        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
-        if myConnection.is_connected():
-            cursor = myConnection.cursor(buffered=True)
-            cursor.execute(str("DELETE FROM users WHERE DiscordID = " + str(id)))
-            myConnection.commit()
-            cursor.close()
-            myConnection.close()
+        conn = sqlite3.connect(SQLITE_FILE)
+        cur = conn.cursor(buffered=True)
+        cur.execute(str("DELETE FROM users WHERE DiscordID = " + str(id)))
+        conn.commit()
+        cur.close()
+        conn.close()
             
     def find_user_in_db(self, PlexOrDiscord, data):
-        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
+        conn = sqlite3.connect(SQLITE_FILE)
         ret = []
-        if myConnection.is_connected():
-            cursor = myConnection.cursor(buffered=True)
-            query = "SELECT " + ("PlexUsername, Note" + (", ServerNum" if MULTI_PLEX else "") if PlexOrDiscord == "Plex" else "DiscordID") + " FROM users WHERE " + ("DiscordID" if PlexOrDiscord == "Plex" else "PlexUsername") + " = '" + str(data) + "'"
-            cursor.execute(str(query))
-            results = cursor.fetchone()
-            if PlexOrDiscord == "Plex":
-                if cursor.rowcount > 0:
-                    for r in results:
-                        ret.append(r)
-                    cursor.close()
-                    myConnection.close()
-                    return ret
-                else:
-                    cursor.close()
-                    myConnection.close()
-                    if MULTI_PLEX:
-                        return None, None, None
-                    else:
-                        return None, None
+        cur = conn.cursor(buffered=True)
+        query = "SELECT " + ("PlexUsername, Note" + (", ServerNum" if MULTI_PLEX else "") if PlexOrDiscord == "Plex" else "DiscordID") + " FROM users WHERE " + ("DiscordID" if PlexOrDiscord == "Plex" else "PlexUsername") + " = '" + str(data) + "'"
+        cur.execute(str(query))
+        results = cur.fetchone()
+        if PlexOrDiscord == "Plex":
+            if cur.rowcount > 0:
+                for r in results:
+                    ret.append(r)
+                cur.close()
+                conn.close()
+                return ret
             else:
-                if cursor.rowcount > 0:
-                    ret.append(results[0])
-                    cursor.close()
-                    myConnection.close()
-                    return ret
+                cur.close()
+                conn.close()
+                if MULTI_PLEX:
+                    return None, None, None
                 else:
-                    cursor.close()
-                    myConnection.close()
-                    return None
+                    return None, None
+        else:
+            if cur.rowcount > 0:
+                ret.append(results[0])
+                cur.close()
+                conn.close()
+                return ret
+            else:
+                cur.close()
+                conn.close()
+                return None
         
     async def purge_winners(self, ctx):
         try:
-            myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
+            conn = sqlite3.connect(SQLITE_FILE)
             monitorlist = []
-            if myConnection.is_connected():
-                cur = myConnection.cursor(buffered=True)
-                cur.execute("SELECT PlexUsername FROM users WHERE Note = 'w'")
-                for u in cur.fetchall():
-                    monitorlist.append(u[0])
-                cur.close()
-                myConnection.close()
-                print("Winners: ")
-                print(monitorlist)
-                data = self.t_request("get_users_table","length=1000")
-                removed_list = ""
-                error_message = ""
-                for i in data['response']['data']['data']:
-                    try:
-                        if str(i['friendly_name']) in monitorlist:
-                            PlexUsername = (self.t_request("get_user","user_id="+str(i['user_id'])))['response']['data']['username']
-                            if i['duration'] is None:
-                                print(PlexUsername + " has not watched anything. Purging...")
-                                mention_id = await self.remove_winner(str(PlexUsername))
-                                removed_list = removed_list + (mention_id if mention_id != None else "")
-                            elif i['last_seen'] is None:
-                                print(PlexUsername + " has never been seen. Purging...")
-                                mention_id = await self.remove_winner(str(PlexUsername))
-                                removed_list = removed_list + (mention_id if mention_id != None else "")
-                            elif i['duration']/3600 < WINNER_THRESHOLD:
-                                print(PlexUsername + " has NOT met the duration requirements. Purging...")
-                                mention_id = await self.remove_winner(str(PlexUsername))
-                                removed_list = removed_list + (mention_id if mention_id != None else "")
-                            elif time.time()-i['last_seen'] > 1209600:
-                                print(PlexUsername + " last seen too long ago. Purging...")
-                                mention_id = await self.remove_winner(str(PlexUsername))
-                                removed_list = removed_list + (mention_id if mention_id != None else "")
-                            else:
-                                print(PlexUsername + " has met the requirements, and will not be purged.")
-                    except Exception as e:
-                        print(e)
-                        error_message = error_message + "Error checking " + str(i['friendly_name']) + ". "
-                        pass
-                if removed_list != "":
-                    await ctx.send(removed_list + "You have been removed as a Winner due to inactivity.")
-                else:
-                    await ctx.send("No winners purged.")
-                if error_message != "":
-                    await ctx.send(error_message)
+            cur = conn.cursor(buffered=True)
+            cur.execute("SELECT PlexUsername FROM users WHERE Note = 'w'")
+            for u in cur.fetchall():
+                monitorlist.append(u[0])
+            cur.close()
+            conn.close()
+            print("Winners: ")
+            print(monitorlist)
+            data = self.t_request("get_users_table","length=1000")
+            removed_list = ""
+            error_message = ""
+            for i in data['response']['data']['data']:
+                try:
+                    if str(i['friendly_name']) in monitorlist:
+                        PlexUsername = (self.t_request("get_user","user_id="+str(i['user_id'])))['response']['data']['username']
+                        if i['duration'] is None:
+                            print(PlexUsername + " has not watched anything. Purging...")
+                            mention_id = await self.remove_winner(str(PlexUsername))
+                            removed_list = removed_list + (mention_id if mention_id != None else "")
+                        elif i['last_seen'] is None:
+                            print(PlexUsername + " has never been seen. Purging...")
+                            mention_id = await self.remove_winner(str(PlexUsername))
+                            removed_list = removed_list + (mention_id if mention_id != None else "")
+                        elif i['duration']/3600 < WINNER_THRESHOLD:
+                            print(PlexUsername + " has NOT met the duration requirements. Purging...")
+                            mention_id = await self.remove_winner(str(PlexUsername))
+                            removed_list = removed_list + (mention_id if mention_id != None else "")
+                        elif time.time()-i['last_seen'] > 1209600:
+                            print(PlexUsername + " last seen too long ago. Purging...")
+                            mention_id = await self.remove_winner(str(PlexUsername))
+                            removed_list = removed_list + (mention_id if mention_id != None else "")
+                        else:
+                            print(PlexUsername + " has met the requirements, and will not be purged.")
+                except Exception as e:
+                    print(e)
+                    error_message = error_message + "Error checking " + str(i['friendly_name']) + ". "
+                    pass
+            if removed_list != "":
+                await ctx.send(removed_list + "You have been removed as a Winner due to inactivity.")
+            else:
+                await ctx.send("No winners purged.")
+            if error_message != "":
+                await ctx.send(error_message)
         except Exception as e:
             print(e)
             await ctx.send("Something went wrong. Please try again later.")
@@ -396,28 +395,27 @@ class PlexManager(commands.Cog):
     @tasks.loop(seconds=TRIAL_CHECK_FREQUENCY*60)
     async def check_trials(self):
         print("Checking Plex trials...")
-        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
-        if myConnection.is_connected():
-            cur = myConnection.cursor(buffered=True)
-            query = "SELECT DiscordID FROM users WHERE ExpirationStamp<=" + str(int(time.time())) + " AND Note = 't'";
-            cur.execute(str(query))
-            trial_role = discord.utils.get(self.bot.get_guild(int(SERVER_ID)).roles, name=TRIAL_ROLE_NAME)
-            for u in cur:
-                print("Ending trial for " + str(u[0]))
-                success, num = self.delete_from_plex(int(u[0]))
-                if success:
-                    try:
-                        user = self.bot.get_guild(int(SERVER_ID)).get_member(int(u[0]))
-                        await user.create_dm()
-                        await user.dm_channel.send(self.trial_message('end',num))
-                        await user.remove_roles(trial_role, reason="Trial has ended.")
-                    except Exception as e:
-                        print(e)
-                        print("Trial for Discord user " + str(u[0]) + " was ended, but user could not be notified.")
-                else:
-                    print("Failed to remove Discord user " + str(u[0]) + " from Plex.")
-            cur.close()
-            myConnection.close()
+        conn = sqlite3.connect(SQLITE_FILE)
+        cur = conn.cursor(buffered=True)
+        query = "SELECT DiscordID FROM users WHERE ExpirationStamp<=" + str(int(time.time())) + " AND Note = 't'";
+        cur.execute(str(query))
+        trial_role = discord.utils.get(self.bot.get_guild(int(SERVER_ID)).roles, name=TRIAL_ROLE_NAME)
+        for u in cur:
+            print("Ending trial for " + str(u[0]))
+            success, num = self.delete_from_plex(int(u[0]))
+            if success:
+                try:
+                    user = self.bot.get_guild(int(SERVER_ID)).get_member(int(u[0]))
+                    await user.create_dm()
+                    await user.dm_channel.send(self.trial_message('end',num))
+                    await user.remove_roles(trial_role, reason="Trial has ended.")
+                except Exception as e:
+                    print(e)
+                    print("Trial for Discord user " + str(u[0]) + " was ended, but user could not be notified.")
+            else:
+                print("Failed to remove Discord user " + str(u[0]) + " from Plex.")
+        cur.close()
+        conn.close()
         print("Plex trials check complete.")
         
     @commands.group(name="pm",aliases=["PM","PlexMan","plexman"],pass_context=True)
@@ -505,17 +503,16 @@ class PlexManager(commands.Cog):
         """
         List winners' Plex usernames
         """
-        myConnection = mysql.connector.connect(host=dbhostname,port=dbport,user=dbusername,passwd=dbpassword,db=database)
-        if myConnection.is_connected():
-            try:
-                response = "Winners:"
-                cur = myConnection.cursor(buffered=True)
-                cur.execute("SELECT PlexUsername FROM users WHERE Note = 'w'")
-                for u in cur.fetchall():
-                    response = response + "\n" + (u[0])
-                await ctx.send(response)
-            except Exception as e:
-                await ctx.send("Error pulling winners from database.")
+        conn = sqlite3.connect(SQLITE_FILE)
+        try:
+            response = "Winners:"
+            cur = conn.cursor(buffered=True)
+            cur.execute("SELECT PlexUsername FROM users WHERE Note = 'w'")
+            for u in cur.fetchall():
+                response = response + "\n" + (u[0])
+            await ctx.send(response)
+        except Exception as e:
+            await ctx.send("Error pulling winners from database.")
         
     @pm.command(name="purge", pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
