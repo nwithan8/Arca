@@ -141,7 +141,7 @@ class Jellyfin(commands.Cog):
             }
             r = j_post("Users/New", None, payload)
             if r.status_code != 200:
-                await ctx.send(r.reason)
+                return r.reason, p
             else:
                 r = json.loads(r.text)
                 Id = r['Id']
@@ -707,7 +707,10 @@ class Jellyfin(commands.Cog):
                     await ctx.send("You've been added, " + user.mention + "! Please check your direct messages for login information.")
                     await message.author.remove_roles(discord.utils.get(message.guild.roles, name=TEMP_WINNER_ROLE_NAME), reason="Winner was processed successfully.")
                 else:
-                    await ctx.send("An error occurred while adding " + message.author.mention)
+                    if "exist" in s:
+                        await ctx.send(s)
+                    else:
+                        await ctx.send("An error occurred while adding " + message.author.mention)
         
     @commands.Cog.listener()
     async def on_ready(self):
