@@ -11,17 +11,17 @@ bot = commands.Bot(command_prefix=PREFIX)
 formatter = commands.HelpCommand(show_check_failure=False)
 
 exts = [
-#"espn.__init__",
-#"plex.__init__",
-#"core.manager",
-"plex_manager_nodb.__init__",
-#"plex_manager.__init__",
-#"jellyfin_manager.__init__",
+"espn.__init__",
+"plex.__init__",
+"core.manager",
+#"plex_manager_nodb.__init__",
+"plex_manager.__init__",
+"jellyfin_manager.__init__",
 #"emby_manager.__init__",
-#"news.__init__",
-#"MARTA.__init__",
-#"booksonic.__init__",
-#"roles.__init__"
+"news.__init__",
+"MARTA.__init__",
+"booksonic.__init__",
+"roles.__init__"
 ]
 
 for ext in exts:
