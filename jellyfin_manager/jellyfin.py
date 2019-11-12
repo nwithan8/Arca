@@ -228,7 +228,7 @@ class Jellyfin(commands.Cog):
         conn = sqlite3.connect(SQLITE_FILE)
         response = ""
         cur = conn.cursor()
-        cur.execute("DESCRIBE " + str(table))
+        cur.execute("PRAGMA  table_info([" + str(table) + "])")
         response = cur.fetchall()
         cur.close()
         conn.close()
