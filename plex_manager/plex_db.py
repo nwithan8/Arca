@@ -34,7 +34,7 @@ import sys, traceback, os
 #database = 'PlexDiscord'
 
 # Discord-to-Plex database (SQLite3)
-SQLITE_FILE = '/nwithan8-cogs/jellyfin_manager/PlexDiscord.db' # File path + name + extension (i.e. "/root/nwithan8-cogs/plex_manager/PlexDiscord.db"
+SQLITE_FILE = '/nwithan8-cogs/plex_manager/PlexDiscord.db' # File path + name + extension (i.e. "/root/nwithan8-cogs/plex_manager/PlexDiscord.db"
 
 MULTI_PLEX = False
 
