@@ -617,15 +617,18 @@ class Jellyfin(commands.Cog):
         embed = discord.Embed(title=("Info for " + str(JellyfinUsername)))
         n = self.describe_table("users")
         d = self.pull_user_from_db("Jellyfin", JellyfinUsername)
-        for i in range(0,len(n)):
-            val=str(d[i])
-            if str(n[i][0]) == "DiscordID":
-                val=val+" ("+self.bot.get_user(int(d[i])).mention+")"
-            if str(n[i][0]) == "Note":
-                val=("Trial" if d[i] == 't' else "Subscriber")
-            if d[i] != None:
-                embed.add_field(name=str(n[i][0]),value=val,inline=False)
-        await ctx.send(embed=embed)
+        if d:
+            for i in range(0,len(n)):
+                val=str(d[i])
+                if str(n[i][0]) == "DiscordID":
+                    val=val+" ("+self.bot.get_user(int(d[i])).mention+")"
+                if str(n[i][0]) == "Note":
+                    val=("Trial" if d[i] == 't' else "Subscriber")
+                if d[i] != None:
+                    embed.add_field(name=str(n[i][0]),value=val,inline=False)
+            await ctx.send(embed=embed)
+        else:
+            await ctx.send("That user is not in the database.")
         
     @jellyfin_info.command(name="discord", aliases=["d"])
     async def jellyfin_info_discord(self, ctx, user: discord.Member):
@@ -635,16 +638,19 @@ class Jellyfin(commands.Cog):
         embed = discord.Embed(title=("Info for " + user.name))
         n = self.describe_table("users")
         d = self.pull_user_from_db("Discord", user.id)
-        for i in range(0,len(n)):
-            name=str(n[i][0])
-            val=str(d[i])
-            if str(n[i][0]) == "DiscordID":
-                val=val+" ("+self.bot.get_user(int(d[i])).mention+")"
-            if str(n[i][0]) == "Note":
-                val=("Trial" if d[i] == 't' else "Subscriber")
-            if d[i] != None:
-                embed.add_field(name=str(n[i][0]),value=val,inline=False)
-        await ctx.send(embed=embed)
+        if d:
+            for i in range(0,len(n)):
+                name=str(n[i][0])
+                val=str(d[i])
+                if str(n[i][0]) == "DiscordID":
+                    val=val+" ("+self.bot.get_user(int(d[i])).mention+")"
+                if str(n[i][0]) == "Note":
+                    val=("Trial" if d[i] == 't' else "Subscriber")
+                if d[i] != None:
+                    embed.add_field(name=str(n[i][0]),value=val,inline=False)
+            await ctx.send(embed=embed)
+        else:
+            await ctx.send("That user is not in the database.")
         
     @jellyfin_info.error
     async def jellyfin_info_error(self, ctx, error):
