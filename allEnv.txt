@@ -1,28 +1,49 @@
-export DISCORD_BOT_TOKEN='' # Bot Token from https://discordapp.com/developers/applications/
-export DISCORD_SERVER_ID='' # Discord server ID (https://support.discordapp.com/hc/en-us/articles/206346498-Where-can-I-find-my-User-Server-Message-ID-)
-export ADMIN_ID=' ' # Discord server admin user ID (https://support.discordapp.com/hc/en-us/articles/206346498-Where-can-I-find-my-User-Server-Message-ID-)
+export DISCORD_BOT_TOKEN=''
+# Bot Token from https://discordapp.com/developers/applications/
+export DISCORD_SERVER_ID=''
+# Discord server ID (https://support.discordapp.com/hc/en-us/articles/206346498-Where-can-I-find-my-User-Server-Message-ID-)
+export ADMIN_ID=' '
+# Discord server admin user ID (https://support.discordapp.com/hc/en-us/articles/206346498-Where-can-I-find-my-User-Server-Message-ID-)
      
-export DATABASE_HOST='' # Database URL (if running locally, use 'localhost')
-export DATABASE_PORT=    # Database port (default: 3306)
-export DATABASE_USER=DiscordBot  # User for Plex, Emby and Jellyfin databases (if you used the makePEJdb.sql script, set as 'DiscordBot')
-export DATABASE_PASS=DiscordBot  # Password for Plex, Emby and Jellyfin databases (if you used the makePEJdb.sql script, set as 'DiscordBot')
+export DATABASE_HOST='' 
+# Database URL (if running locally, use 'localhost')
+export DATABASE_PORT=    
+# Database port (default: 3306)
+export DATABASE_USER=DiscordBot  
+# User for Plex, Emby and Jellyfin databases (if you used the makePEJdb.sql script, set as 'DiscordBot')
+export DATABASE_PASS=DiscordBot  
+# Password for Plex, Emby and Jellyfin databases (if you used the makePEJdb.sql script, set as 'DiscordBot')
     
-export PLEX_SERVER_NAME='' # Nickname for the Plex Media Server
-export PLEX_URL='' # Plex Media Server URL (format: 'http://myip.com:port')
-export PLEX_TOKEN='' # Plex Media Server token (https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)
-export PLEX_SERVER_ID=' ' # Plex Media Server ID (found after "server/" in app.plex.tv URL)
+export PLEX_SERVER_NAME='' 
+# Nickname for the Plex Media Server
+export PLEX_URL='' 
+# Plex Media Server URL (format: 'http://myip.com:port')
+export PLEX_TOKEN='' 
+# Plex Media Server token (https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/)
+export PLEX_SERVER_ID=' ' 
+# Plex Media Server ID (found after "server/" in app.plex.tv URL)
       
-export TAUTULLI_URL=''# Tautulli URL (format: 'http://myip.com:port')
-export TAUTULLI_KEY=   # Tautulli API key (https://www.reddit.com/r/Tautulli/comments/ai05ba/i_feel_dumb_where_is_the_api_key/)
+export TAUTULLI_URL=''
+# Tautulli URL (format: 'http://myip.com:port')
+export TAUTULLI_KEY=   
+# Tautulli API key (https://www.reddit.com/r/Tautulli/comments/ai05ba/i_feel_dumb_where_is_the_api_key/)
 
-export OMBI_URL='' # Ombi URL (format: 'http://myip.com:port')
-export OMBI_KEY=   # Ombi API key (https://github.com/tidusjar/Ombi/wiki/Ombi-Settings)
+export OMBI_URL='' 
+# Ombi URL (format: 'http://myip.com:port')
+export OMBI_KEY=  
+# Ombi API key (https://github.com/tidusjar/Ombi/wiki/Ombi-Settings)
 
     
-export JELLYFIN_SERVER_NAME=" "  # Nickname for the Jellyfin Media Server
-export JELLYFIN_URL=''  # Jellyfin server URL (format: 'http://myip.com:port')
-export JELLYFIN_KEY=''  # Jellyfin API key
+export JELLYFIN_SERVER_NAME=" " 
+# Nickname for the Jellyfin Media Server
+export JELLYFIN_URL='' 
+# Jellyfin server URL (format: 'http://myip.com:port')
+export JELLYFIN_KEY='' 
+# Jellyfin API key
 
-export EMBY_SERVER_NAME='' # Nickname for the Emby Media Server
-export EMBY_URL=''  # Emby server URL (format: 'http://myip.com:port')
-export EMBY_KEY='' # Emby API key
+export EMBY_SERVER_NAME=''
+# Nickname for the Emby Media Server
+export EMBY_URL='' 
+# Emby server URL (format: 'http://myip.com:port')
+export EMBY_KEY=''
+# Emby API key
