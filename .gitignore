@@ -55,3 +55,8 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# Private configs
+config.json
+config.txt
+*oauth2.json
