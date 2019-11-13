@@ -181,59 +181,63 @@ class Jellyfin(commands.Cog):
     def remove_from_jellyfin(self, id):
         """
         Remove a Discord user from Jellyfin
+        Returns:
+        200 - user found and removed successfully
+        600 - user found, but not removed
+        700 - user not found in database
+        500 - unknown error
         """
         try:
-            jellyfinIds = self.find_user_in_db("Jellyfin", id)
+            jellyfinId = self.find_user_in_db("Jellyfin", id)
             s = 200
-            if not jellyfinIds:
-                s = 900
+            if not jellyfinId:
+                s = 700
             else:
-                status_codes = []
-                for jellyfinId in jellyfinIds:
-                    jellyfinId = jellyfinId[0]
-                    payload = {
-                        "IsAdministrator": "false",
-                        "IsHidden": "true",
-                        "IsHiddenRemotely": "true",
-                        "IsDisabled": "true",
-                        "EnableRemoteControlOfOtherUsers": "false",
-                        "EnableSharedDeviceControl": "false",
-                        "EnableRemoteAccess": "true",
-                        "EnableLiveTvManagement": "false",
-                        "EnableLiveTvAccess": "false",
-                        "EnableContentDeletion": "false",
-                        "EnableSubtitleManagement": "false",
-                        "EnableAllDevices": "true",
-                        "EnableAllChannels": "false",
-                        "EnablePublicSharing": "false",
-                        "BlockedChannels": [
-                            "IPTV",
-                            "TVHeadEnd Recordings"
-                        ]
-                    }
-                    #s = requests.post(JELLYFIN_URL + "/Users/" + str(jellyfinId) + "/Policy?api_key=" + JELLYFIN_KEY, json=payload).status_code
-                    # Doesn't delete user, instead makes deactive.
-                    # Delete function not documented in Jellyfin API, but exists in old Jellyfin API and still works
-                    status_codes.append(j_delete("Users/" + str(jellyfinId), None).status_code)
-                for code in status_codes:
-                    if not str(code).startswith("2"):
-                        s = 700
-                        break
+                payload = {
+                    "IsAdministrator": "false",
+                    "IsHidden": "true",
+                    "IsHiddenRemotely": "true",
+                    "IsDisabled": "true",
+                    "EnableRemoteControlOfOtherUsers": "false",
+                    "EnableSharedDeviceControl": "false",
+                    "EnableRemoteAccess": "true",
+                    "EnableLiveTvManagement": "false",
+                    "EnableLiveTvAccess": "false",
+                    "EnableContentDeletion": "false",
+                    "EnableSubtitleManagement": "false",
+                    "EnableAllDevices": "true",
+                    "EnableAllChannels": "false",
+                    "EnablePublicSharing": "false",
+                    "BlockedChannels": [
+                        "IPTV",
+                        "TVHeadEnd Recordings"
+                    ]
+                }
+                #s = requests.post(JELLYFIN_URL + "/Users/" + str(jellyfinId) + "/Policy?api_key=" + JELLYFIN_KEY, json=payload).status_code
+                # Doesn't delete user, instead makes deactive.
+                # Delete function not documented in Jellyfin API, but exists in old Jellyfin API and still works
+                r = j_delete("Users/" + str(jellyfinId), None)
+                if not str(r.status_code).startswtth("2"):
+                    s = 600
             if s == 200:
                 self.remove_user_from_db(id)
-            return s
+            return str(s)
         except Exception as e:
             print(e)
+            return "500"
     
     def describe_table(self, table):
         conn = sqlite3.connect(SQLITE_FILE)
-        response = ""
+        result = ""
         cur = conn.cursor()
         cur.execute("PRAGMA  table_info([" + str(table) + "])")
-        response = cur.fetchall()
+        result = cur.fetchall()
         cur.close()
         conn.close()
-        return response
+        if result:
+            return result
+        else:
+            return None
             
     def pull_user_from_db(self, type, data):
         conn = sqlite3.connect(SQLITE_FILE)
@@ -241,10 +245,13 @@ class Jellyfin(commands.Cog):
         cur = conn.cursor()
         query = "SELECT * FROM users WHERE " + ("DiscordID" if type == "Discord" else "JellyfinID") + " = '" + str(data) + "'"
         cur.execute(query)
-        response = cur.fetchone()
+        result = cur.fetchone()
         cur.close()
         conn.close()
-        return response
+        if result:
+            return result
+        else:
+            return None
             
     def add_user_to_db(self, DiscordId, JellyfinName, JellyfinId, note):
         conn = sqlite3.connect(SQLITE_FILE)
@@ -268,24 +275,36 @@ class Jellyfin(commands.Cog):
         conn.close()
             
     def find_user_in_db(self, JellyfinOrDiscord, data):
+        """
+        Returns JellyfinID/DiscordID
+        """
         conn = sqlite3.connect(SQLITE_FILE)
         cur = conn.cursor()
         query = "SELECT " + ("JellyfinID" if JellyfinOrDiscord == "Jellyfin" else "DiscordID") + " FROM users WHERE " + ("DiscordID" if JellyfinOrDiscord == "Jellyfin" else "JellyfinID") + " = '" + str(data) + "'"
         cur.execute(str(query))
-        result = cur.fetchall()
+        result = cur.fetchone()
         cur.close()
         conn.close()
-        return result
+        if result:
+            return result
+        else:
+            return None
         
     def find_username_in_db(self, JellyfinOrDiscord, data):
+        """
+        Returns JellyfinUsername/DiscordID, Note
+        """
         conn = sqlite3.connect(SQLITE_FILE)
         cur = conn.cursor()
-        query = "SELECT " + ("JellyfinUsername" if JellyfinOrDiscord == "Jellyfin" else "DiscordID") + " FROM users WHERE " + ("DiscordID" if JellyfinOrDiscord == "Jellyfin" else "JellyfinUsername") + " = '" + str(data) + "'"
+        query = "SELECT " + ("JellyfinUsername" if JellyfinOrDiscord == "Jellyfin" else "DiscordID") + ", Note FROM users WHERE " + ("DiscordID" if JellyfinOrDiscord == "Jellyfin" else "JellyfinUsername") + " = '" + str(data) + "'"
         cur.execute(str(query))
-        result = cur.fetchall()
+        result = cur.fetchone()
         cur.close()
         conn.close()
-        return result
+        if result:
+            return result[0], result[1]
+        else:
+            return None, None
         
     async def purge_winners(self, ctx):
         try:
@@ -329,19 +348,18 @@ class Jellyfin(commands.Cog):
             
     async def remove_winner(self, jellyfinId):
         try:
-            self.remove_from_jellyfin(jellyfinId)
+            id = self.find_user_in_db("Discord", jellyfinId)
+            if id != None:
+                code = self.remove_from_jellyfin(jellyfinId)
+                if code.startswith('2'):
+                    user = self.bot.get_user(int(id))
+                    await user.create_dm()
+                    await user.dm_channel.send("You have been removed from " + str(SERVER_NICKNAME) + " due to inactivity.")
+                    await user.remove_roles(discord.utils.get(self.bot.get_guild(int(SERVER_ID)).roles, name="Winner"), reason="Inactive winner")
+                    return "<@" + id + ">, "
         except Exception as e:
             pass
-        id = self.find_user_in_db("Discord", jellyfinId)
-        if id != None:
-            user = self.bot.get_user(int(id))
-            await user.create_dm()
-            await user.dm_channel.send("You have been removed from " + str(SERVER_NICKNAME) + " due to inactivity.")
-            await user.remove_roles(discord.utils.get(self.bot.get_guild(int(SERVER_ID)).roles, name="Winner"), reason="Inactive winner")
-            self.remove_user_from_db(id)
-            return "<@" + id + ">, "
-        else:
-            return None
+        return None
         
     def remove_nonsub(self, memberID):
         if memberID not in exemptsubs:
@@ -401,7 +419,7 @@ class Jellyfin(commands.Cog):
         hasAccess = False
         name = ""
         if JellyfinUsername is None:
-            name = self.find_username_in_db("Jellyfin", ctx.message.author.id)
+            name, note = self.find_username_in_db("Jellyfin", ctx.message.author.id)
         else:
             name = JellyfinUsername
         if name in self.get_jellyfin_users().keys():
@@ -481,9 +499,7 @@ class Jellyfin(commands.Cog):
             await user.create_dm()
             creds = ""
             if USE_HASTEBIN:
-                creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" +
-                                ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
-                                )
+                creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n")
             else:
                 creds = "Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
             await user.dm_channel.send("You have been added to " + str(SERVER_NICKNAME) + "!\n" + creds)
@@ -504,9 +520,9 @@ class Jellyfin(commands.Cog):
         s = self.remove_from_jellyfin(user.id)
         if str(s).startswith("2"):
             await ctx.send("You've been removed from " + str(SERVER_NICKNAME) + ", " + user.mention + ".")
+        elif str(s).startswith("6"):
+            await ctx.send(user.mention + " could not be removed.")
         elif str(s).startswith("7"):
-            await ctx.send("Not all accounts for " + user.mention + " were successfully removed.")
-        elif str(s).startswith("9"):
             await ctx.send("There are no accounts for " + user.mention)
         else:
             await ctx.send("An error occurred while removing " + user.mention)
@@ -526,9 +542,7 @@ class Jellyfin(commands.Cog):
             await user.create_dm()
             creds = ""
             if USE_HASTEBIN:
-                creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" +
-                                ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
-                                )
+                creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n")
             else:
                 creds = "Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
             await user.dm_channel.send("You have been added to " + str(SERVER_NICKNAME) + "!\n" + creds)
@@ -586,7 +600,7 @@ class Jellyfin(commands.Cog):
         """
         Find Discord member's Jellyfin username
         """
-        name, note = self.find_user_in_db("Jellyfin", user.id)
+        name, note = self.find_username_in_db("Jellyfin", user.id)
         await ctx.send(user.mention + " is Jellyfin user: " + name + (" [Trial]" if note == 't' else " [Subscriber]"))
         
     @jellyfin_find.command(name="discord", aliases=["d"])
@@ -594,7 +608,7 @@ class Jellyfin(commands.Cog):
         """
         Find Jellyfin user's Discord name
         """
-        id = self.find_username_in_db("Discord", JellyfinUsername)
+        id, note = self.find_username_in_db("Discord", JellyfinUsername)
         await ctx.send(JellyfinUsername + " is Discord user: " + self.bot.get_user(int(id)).mention)
             
     @jellyfin_find.error
@@ -677,9 +691,7 @@ class Jellyfin(commands.Cog):
                     await user.create_dm()
                     creds = ""
                     if USE_HASTEBIN:
-                        creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" +
-                                        ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
-                                        )
+                        creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n")
                     else:
                         creds = "Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" +("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
                     await user.dm_channel.send("You have been added to " + str(SERVER_NICKNAME) + "!\n" + creds)
