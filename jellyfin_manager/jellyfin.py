@@ -478,7 +478,7 @@ class Jellyfin(commands.Cog):
         """
         Get the number of enabled Jellyfin users
         """
-        count = len(j_get("Users", None))
+        count = len(self.get_jellyfin_users())
         if count > 0:
             await ctx.send(str(SERVER_NICKNAME) + " has " + str(count) + " users.")
         else:
