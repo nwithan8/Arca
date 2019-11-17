@@ -595,7 +595,7 @@ class Jellyfin(commands.Cog):
         if ctx.invoked_subcommand is None:
             await ctx.send("What subcommand?")
         
-    @jellyfin_find.command(name="jellyfin", aliases=["e"])
+    @jellyfin_find.command(name="jellyfin", aliases=["j"])
     async def jellyfin_find_jellyfin(self, ctx: commands.Context, user: discord.Member):
         """
         Find Discord member's Jellyfin username
