@@ -37,7 +37,7 @@ import csv
 #database = 'JellyfinDiscord'
 
 # Discord-to-Jellyfin database (SQLite3)
-SQLITE_FILE = '/nwithan8-cogs/jellyfin_manager/JellyfinDiscord.db' # File path + name + extension (i.e. "/root/nwithan8-cogs/jellyfin_manager/JellyfinDiscord.db"
+SQLITE_FILE = '~/nwithan8-cogs/jellyfin_manager/JellyfinDiscord.db' # File path + name + extension (i.e. "/root/nwithan8-cogs/jellyfin_manager/JellyfinDiscord.db"
 
 '''
 Database schema:
