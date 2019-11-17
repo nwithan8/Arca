@@ -94,19 +94,19 @@ def j_get(cmd, params):
     """
     Returns JSON
     """
-    return json.loads(requests.get(JELLYFIN_URL + "/" + cmd + "?api_key=" + JELLYFIN_KEY + ("&" + params if params != None else "")).text)
+    return json.loads(requests.get(JELLYFIN_URL + "/jellyfin/" + cmd + "?api_key=" + JELLYFIN_KEY + ("&" + params if params != None else "")).text)
 
 def j_post(cmd, params, payload):
     """
     Returns the request response. Must parse for JSON or status code in body code
     """
-    return requests.post(JELLYFIN_URL + "/" + cmd + "?api_key=" + JELLYFIN_KEY + ("&" + params if params != None else ""), json=payload)
+    return requests.post(JELLYFIN_URL + "/jellyfin/" + cmd + "?api_key=" + JELLYFIN_KEY + ("&" + params if params != None else ""), json=payload)
 
 def j_delete(cmd, params):
     """
     Returns the request response. Must parse for JSON or status code in body code
     """
-    return requests.delete(JELLYFIN_URL + "/" + cmd + "?api_key=" + JELLYFIN_KEY + ("&" + params if params != None else ""))
+    return requests.delete(JELLYFIN_URL + "/jellyfin/" + cmd + "?api_key=" + JELLYFIN_KEY + ("&" + params if params != None else ""))
 
 def password(length):
     """
