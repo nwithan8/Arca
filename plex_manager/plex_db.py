@@ -222,7 +222,7 @@ class PlexManager(commands.Cog):
     def get_server_number(self, type, data):
         conn = sqlite3.connect(SQLITE_FILE)
         response = ""
-        cur = conn.cursor(buffered=True)
+        cur = conn.cursor()
         query = "SELECT ServerNum FROM users WHERE " + ("DiscordID" if type == "Discord" else "PlexUsername") + " = '" + str(data) + "'"
         cur.execute(query)
         response = cur.fetchone()
@@ -233,7 +233,7 @@ class PlexManager(commands.Cog):
     def describe_table(self, table):
         conn = sqlite3.connect(SQLITE_FILE)
         response = ""
-        cur = conn.cursor(buffered=True)
+        cur = conn.cursor()
         cur.execute("PRAGMA table_info([" + str(table) + "])")
         response = cur.fetchall()
         cur.close()
@@ -243,7 +243,7 @@ class PlexManager(commands.Cog):
     def pull_user_from_db(self, type, data):
         conn = sqlite3.connect(SQLITE_FILE)
         response = ""
-        cur = conn.cursor(buffered=True)
+        cur = conn.cursor()
         query = "SELECT * FROM users WHERE " + ("DiscordID" if type == "Discord" else "PlexUsername") + " = '" + str(data) + "'"
         cur.execute(query)
         response = cur.fetchone()
@@ -254,7 +254,7 @@ class PlexManager(commands.Cog):
     def add_user_to_db(self, discordId, plexUsername, note, serverNumber=None):
         result = False
         conn = sqlite3.connect(SQLITE_FILE)
-        cur = conn.cursor(buffered=True)
+        cur = conn.cursor()
         query = ""
         if note == 't':
             query = "INSERT INTO users (DiscordID, PlexUsername, ExpirationStamp" + (", ServerNum" if serverNumber != None else "") + ", Note) VALUES ('" + str(discordId) + "','" + str(plexUsername) + "','" + str(int(time.time()) + (3600 * TRIAL_LENGTH)) + (("','" + str(serverNumber)) if serverNumber != None else "") + "','" + str(note) + "') ON DUPLICATE KEY UPDATE ExpirationStamp='" + str(int(time.time()) + (3600 * TRIAL_LENGTH)) + "'"
@@ -270,7 +270,7 @@ class PlexManager(commands.Cog):
             
     def remove_user_from_db(self, id):
         conn = sqlite3.connect(SQLITE_FILE)
-        cur = conn.cursor(buffered=True)
+        cur = conn.cursor()
         cur.execute(str("DELETE FROM users WHERE DiscordID = " + str(id)))
         conn.commit()
         cur.close()
@@ -279,7 +279,7 @@ class PlexManager(commands.Cog):
     def find_user_in_db(self, PlexOrDiscord, data):
         conn = sqlite3.connect(SQLITE_FILE)
         ret = []
-        cur = conn.cursor(buffered=True)
+        cur = conn.cursor()
         query = "SELECT " + ("PlexUsername, Note" + (", ServerNum" if MULTI_PLEX else "") if PlexOrDiscord == "Plex" else "DiscordID") + " FROM users WHERE " + ("DiscordID" if PlexOrDiscord == "Plex" else "PlexUsername") + " = '" + str(data) + "'"
         cur.execute(str(query))
         results = cur.fetchone()
@@ -312,7 +312,7 @@ class PlexManager(commands.Cog):
         try:
             conn = sqlite3.connect(SQLITE_FILE)
             monitorlist = []
-            cur = conn.cursor(buffered=True)
+            cur = conn.cursor()
             cur.execute("SELECT PlexUsername FROM users WHERE Note = 'w'")
             for u in cur.fetchall():
                 monitorlist.append(u[0])
@@ -396,7 +396,7 @@ class PlexManager(commands.Cog):
     async def check_trials(self):
         print("Checking Plex trials...")
         conn = sqlite3.connect(SQLITE_FILE)
-        cur = conn.cursor(buffered=True)
+        cur = conn.cursor()
         query = "SELECT DiscordID FROM users WHERE ExpirationStamp<=" + str(int(time.time())) + " AND Note = 't'";
         cur.execute(str(query))
         trial_role = discord.utils.get(self.bot.get_guild(int(SERVER_ID)).roles, name=TRIAL_ROLE_NAME)
@@ -506,7 +506,7 @@ class PlexManager(commands.Cog):
         conn = sqlite3.connect(SQLITE_FILE)
         try:
             response = "Winners:"
-            cur = conn.cursor(buffered=True)
+            cur = conn.cursor()
             cur.execute("SELECT PlexUsername FROM users WHERE Note = 'w'")
             for u in cur.fetchall():
                 response = response + "\n" + (u[0])
