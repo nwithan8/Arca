@@ -752,17 +752,20 @@ class PlexManager(commands.Cog):
         embed = discord.Embed(title=("Info for " + str(PlexUsername)))
         n = self.describe_table("users")
         d = self.find_entry_in_db("PlexUsername", PlexUsername)
-        for i in range(0,len(n)):
-            val=str(d[i])
-            if str(n[i][1]) == "DiscordID":
-                val=val+" ("+self.bot.get_user(int(d[i])).mention+")"
-            if str(n[i][1]) == "Note":
-                val=("Trial" if d[i] == 't' else "Subscriber")
-            if MULTI_PLEX and str(n[i][1]) == "ServerNum":
-                val=("Server Number: " + d[i])
-            if d[i] != None:
-                embed.add_field(name=str(n[i][1]),value=val,inline=False)
-        await ctx.send(embed=embed)
+        if d:
+            for i in range(0,len(n)):
+                val=str(d[i])
+                if str(n[i][1]) == "DiscordID":
+                    val=val+" ("+self.bot.get_user(int(d[i])).mention+")"
+                if str(n[i][1]) == "Note":
+                    val=("Trial" if d[i] == 't' else "Subscriber")
+                if MULTI_PLEX and str(n[i][1]) == "ServerNum":
+                    val=("Server Number: " + d[i])
+                if d[i] != None:
+                    embed.add_field(name=str(n[i][1]),value=val,inline=False)
+            await ctx.send(embed=embed)
+        else:
+            await ctx.send("That user is not in the database.")
         
     @pm_info.command(name="discord", aliases=["d"])
     @commands.has_role(ADMIN_ROLE_NAME)
@@ -773,18 +776,21 @@ class PlexManager(commands.Cog):
         embed = discord.Embed(title=("Info for " + user.name))
         n = self.describe_table("users")
         d = self.find_entry_in_db("DiscordID", user.id)
-        for i in range(0,len(n)):
-            name=str(n[i][1])
-            val=str(d[i])
-            if str(n[i][1]) == "DiscordID":
-                val=val+" ("+self.bot.get_user(int(d[i])).mention+")"
-            if str(n[i][1]) == "Note":
-                val=("Trial" if d[i] == 't' else "Subscriber")
-            if MULTI_PLEX and str(n[i][1]) == "ServerNum":
-                val=("Server Number: " + d[i])
-            if d[i] != None:
-                embed.add_field(name=str(n[i][1]),value=val,inline=False)
-        await ctx.send(embed=embed)
+        if d:
+            for i in range(0,len(n)):
+                name=str(n[i][1])
+                val=str(d[i])
+                if str(n[i][1]) == "DiscordID":
+                    val=val+" ("+self.bot.get_user(int(d[i])).mention+")"
+                if str(n[i][1]) == "Note":
+                    val=("Trial" if d[i] == 't' else "Subscriber")
+                if MULTI_PLEX and str(n[i][1]) == "ServerNum":
+                    val=("Server Number: " + d[i])
+                if d[i] != None:
+                    embed.add_field(name=str(n[i][1]),value=val,inline=False)
+            await ctx.send(embed=embed)
+        else:
+            await ctx.send("That user is not in the database.")
         
     @pm_info.error
     async def pm_info_error(self, ctx, error):
