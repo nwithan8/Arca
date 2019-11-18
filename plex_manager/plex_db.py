@@ -148,6 +148,36 @@ class PlexManager(commands.Cog):
                 serverNumber = i
                 smallestCount = tempCount
         return serverNumber
+    
+    def get_plex_users(self, serverNumber=None):
+        users = []
+        tempPlex = plex
+        tempServerName = PLEX_SERVER_NAME
+        tempServerAltName = PLEX_SERVER_ALT_NAME
+        if MULTI_PLEX:
+            if serverNumber: # from specific server
+                tempPlex = PlexServer(PLEX_SERVER_URL[serverNumber],PLEX_SERVER_TOKEN[serverNumber])
+                tempServerName = PLEX_SERVER_NAME[serverNumber]
+                tempServerAltName = PLEX_SERVER_ALT_NAME[serverNumber]
+                for u in tempPlex.myPlexAccount().users():
+                for s in u.servers:
+                    if s.name == tempServerName or s.name == tempServerAltName:
+                        users.append(s.name)
+            else: # from all servers
+                for serverNumber in range(len(PLEX_SERVER_URL)):
+                    tempPlex = PlexServer(PLEX_SERVER_URL[serverNumber],PLEX_SERVER_TOKEN[serverNumber])
+                    tempServerName = PLEX_SERVER_NAME[serverNumber]
+                    tempServerAltName = PLEX_SERVER_ALT_NAME[serverNumber]
+                    for u in tempPlex.myPlexAccount().users():
+                    for s in u.servers:
+                        if s.name == tempServerName or s.name == tempServerAltName:
+                            users.append(s.name)
+        else: # from the single server
+            for u in tempPlex.myPlexAccount().users():
+                for s in u.servers:
+                    if s.name == tempServerName or s.name == tempServerAltName:
+                        users.append(s.name)
+        return users
         
     def t_request(self, cmd, params, serverNumber=None):
         return json.loads(requests.get((TAUTULLI_URL[serverNumber] if serverNumber != None else TAUTULLI_URL) + "/api/v2?apikey=" + (TAUTULLI_KEY[serverNumber] if serverNumber != None else TAUTULLI_KEY) + "&cmd=" + str(cmd) + (("&" + str(params)) if params != None else "")).text)
@@ -310,6 +340,22 @@ class PlexManager(commands.Cog):
         cur.close()
         conn.close()
         return response
+    
+    def get_all_entries_in_db(self):
+        """
+        Returns all database entries
+        """
+        conn = sqlite3.connect(SQLITE_FILE)
+        cur = conn.cursor()
+        query = "SELECT * FROM users"
+        cur.execute(query)
+        result = cur.fetchall()
+        cur.close()
+        conn.close()
+        if result:
+            return result
+        else:
+            return None
         
     async def purge_winners(self, ctx):
         try:
@@ -524,6 +570,33 @@ class PlexManager(commands.Cog):
         Remove inactive winners
         """
         await self.purge_winners(ctx)
+        
+    @pm.command(name="cleandb", aliases=["clean", "scrub", "syncdb"], pass_context=True)
+    async def pm_cleandb(self, ctx: commands.Context):
+        """
+        Remove old users from database
+        If you delete a user from Plex directly,
+        run this to remove the user's entry in the
+        Plex user database.
+        """
+        existingUsers = self.get_plex_users()
+        dbEntries = self.get_all_entries_in_db()
+        if dbEntries:
+            deletedUsers = ""
+            for entry in dbEntries:
+                if entry[1] not in existingUsers: # entry[1] is PlexUsername
+                    deletedUsers += entry[1] + ", "
+                    self.remove_user_from_db(entry[0]) # entry[0] is DiscordID
+            if deletedUsers:
+                await ctx.send("The following users were deleted from the database: " + deletedUsers[:-2])
+            else:
+                await ctx.send("No old users found and removed from database.")
+        else:
+            await ctx.send("An error occurred when grabbing users from the database.")
+    
+    @pm_cleandb.error
+    async def pm_cleandb_error(self, ctx, error):
+        await ctx.send("Something went wrong.")
         
     @pm.command(name="count")
     @commands.has_role(ADMIN_ROLE_NAME)

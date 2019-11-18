@@ -228,7 +228,6 @@ class Jellyfin(commands.Cog):
     
     def describe_table(self, table):
         conn = sqlite3.connect(SQLITE_FILE)
-        result = ""
         cur = conn.cursor()
         cur.execute("PRAGMA  table_info([" + str(table) + "])")
         result = cur.fetchall()
@@ -297,11 +296,26 @@ class Jellyfin(commands.Cog):
         Returns whole entry
         """
         conn = sqlite3.connect(SQLITE_FILE)
-        response = ""
         cur = conn.cursor()
         query = "SELECT * FROM users WHERE " + type + " = '" + str(data) + "'"
         cur.execute(query)
         result = cur.fetchone()
+        cur.close()
+        conn.close()
+        if result:
+            return result
+        else:
+            return None
+        
+    def get_all_entries_in_db(self):
+        """
+        Returns all database entries
+        """
+        conn = sqlite3.connect(SQLITE_FILE)
+        cur = conn.cursor()
+        query = "SELECT * FROM users"
+        cur.execute(query)
+        result = cur.fetchall()
         cur.close()
         conn.close()
         if result:
@@ -474,6 +488,34 @@ class Jellyfin(commands.Cog):
         Remove inactive winners
         """
         await self.purge_winners(ctx)
+        
+    @jellyfin.command(name="cleandb", aliases=['clean','scrub'], pass_context=True)
+    @commands.has_role(ADMIN_ROLE_NAME)
+    async def jellyfin_cleandb(self, ctx: commands.Context):
+        """
+        Remove old users from database
+        If you delete a user from Jellyfin directly,
+        run this to remove the user's entry in Jellyfin's
+        database.
+        """
+        existingUsers = self.get_jellyfin_users()
+        dbEntries = self.get_all_entries_in_db()
+        if dbEntries:
+            deletedUsers = ""
+            for entry in dbEntries:
+                if entry[1] not in existingUsers.keys(): # entry[1] is JellyfinUsername
+                    deletedUsers += entry[0] + ", "
+                    self.remove_user_from_db(entry[0]) # entry[0] is DiscordID
+            if deletedUsers:
+                await ctx.send("The following users were deleted from the database: " + deletedUsers[:-2])
+            else:
+                await ctx.send("No old users found and removed from database.")
+        else:
+            await ctx.send("An error occurred when grabbing users from the database.")
+        
+    @jellyfin_cleandb.error
+    async def jellyfin_cleandb_error(self, ctx, error):
+        await ctx.send("Something went wrong.")
         
     @jellyfin.command(name="count", aliases=["subs","number"], pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
