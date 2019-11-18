@@ -604,7 +604,10 @@ class Jellyfin(commands.Cog):
         Find Discord member's Jellyfin username
         """
         name, note = self.find_username_in_db("Jellyfin", user.id)
-        await ctx.send(user.mention + " is Jellyfin user: " + name + (" [Trial]" if note == 't' else " [Subscriber]"))
+        if name:
+            await ctx.send(user.mention + " is Jellyfin user: " + name + (" [Trial]" if note == 't' else " [Subscriber]"))
+        else:
+            await ctx.send("User not found.")
         
     @jellyfin_find.command(name="discord", aliases=["d"])
     async def jellyfin_find_discord(self, ctx: commands.Context, JellyfinUsername: str):
@@ -612,11 +615,14 @@ class Jellyfin(commands.Cog):
         Find Jellyfin user's Discord name
         """
         id, note = self.find_username_in_db("Discord", JellyfinUsername)
-        await ctx.send(JellyfinUsername + " is Discord user: " + self.bot.get_user(int(id)).mention)
+        if id:
+            await ctx.send(JellyfinUsername + " is Discord user: " + self.bot.get_user(int(id)).mention)
+        else:
+            await ctx.send("User not found.")
             
     @jellyfin_find.error
     async def jellyfin_find_error(self, ctx, error):
-        await ctx.send("User not found.")
+        await ctx.send("An error occurred while looking for that user.")
             
     @jellyfin.group(name="info")
     @commands.has_role(ADMIN_ROLE_NAME)
