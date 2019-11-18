@@ -239,17 +239,6 @@ class PlexManager(commands.Cog):
         cur.close()
         conn.close()
         return response
-            
-    def pull_user_from_db(self, type, data):
-        conn = sqlite3.connect(SQLITE_FILE)
-        response = ""
-        cur = conn.cursor()
-        query = "SELECT * FROM users WHERE " + ("DiscordID" if type == "Discord" else "PlexUsername") + " = '" + str(data) + "'"
-        cur.execute(query)
-        response = cur.fetchone()
-        cur.close()
-        conn.close()
-        return response
 
     def add_user_to_db(self, discordId, plexUsername, note, serverNumber=None):
         result = False
@@ -307,6 +296,20 @@ class PlexManager(commands.Cog):
                 cur.close()
                 conn.close()
                 return None
+            
+    def find_entry_in_db(self, type, data):
+        """
+        Returns whole entry
+        """
+        conn = sqlite3.connect(SQLITE_FILE)
+        response = ""
+        cur = conn.cursor()
+        query = "SELECT * FROM users WHERE " + type + " = '" + str(data) + "'"
+        cur.execute(query)
+        response = cur.fetchone()
+        cur.close()
+        conn.close()
+        return response
         
     async def purge_winners(self, ctx):
         try:
@@ -748,17 +751,17 @@ class PlexManager(commands.Cog):
         """
         embed = discord.Embed(title=("Info for " + str(PlexUsername)))
         n = self.describe_table("users")
-        d = self.pull_user_from_db("Plex", PlexUsername)
+        d = self.find_entry_in_db("PlexUsername", PlexUsername)
         for i in range(0,len(n)):
             val=str(d[i])
-            if str(n[i][0]) == "DiscordID":
+            if str(n[i][1]) == "DiscordID":
                 val=val+" ("+self.bot.get_user(int(d[i])).mention+")"
-            if str(n[i][0]) == "Note":
+            if str(n[i][1]) == "Note":
                 val=("Trial" if d[i] == 't' else "Subscriber")
-            if MULTI_PLEX and str(n[i][0]) == "ServerNum":
+            if MULTI_PLEX and str(n[i][1]) == "ServerNum":
                 val=("Server Number: " + d[i])
             if d[i] != None:
-                embed.add_field(name=str(n[i][0]),value=val,inline=False)
+                embed.add_field(name=str(n[i][1]),value=val,inline=False)
         await ctx.send(embed=embed)
         
     @pm_info.command(name="discord", aliases=["d"])
@@ -769,18 +772,18 @@ class PlexManager(commands.Cog):
         """
         embed = discord.Embed(title=("Info for " + user.name))
         n = self.describe_table("users")
-        d = self.pull_user_from_db("Discord", user.id)
+        d = self.find_entry_in_db("DiscordID", user.id)
         for i in range(0,len(n)):
-            name=str(n[i][0])
+            name=str(n[i][1])
             val=str(d[i])
-            if str(n[i][0]) == "DiscordID":
+            if str(n[i][1]) == "DiscordID":
                 val=val+" ("+self.bot.get_user(int(d[i])).mention+")"
-            if str(n[i][0]) == "Note":
+            if str(n[i][1]) == "Note":
                 val=("Trial" if d[i] == 't' else "Subscriber")
-            if MULTI_PLEX and str(n[i][0]) == "ServerNum":
+            if MULTI_PLEX and str(n[i][1]) == "ServerNum":
                 val=("Server Number: " + d[i])
             if d[i] != None:
-                embed.add_field(name=str(n[i][0]),value=val,inline=False)
+                embed.add_field(name=str(n[i][1]),value=val,inline=False)
         await ctx.send(embed=embed)
         
     @pm_info.error
