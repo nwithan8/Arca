@@ -160,18 +160,18 @@ class PlexManager(commands.Cog):
                 tempServerName = PLEX_SERVER_NAME[serverNumber]
                 tempServerAltName = PLEX_SERVER_ALT_NAME[serverNumber]
                 for u in tempPlex.myPlexAccount().users():
-                for s in u.servers:
-                    if s.name == tempServerName or s.name == tempServerAltName:
-                        users.append(s.name)
+                    for s in u.servers:
+                        if s.name == tempServerName or s.name == tempServerAltName:
+                            users.append(s.name)
             else: # from all servers
                 for serverNumber in range(len(PLEX_SERVER_URL)):
                     tempPlex = PlexServer(PLEX_SERVER_URL[serverNumber],PLEX_SERVER_TOKEN[serverNumber])
                     tempServerName = PLEX_SERVER_NAME[serverNumber]
                     tempServerAltName = PLEX_SERVER_ALT_NAME[serverNumber]
                     for u in tempPlex.myPlexAccount().users():
-                    for s in u.servers:
-                        if s.name == tempServerName or s.name == tempServerAltName:
-                            users.append(s.name)
+                        for s in u.servers:
+                            if s.name == tempServerName or s.name == tempServerAltName:
+                                users.append(s.name)
         else: # from the single server
             for u in tempPlex.myPlexAccount().users():
                 for s in u.servers:
