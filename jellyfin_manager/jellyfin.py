@@ -489,14 +489,14 @@ class Jellyfin(commands.Cog):
         """
         await self.purge_winners(ctx)
         
-    @jellyfin.command(name="cleandb", aliases=['clean','scrub'], pass_context=True)
+    @jellyfin.command(name="cleandb", aliases=['clean','scrub', 'syncdb'], pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
     async def jellyfin_cleandb(self, ctx: commands.Context):
         """
         Remove old users from database
         If you delete a user from Jellyfin directly,
-        run this to remove the user's entry in Jellyfin's
-        database.
+        run this to remove the user's entry in the
+        Jellyfin user database.
         """
         existingUsers = self.get_jellyfin_users()
         dbEntries = self.get_all_entries_in_db()
@@ -504,7 +504,7 @@ class Jellyfin(commands.Cog):
             deletedUsers = ""
             for entry in dbEntries:
                 if entry[1] not in existingUsers.keys(): # entry[1] is JellyfinUsername
-                    deletedUsers += entry[0] + ", "
+                    deletedUsers += entry[1] + ", "
                     self.remove_user_from_db(entry[0]) # entry[0] is DiscordID
             if deletedUsers:
                 await ctx.send("The following users were deleted from the database: " + deletedUsers[:-2])
