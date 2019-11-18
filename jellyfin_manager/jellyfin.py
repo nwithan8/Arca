@@ -239,20 +239,6 @@ class Jellyfin(commands.Cog):
         else:
             return None
             
-    def pull_user_from_db(self, type, data):
-        conn = sqlite3.connect(SQLITE_FILE)
-        response = ""
-        cur = conn.cursor()
-        query = "SELECT * FROM users WHERE " + ("DiscordID" if type == "Discord" else "JellyfinID") + " = '" + str(data) + "'"
-        cur.execute(query)
-        result = cur.fetchone()
-        cur.close()
-        conn.close()
-        if result:
-            return result
-        else:
-            return None
-            
     def add_user_to_db(self, DiscordId, JellyfinName, JellyfinId, note):
         conn = sqlite3.connect(SQLITE_FILE)
         cur = conn.cursor()
@@ -305,6 +291,23 @@ class Jellyfin(commands.Cog):
             return result[0], result[1]
         else:
             return None, None
+        
+    def find_entry_in_db(self, type, data):
+        """
+        Returns whole entry
+        """
+        conn = sqlite3.connect(SQLITE_FILE)
+        response = ""
+        cur = conn.cursor()
+        query = "SELECT * FROM users WHERE " + type + " = '" + str(data) + "'"
+        cur.execute(query)
+        result = cur.fetchone()
+        cur.close()
+        conn.close()
+        if result:
+            return result
+        else:
+            return None
         
     async def purge_winners(self, ctx):
         try:
@@ -631,7 +634,7 @@ class Jellyfin(commands.Cog):
         """
         embed = discord.Embed(title=("Info for " + str(JellyfinUsername)))
         n = self.describe_table("users")
-        d = self.pull_user_from_db("Jellyfin", JellyfinUsername)
+        d = self.find_entry_in_db("JellyfinUsername", JellyfinUsername)
         if d:
             for i in range(0,len(n)):
                 val=str(d[i])
@@ -652,10 +655,10 @@ class Jellyfin(commands.Cog):
         """
         embed = discord.Embed(title=("Info for " + user.name))
         n = self.describe_table("users")
-        d = self.pull_user_from_db("Discord", user.id)
+        d = self.find_entry_in_db("DiscordID", user.id)
         if d:
             for i in range(0,len(n)):
-                name=str(n[i][0])
+                name=str(n[i][1])
                 val=str(d[i])
                 if str(n[i][1]) == "DiscordID":
                     val=val+" ("+self.bot.get_user(int(d[i])).mention+")"
