@@ -150,6 +150,9 @@ class PlexManager(commands.Cog):
         return serverNumber
     
     def get_plex_users(self, serverNumber=None):
+        """
+        Returns all usernames (lowercase for comparison)
+        """
         users = []
         tempPlex = plex
         tempServerName = PLEX_SERVER_NAME
@@ -162,7 +165,7 @@ class PlexManager(commands.Cog):
                 for u in tempPlex.myPlexAccount().users():
                     for s in u.servers:
                         if s.name == tempServerName or s.name == tempServerAltName:
-                            users.append(s.name)
+                            users.append(u.username.lower())
             else: # from all servers
                 for serverNumber in range(len(PLEX_SERVER_URL)):
                     tempPlex = PlexServer(PLEX_SERVER_URL[serverNumber],PLEX_SERVER_TOKEN[serverNumber])
@@ -171,12 +174,12 @@ class PlexManager(commands.Cog):
                     for u in tempPlex.myPlexAccount().users():
                         for s in u.servers:
                             if s.name == tempServerName or s.name == tempServerAltName:
-                                users.append(s.name)
+                                users.append(u.username.lower())
         else: # from the single server
             for u in tempPlex.myPlexAccount().users():
                 for s in u.servers:
                     if s.name == tempServerName or s.name == tempServerAltName:
-                        users.append(s.name)
+                        users.append(u.username.lower())
         return users
         
     def t_request(self, cmd, params, serverNumber=None):
@@ -584,11 +587,12 @@ class PlexManager(commands.Cog):
         if dbEntries:
             deletedUsers = ""
             for entry in dbEntries:
-                if entry[1] not in existingUsers: # entry[1] is PlexUsername
-                    deletedUsers += entry[1] + ", "
+                if entry[1].lower() not in existingUsers: # entry[1] is PlexUsername, compare lowercase to existingUsers (returned as lowercase)
+                    deletedUsers += entry[1] + "\n"
+                    print("Deleting " + str(entry[1]) + " from the Plex database...")
                     self.remove_user_from_db(entry[0]) # entry[0] is DiscordID
             if deletedUsers:
-                await ctx.send("The following users were deleted from the database: " + deletedUsers[:-2])
+                await ctx.send("The following users were deleted from the database:\n" + deletedUsers[:-1])
             else:
                 await ctx.send("No old users found and removed from database.")
         else:
