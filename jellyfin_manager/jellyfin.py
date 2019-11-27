@@ -271,7 +271,7 @@ class Jellyfin(commands.Cog):
         cur.close()
         conn.close()
         if result:
-            return result
+            return result[0]
         else:
             return None
         
