@@ -153,7 +153,7 @@ class Jellyfin(commands.Cog):
                 #    "ResetPassword": 'true'
                 #}
                 #r = requests.post(JELLYFIN_URL + "/Users/" + str(Id) + "/Password?api_key=" + JELLYFIN_KEY, json=payload)
-                self.add_user_to_db(discordId, username, Id, note)
+                success = self.add_user_to_db(discordId, username, Id, note)
                 payload = {
                     "IsAdministrator": "false",
                     "IsHidden": "true",
@@ -174,7 +174,10 @@ class Jellyfin(commands.Cog):
                         "TVHeadEnd Recordings"
                     ]
                 }
-                return j_post("Users/" + str(Id) + "/Policy", None, payload).status_code, p
+                if success:
+                    return j_post("Users/" + str(Id) + "/Policy", None, payload).status_code, p
+                else:
+                    return "500", p # doesn't start with 2, so will be judged as error
         except Exception as e:
             print(e)
     
@@ -239,17 +242,21 @@ class Jellyfin(commands.Cog):
             return None
             
     def add_user_to_db(self, DiscordId, JellyfinName, JellyfinId, note):
+        result = False
         conn = sqlite3.connect(SQLITE_FILE)
         cur = conn.cursor()
         query = ""
         if note == 't':
             query = "INSERT INTO users (DiscordID, JellyfinUsername, JellyfinID, ExpirationStamp, Note) VALUES ('{did}', '{ju}', '{jid}', '{time}', '{note}')".format(did=str(DiscordId), ju=str(JellyfinName), jid=str(JellyfinId), time=str(int(time.time()) + (3600 * TRIAL_LENGTH)), note=str(note))
         else:
-            query = "INSERT INTO users (DiscordID, JellyfinUsername, JellyfinID, Note) VALUES ('{did}', '{ju}', '{jid}', '{note}')".format(did=str(DiscordId), ju=str(JellyfinName), jid=str(JellyfinId), note=str(note))
+            query = "INSERT OR IGNORE INTO users (DiscordID, JellyfinUsername, JellyfinID, Note) VALUES ('{did}', '{ju}', '{jid}', '{note}')".format(did=str(DiscordId), ju=str(JellyfinName), jid=str(JellyfinId), note=str(note))
         cur.execute(str(query))
+        if int(cur.rowcount) > 0:
+            result = True
         conn.commit()
         cur.close()
         conn.close()
+        return result
         
     def remove_user_from_db(self, id):
         conn = sqlite3.connect(SQLITE_FILE)
