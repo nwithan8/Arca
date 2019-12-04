@@ -521,6 +521,7 @@ class PlexManager(commands.Cog):
             
     @pm_access.error
     async def pm_access_error(self, ctx, error):
+        print(error)
         await ctx.send("Sorry, something went wrong.")
         
     @pm.command(name="status", aliases=['ping','up','online'], pass_context=True)
@@ -600,6 +601,7 @@ class PlexManager(commands.Cog):
     
     @pm_cleandb.error
     async def pm_cleandb_error(self, ctx, error):
+        print(error)
         await ctx.send("Something went wrong.")
         
     @pm.command(name="count")
@@ -695,6 +697,7 @@ class PlexManager(commands.Cog):
     
     @pm_remove.error
     async def pm_remove_error(self, ctx, error):
+        print(error)
         await ctx.send("Please mention the Discord user to remove from Plex.")
         
     @pm.command(name="trial")
@@ -740,6 +743,7 @@ class PlexManager(commands.Cog):
             
     @pm_trial.error
     async def pm_trial_error(self, ctx, error):
+        print(error)
         await ctx.send("Please mention the Discord user to add to Plex, as well as their Plex username.")
         
     @pm.command(name="import", pass_context=True)
@@ -769,6 +773,7 @@ class PlexManager(commands.Cog):
                 
     @pm_import.error
     async def pm_import_error(self, ctx, error):
+        print(error)
         await ctx.send("Please mention the Discord user to add to the database, including their Plex username and sub type.")
         
     @pm.group(name="find", aliases=["id"], pass_context=True)
@@ -810,6 +815,7 @@ class PlexManager(commands.Cog):
             
     @pm_find.error
     async def pm_find_error(self, ctx, error):
+        print(error)
         await ctx.send("An error occurred while looking for that user.")
             
     @pm.group(name="info")
@@ -871,6 +877,7 @@ class PlexManager(commands.Cog):
         
     @pm_info.error
     async def pm_info_error(self, ctx, error):
+        print(error)
         await ctx.send("User not found.")
             
     @commands.Cog.listener()
