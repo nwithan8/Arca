@@ -217,7 +217,7 @@ class Jellyfin(commands.Cog):
                 # Doesn't delete user, instead makes deactive.
                 # Delete function not documented in Jellyfin API, but exists in old Jellyfin API and still works
                 r = j_delete("Users/" + str(jellyfinId), None)
-                if not str(r.status_code).startswtth("2"):
+                if not str(r.status_code).startswith("2"):
                     s = 600
             if s == 200:
                 self.remove_user_from_db(id)
@@ -271,7 +271,7 @@ class Jellyfin(commands.Cog):
         cur.close()
         conn.close()
         if result:
-            return result
+            return result[0]
         else:
             return None
         
