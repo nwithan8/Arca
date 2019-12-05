@@ -283,7 +283,7 @@ class PlexManager(commands.Cog):
         query = ""
         if note == 't':
             timestamp = int(time.time()) + (3600 * TRIAL_LENGTH)
-            query = "INSERT OR IGNORE INTO users (DiscordID, PlexUsername, ExpirationStamp" + (", ServerNum" if serverNumber != None else "") + ", Note) VALUES ('" + str(discordId) + "','" + str(plexUsername) + "','" + str(timestamp) + (("','" + str(serverNumber)) if serverNumber != None else "") + "','" + str(note) + "'); UPDATE users SET ExpirationStamp = " + str(time) + " WHERE PlexUsername = " + str(plexUsername)
+            query = "INSERT OR IGNORE INTO users (DiscordID, PlexUsername, ExpirationStamp" + (", ServerNum" if serverNumber != None else "") + ", Note) VALUES ('" + str(discordId) + "','" + str(plexUsername) + "','" + str(timestamp) + (("','" + str(serverNumber)) if serverNumber != None else "") + "','" + str(note) + "'); UPDATE users SET ExpirationStamp = '" + str(time) + "' WHERE PlexUsername = '" + str(plexUsername) + "'"
             # Awaiting SQLite 3.24 support/adoption to use cleaner UPSERT function
         else:
             query = "INSERT OR IGNORE INTO users (DiscordID, PlexUsername" + (", ServerNum" if serverNumber != None else "") + ", Note) VALUES ('" + str(discordId) + "','" + str(plexUsername) + (("','" + str(serverNumber)) if serverNumber != None else "") + "','" + str(note) + "')"
