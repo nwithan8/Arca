@@ -220,13 +220,16 @@ class PlexManager(commands.Cog):
         if serverNumber != None:
             tempPlex = PlexServer(PLEX_SERVER_URL[serverNumber],PLEX_SERVER_TOKEN[serverNumber])
         try:
-            tempPlex.myPlexAccount().inviteFriend(user=plexname,server=tempPlex,sections=None, allowSync=False, allowCameraUpload=False, allowChannels=False, filterMovies=None, filterTelevision=None, filterMusic=None)
-            garbage = self.add_user_to_db(discordId, plexname, note, serverNumber)
-            await asyncio.sleep(60)
-            self.add_to_tautulli(plexname, serverNumber)
-            if note != 't': # Trial members do not have access to Ombi
-                self.add_to_ombi(plexname)
-            return True
+            if self.add_user_to_db(discordId, plexname, note, serverNumber):
+                tempPlex.myPlexAccount().inviteFriend(user=plexname,server=tempPlex,sections=None, allowSync=False, allowCameraUpload=False, allowChannels=False, filterMovies=None, filterTelevision=None, filterMusic=None)
+                await asyncio.sleep(60)
+                self.add_to_tautulli(plexname, serverNumber)
+                if note != 't': # Trial members do not have access to Ombi
+                    self.add_to_ombi(plexname)
+                return True
+            else:
+                print(plexname + " could not be added to the database.")
+                return False
         except Exception as e:
             print(e)
             return False
