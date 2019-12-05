@@ -247,7 +247,7 @@ class Jellyfin(commands.Cog):
         cur = conn.cursor()
         query = ""
         if note == 't':
-            query = "INSERT INTO users (DiscordID, JellyfinUsername, JellyfinID, ExpirationStamp, Note) VALUES ('{did}', '{ju}', '{jid}', '{time}', '{note}')".format(did=str(DiscordId), ju=str(JellyfinName), jid=str(JellyfinId), time=str(int(time.time()) + (3600 * TRIAL_LENGTH)), note=str(note))
+            query = "INSERT OR IGNORE INTO users (DiscordID, JellyfinUsername, JellyfinID, ExpirationStamp, Note) VALUES ('{did}', '{ju}', '{jid}', '{time}', '{note}'); UPDATE users SET ExpirationStamp = '{time}' WHERE JellyfinID = '{jid}'".format(did=str(DiscordId), ju=str(JellyfinName), jid=str(JellyfinId), time=str(int(time.time()) + (3600 * TRIAL_LENGTH)), note=str(note))
         else:
             query = "INSERT OR IGNORE INTO users (DiscordID, JellyfinUsername, JellyfinID, Note) VALUES ('{did}', '{ju}', '{jid}', '{note}')".format(did=str(DiscordId), ju=str(JellyfinName), jid=str(JellyfinId), note=str(note))
         cur.execute(str(query))
@@ -261,7 +261,7 @@ class Jellyfin(commands.Cog):
     def remove_user_from_db(self, id):
         conn = sqlite3.connect(SQLITE_FILE)
         cur = conn.cursor()
-        cur.execute(str("DELETE FROM users WHERE DiscordID = " + str(id)))
+        cur.execute(str("DELETE FROM users WHERE DiscordID = '" + str(id))) + "'"
         conn.commit()
         cur.close()
         conn.close()
