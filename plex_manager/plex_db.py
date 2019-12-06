@@ -287,7 +287,7 @@ class PlexManager(commands.Cog):
             # Awaiting SQLite 3.24 support/adoption to use cleaner UPSERT function
         else:
             query = "INSERT OR IGNORE INTO users (DiscordID, PlexUsername" + (", ServerNum" if serverNumber != None else "") + ", Note) VALUES ('" + str(discordId) + "','" + str(plexUsername) + (("','" + str(serverNumber)) if serverNumber != None else "") + "','" + str(note) + "')"
-            cur.execute(str(query))
+        cur.execute(str(query))
         if int(cur.rowcount) > 0:
             result = True
         conn.commit()
