@@ -247,7 +247,10 @@ class Jellyfin(commands.Cog):
         cur = conn.cursor()
         query = ""
         if note == 't':
-            query = "INSERT OR IGNORE INTO users (DiscordID, JellyfinUsername, JellyfinID, ExpirationStamp, Note) VALUES ('{did}', '{ju}', '{jid}', '{time}', '{note}'); UPDATE users SET ExpirationStamp = '{time}' WHERE JellyfinID = '{jid}'".format(did=str(DiscordId), ju=str(JellyfinName), jid=str(JellyfinId), time=str(int(time.time()) + (3600 * TRIAL_LENGTH)), note=str(note))
+            timestamp = int(time.time()) + (3600 * TRIAL_LENGTH)
+            query = "INSERT OR IGNORE INTO users (DiscordID, JellyfinUsername, JellyfinID, ExpirationStamp, Note) VALUES ('{did}', '{ju}', '{jid}', '{time}', '{note}')".format(did=str(DiscordId), ju=str(JellyfinName), jid=str(JellyfinId), time=str(timestamp), note=str(note))
+            cur.execute(str(query))
+            query = "UPDATE users SET ExpirationStamp = '{time}' WHERE JellyfinID = '{jid}'".format(time=str(timestamp), jid=str(JellyfinId))
         else:
             query = "INSERT OR IGNORE INTO users (DiscordID, JellyfinUsername, JellyfinID, Note) VALUES ('{did}', '{ju}', '{jid}', '{note}')".format(did=str(DiscordId), ju=str(JellyfinName), jid=str(JellyfinId), note=str(note))
         cur.execute(str(query))
