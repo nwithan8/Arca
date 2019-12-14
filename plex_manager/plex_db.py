@@ -238,10 +238,12 @@ class PlexManager(commands.Cog):
         tempPlex = plex;
         serverNumber = 0
         try:
+            results = self.find_user_in_db("Plex", id)
+            plexname = results[0]
+            note = results[1]
             if MULTI_PLEX:
-                serverNumber = self.get_server_number("Discord", id)
+                serverNumber = results[2]
                 tempPlex = PlexServer(PLEX_SERVER_URL[serverNumber],PLEX_SERVER_TOKEN[serverNumber])
-            plexname, note = self.find_user_in_db("Plex", id)
             if plexname != None:
                 tempPlex.myPlexAccount().removeFriend(user=plexname)
                 if note != 't':
@@ -254,17 +256,6 @@ class PlexManager(commands.Cog):
         except plexapi.exceptions.NotFound:
             #print("Not found")
             return False, serverNumber
-                
-    def get_server_number(self, type, data):
-        conn = sqlite3.connect(SQLITE_FILE)
-        response = ""
-        cur = conn.cursor()
-        query = "SELECT ServerNum FROM users WHERE " + ("DiscordID" if type == "Discord" else "PlexUsername") + " = '" + str(data) + "'"
-        cur.execute(query)
-        response = cur.fetchone()
-        cur.close()
-        conn.close()
-        return response
     
     def describe_table(self, table):
         conn = sqlite3.connect(SQLITE_FILE)
@@ -307,34 +298,22 @@ class PlexManager(commands.Cog):
             
     def find_user_in_db(self, PlexOrDiscord, data):
         conn = sqlite3.connect(SQLITE_FILE)
-        ret = []
         cur = conn.cursor()
         query = "SELECT " + ("PlexUsername, Note" + (", ServerNum" if MULTI_PLEX else "") if PlexOrDiscord == "Plex" else "DiscordID") + " FROM users WHERE " + ("DiscordID" if PlexOrDiscord == "Plex" else "PlexUsername") + " = '" + str(data) + "'"
         cur.execute(str(query))
         results = cur.fetchone()
-        if PlexOrDiscord == "Plex":
-            if cur.rowcount > 0:
-                for r in results:
-                    ret.append(r)
-                cur.close()
-                conn.close()
-                return ret
-            else:
-                cur.close()
-                conn.close()
+        cur.close()
+        conn.close()
+        if results:
+            return results
+            # return [name, note], [name, note, number] or [id]
+        else:
+            if PlexOrDiscord == "Plex":
                 if MULTI_PLEX:
                     return None, None, None
                 else:
                     return None, None
-        else:
-            if cur.rowcount > 0:
-                ret.append(results[0])
-                cur.close()
-                conn.close()
-                return ret
             else:
-                cur.close()
-                conn.close()
                 return None
             
     def find_entry_in_db(self, type, data):
@@ -419,7 +398,7 @@ class PlexManager(commands.Cog):
             await ctx.send("Something went wrong. Please try again later.")
         
     async def remove_winner(self, username):
-        id = self.find_user_in_db("Discord", username)
+        id = self.find_user_in_db("Discord", username)[0]
         if id != None:
             try:
                 self.delete_from_plex(id)
@@ -814,7 +793,7 @@ class PlexManager(commands.Cog):
         """
         Find Plex user's Discord name
         """
-        id = self.find_user_in_db("Discord", PlexUsername)
+        id = self.find_user_in_db("Discord", PlexUsername)[0]
         if id != None:
             await ctx.send(PlexUsername + " is Discord user: " + self.bot.get_user(int(id)).mention)
         else:
