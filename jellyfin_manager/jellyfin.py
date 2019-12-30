@@ -497,6 +497,7 @@ class Jellyfin(commands.Cog):
         """
         Remove inactive winners
         """
+        await ctx.send("Purging winners...")
         await self.purge_winners(ctx)
         
     @jellyfin.command(name="cleandb", aliases=['clean','scrub', 'syncdb'], pass_context=True)
