@@ -559,6 +559,7 @@ class PlexManager(commands.Cog):
         """
         Remove inactive winners
         """
+        await ctx.send("Purging winners...")
         await self.purge_winners(ctx)
         
     @pm.command(name="cleandb", aliases=["clean", "scrub", "syncdb"], pass_context=True)
