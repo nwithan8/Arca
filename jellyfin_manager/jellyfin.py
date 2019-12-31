@@ -457,6 +457,7 @@ class Jellyfin(commands.Cog):
     @jellyfin_access.error
     async def jellyfin_access_error(self, ctx, error):
         await ctx.send("Sorry, something went wrong.")
+        print(error)
             
     @jellyfin.command(name="status", aliases=['ping', 'up', 'online'], pass_context=True)
     ### Anyone can use this command
@@ -473,6 +474,7 @@ class Jellyfin(commands.Cog):
     @jellyfin_status.error
     async def jellyfin_status_error(self, ctx, error):
         await ctx.send("Sorry, I couldn't test the connection.")
+        print(error)
         
     @jellyfin.command(name="winners", pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
@@ -527,6 +529,7 @@ class Jellyfin(commands.Cog):
     @jellyfin_cleandb.error
     async def jellyfin_cleandb_error(self, ctx, error):
         await ctx.send("Something went wrong.")
+        print(error)
         
     @jellyfin.command(name="count", aliases=["subs","number"], pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
@@ -543,6 +546,7 @@ class Jellyfin(commands.Cog):
     @jellyfin_count.error
     async def jellyfin_count_error(self, ctx, error):
         await ctx.send("Something went wrong. Please try again later.")
+        print(error)
     
     @jellyfin.command(name="add", aliases=["new","join"], pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
@@ -566,6 +570,7 @@ class Jellyfin(commands.Cog):
     @jellyfin_add.error
     async def jellyfin_add_error(self, ctx, error):
         await ctx.send("Please mention the Discord user to add to Jellyfin, as well as their Jellyfin username.")
+        print(error)
             
     @jellyfin.command(name="remove", aliases=["delete","rem"], pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
@@ -586,6 +591,7 @@ class Jellyfin(commands.Cog):
     @jellyfin_remove.error
     async def jellyfin_remove_error(self, ctx, error):
         await ctx.send("Please mention the Discord user to remove from Jellyfin.")
+        print(error)
         
     @jellyfin.command(name="trial", pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
@@ -609,6 +615,7 @@ class Jellyfin(commands.Cog):
     @jellyfin_trial.error
     async def jellyfin_trial_error(self, ctx, error):
         await ctx.send("Please mention the Discord user to add to Jellyfin, as well as their Jellyfin username.")
+        print(error)
         
     @jellyfin.command(name="import", pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
@@ -641,6 +648,7 @@ class Jellyfin(commands.Cog):
     @jellyfin_import.error
     async def jellyfin_import_error(self, ctx, error):
         await ctx.send("Please mention the Discord user to add to the database, including their Plex username and sub type.")
+        print(error)
         
     @jellyfin.group(name="find", aliases=["id"], pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
@@ -676,6 +684,7 @@ class Jellyfin(commands.Cog):
     @jellyfin_find.error
     async def jellyfin_find_error(self, ctx, error):
         await ctx.send("An error occurred while looking for that user.")
+        print(error)
             
     @jellyfin.group(name="info")
     @commands.has_role(ADMIN_ROLE_NAME)
@@ -732,6 +741,7 @@ class Jellyfin(commands.Cog):
     @jellyfin_info.error
     async def jellyfin_info_error(self, ctx, error):
         await ctx.send("User not found.")
+        print(error)
         
     @jellyfin.command(name="migrate", pass_context=True)
     async def jellyfin_migrate(self, ctx: commands.Context):
