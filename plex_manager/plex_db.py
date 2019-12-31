@@ -636,7 +636,7 @@ class PlexManager(commands.Cog):
                     serverNumber = serverNumber - 1 # user's "server 5" is really server 4 in the index
                 await ctx.send('Adding ' + PlexUsername + ' to ' + PLEX_SERVER_NAME[serverNumber] + '. Please wait about 60 seconds...')
                 try:
-                    added = await self.add_to_plex(PlexUsername, 's', serverNumber)
+                    added = await self.add_to_plex(PlexUsername, user.id, 's', serverNumber)
                     if added:
                         role = discord.utils.get(ctx.message.guild.roles, name=AFTER_APPROVED_ROLE_NAME)
                         await user.add_roles(role, reason="Access membership channels")
@@ -648,7 +648,7 @@ class PlexManager(commands.Cog):
             else:
                 await ctx.send('Adding ' + PlexUsername + ' to ' + PLEX_SERVER_NAME + '. Please wait about 60 seconds...')
                 try:
-                    added = await self.add_to_plex(PlexUsername, 's', serverNumber)
+                    added = await self.add_to_plex(PlexUsername, user.id, 's', serverNumber)
                     if added:
                         role = discord.utils.get(ctx.message.guild.roles, name=AFTER_APPROVED_ROLE_NAME)
                         await user.add_roles(role, reason="Access membership channels")
