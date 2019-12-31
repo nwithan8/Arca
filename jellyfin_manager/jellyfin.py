@@ -559,9 +559,9 @@ class Jellyfin(commands.Cog):
             await user.create_dm()
             creds = ""
             if USE_HASTEBIN:
-                creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n")
+                creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "/jellyfin\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n")
             else:
-                creds = "Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
+                creds = "Hostname: " + str(JELLYFIN_URL) + "/jellyfin\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
             await user.dm_channel.send("You have been added to " + str(SERVER_NICKNAME) + "!\n" + creds)
             await ctx.send("You've been added, " + user.mention + "! Please check your direct messages for login information.")
         else:
@@ -604,9 +604,9 @@ class Jellyfin(commands.Cog):
             await user.create_dm()
             creds = ""
             if USE_HASTEBIN:
-                creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n")
+                creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "/jellyfin\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n")
             else:
-                creds = "Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
+                creds = "Hostname: " + str(JELLYFIN_URL) + "/jellyfin\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
             await user.dm_channel.send("You have been added to " + str(SERVER_NICKNAME) + "!\n" + creds)
             await ctx.send("You've been added, " + user.mention + "! Please check your direct messages for login information.")
         else:
@@ -763,9 +763,9 @@ class Jellyfin(commands.Cog):
                     await user.create_dm()
                     creds = ""
                     if USE_HASTEBIN:
-                        creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n")
+                        creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "/jellyfin\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n")
                     else:
-                        creds = "Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" +("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
+                        creds = "Hostname: " + str(JELLYFIN_URL) + "/jellyfin\nUsername: " + str(username) + "\n" +("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
                     await user.dm_channel.send("You have been added to " + str(SERVER_NICKNAME) + "!\n" + creds)
                     #await ctx.send("You've been added, " + user.mention + "! Please check your direct messages for login information.")
                     data = [str(row['Discord_Tag']), str(row['Plex_Username']), str(jellyfin_username)]
@@ -791,9 +791,9 @@ class Jellyfin(commands.Cog):
                     await user.create_dm()
                     creds = ""
                     if USE_HASTEBIN:
-                        creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n")
+                        creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "/jellyfin\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n")
                     else:
-                        creds = "Hostname: " + str(JELLYFIN_URL) + "\nUsername: " + str(username) + "\n" +("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
+                        creds = "Hostname: " + str(JELLYFIN_URL) + "/jellyfin\nUsername: " + str(username) + "\n" +("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
                     await user.dm_channel.send("You have been added to " + str(SERVER_NICKNAME) + "!\n" + creds)
                     await ctx.send("You've been added, " + user.mention + "! Please check your direct messages for login information.")
                     await message.author.remove_roles(discord.utils.get(message.guild.roles, name=TEMP_WINNER_ROLE_NAME), reason="Winner was processed successfully.")
