@@ -264,7 +264,7 @@ class Jellyfin(commands.Cog):
     def remove_user_from_db(self, id):
         conn = sqlite3.connect(SQLITE_FILE)
         cur = conn.cursor()
-        cur.execute(str("DELETE FROM users WHERE DiscordID = '" + str(id))) + "'"
+        cur.execute(str("DELETE FROM users WHERE DiscordID = '" + str(id) + "'"))
         conn.commit()
         cur.close()
         conn.close()
