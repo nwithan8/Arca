@@ -148,7 +148,7 @@ class Jellyfin(commands.Cog):
                 #p = password(length=10)
                 #payload = {
                 #    "Id": Id,
-                #    "CurrentPw": 'raspberry',
+                #    "CurrentPw": '',
                 #    "NewPw": p,
                 #    "ResetPassword": 'true'
                 #}
