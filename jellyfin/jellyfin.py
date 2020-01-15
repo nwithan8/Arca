@@ -5,40 +5,18 @@ Copyright (C) 2019 Nathan Harris
 
 import discord
 from discord.ext import commands, tasks
-from discord.utils import get
-from collections import defaultdict
-import random
-from imdbpie import Imdb
-from imdbpie import ImdbFacade
-import re
 import json
 import requests
-#from progress.bar import Bar
-#import mysql.connector
 import sqlite3
 import os
-import datetime
-from decimal import *
-import math
-import asyncio
 import random
 import string
-import time
 import csv
-
-
-# Discord-to-Jellyfin database credentials (MySQL)
-# DEPRECIATED
-#USE_MYSQL = False
-#dbhostname = os.environ.get('DATABASE_HOST')
-#dbport = os.environ.get('DATABASE_PORT')
-#dbusername = os.environ.get('DATABASE_USER')
-#dbpassword = os.environ.get('DATABASE_PASS')
-#database = 'JellyfinDiscord'
+import jellyfin_api as jf
+import db_commands as DB
 
 # Discord-to-Jellyfin database (SQLite3)
-SQLITE_FILE = '/nwithan8-cogs/jellyfin_manager/JellyfinDiscord.db' # File path + name + extension (i.e. "/root/nwithan8-cogs/jellyfin_manager/JellyfinDiscord.db"
-
+SQLITE_FILE = '/nwithan8-cogs/jellyfin_manager/JellyfinDiscord.db'  # File path + name + extension (i.e. "/root/nwithan8-cogs/jellyfin_manager/JellyfinDiscord.db"
 '''
 Database schema:
 
@@ -55,30 +33,29 @@ SERVER_ID = os.environ.get('DISCORD_SERVER_ID')
 ADMIN_ID = os.environ.get('ADMIN_ID')
 ADMIN_ROLE_NAME = "Admin"
 afterApprovedRoleName = "Invited"
-subRoles = ["Monthly Subscriber","Yearly Subscriber", "Winner", "Bot"] # Exempt from removal
-exemptsubs = [ADMIN_ID] # Discord IDs for users exempt from subscriber checks/deletion, separated by commas
-SUB_CHECK_TIME = 7 # days
+subRoles = ["Monthly Subscriber", "Yearly Subscriber", "Winner", "Bot"]  # Exempt from removal
+exemptsubs = [ADMIN_ID]  # Discord IDs for users exempt from subscriber checks/deletion, separated by commas
+SUB_CHECK_TIME = 7  # days
 
 # Trial settings
 TRIAL_ROLE_NAME = "Trial Member"
-TRIAL_LENGTH = 24 # hours
-TRIAL_CHECK_FREQUENCY = 15 # minutes
+TRIAL_LENGTH = 24  # hours
+TRIAL_CHECK_FREQUENCY = 15  # minutes
 TRIAL_END_NOTIFICATION = "Hello, your " + str(TRIAL_LENGTH) + "-hour trial of " + str(SERVER_NICKNAME) + " has ended."
 
 # Winner settings
 WINNER_ROLE_NAME = "Winner"
-WINNER_THRESHOLD = 7200 # 2 hours in seconds
+WINNER_THRESHOLD = 7200  # 2 hours in seconds
 AUTO_WINNERS = False
-# True:
-# Messages from the indicated GIVEAWAY_BOT_ID user will be scanned for mentioned Discord users (winners).
-# The winners will be auto-assigned the TEMP_WINNER_ROLE_NAME. That role gives them access to a specificed WINNER_CHANNEL channel
-# Users then post their Plex username (ONLY their Plex username) in the channel, which is processed by the bot.
-# The bot invites the Plex username, and associates the Discord user author of the message with the Plex username in the database.
-# The user is then have the TEMP_WINNER_ROLE_NAME role removed (which removes them from the WINNER_CHANNEL channel), and assigned the final WINNER_ROLE_NAME role.
+# True: Messages from the indicated GIVEAWAY_BOT_ID user will be scanned for mentioned Discord users (winners). The
+# winners will be auto-assigned the TEMP_WINNER_ROLE_NAME. That role gives them access to a specified WINNER_CHANNEL
+# channel Users then post their Jellyfin username (ONLY their Jellyfin username) in the channel, which is processed
+# by the bot. The bot invites the Jellyfin username, and associates the Discord user author of the message with the
+# Jellyfin username in the database. The user is then have the TEMP_WINNER_ROLE_NAME role removed (which removes them
+# from the WINNER_CHANNEL channel), and assigned the final WINNER_ROLE_NAME role.
 TEMP_WINNER_ROLE_NAME = "Uninvited Winner"
-WINNER_CHANNEL = 0 # Channel ID
+WINNER_CHANNEL = 0  # Channel ID
 GIVEAWAY_BOT_ID = 0
-
 
 # Credentials settings
 CREATE_PASSWORD = False
@@ -86,75 +63,82 @@ NO_PASSWORD_MESSAGE = "Leave password blank on first login, but please secure yo
 USE_HASTEBIN = False
 HASTEBIN_URL = 'https://hastebin.com'
 
-
 # Migrate/mass import users
-MIGRATION_FILE = "/" # file path + name (leave off ".csv" extension)
+MIGRATION_FILE = "/"  # file path + name (leave off ".csv" extension)
 
-def j_get(cmd, params):
-    """
-    Returns JSON
-    """
-    return json.loads(requests.get(JELLYFIN_URL + "/jellyfin/" + cmd + "?api_key=" + JELLYFIN_KEY + ("&" + params if params != None else "")).text)
+# DO NOT EDIT
+db = DB(SQLITE_FILE)
 
-def j_post(cmd, params, payload):
-    """
-    Returns the request response. Must parse for JSON or status code in body code
-    """
-    return requests.post(JELLYFIN_URL + "/jellyfin/" + cmd + "?api_key=" + JELLYFIN_KEY + ("&" + params if params != None else ""), json=payload)
-
-def j_delete(cmd, params):
-    """
-    Returns the request response. Must parse for JSON or status code in body code
-    """
-    return requests.delete(JELLYFIN_URL + "/jellyfin/" + cmd + "?api_key=" + JELLYFIN_KEY + ("&" + params if params != None else ""))
 
 def password(length):
     """
     Generate a random string of letters and digits
     """
-    lettersAndDigits = string.ascii_letters + string.digits
-    return ''.join(random.choice(lettersAndDigits) for i in range(length))
+    return ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(length))
+
+
+def add_password(uid):
+    p = password(length=10)
+    r = jf.resetPassword(uid)
+    if str(r.status_code).startswith('2'):
+        r = jf.setUserPassword(uid, "", p)
+        if str(r.status_code).startswith('2'):
+            return p
+    return None
+
+
+def update_policy(uid, policy):
+    if str(jf.updatePolicy(uid, policy).status_code).startswith('2'):
+        return True
+    return False
+
 
 def hastebin(content, url=HASTEBIN_URL):
     post = requests.post(f'{url}/documents', data=content.encode('utf-8'))
     return url + '/' + post.json()['key']
 
-class Jellyfin(commands.Cog):
-    
-    def get_jellyfin_users(self):
-        """
-        Return dictionary {'user_name': 'user_id'}
-        """
-        users = {}
-        for u in j_get("user_usage_stats/user_list", None):
-            users[u['name']] = u['id']
-        return users
-    
-    def add_to_jellyfin(self, username, discordId, note):
-        """
-        Add a Discord user to Jellyfin
-        """
-        try:
-            p = None
-            payload = {
-                "Name": username
-            }
-            r = j_post("Users/New", None, payload)
-            if r.status_code != 200:
-                return r.reason, p
-            else:
-                r = json.loads(r.text)
-                Id = r['Id']
-                #p = password(length=10)
-                #payload = {
-                #    "Id": Id,
-                #    "CurrentPw": '',
-                #    "NewPw": p,
-                #    "ResetPassword": 'true'
-                #}
-                #r = requests.post(JELLYFIN_URL + "/Users/" + str(Id) + "/Password?api_key=" + JELLYFIN_KEY, json=payload)
-                success = self.add_user_to_db(discordId, username, Id, note)
-                payload = {
+
+async def sendAddMessage(user, username, pwd=None):
+    if USE_HASTEBIN:
+        creds = hastebin(
+            "Hostname: {}\nUsername: {}\n{}\n".format(str(JELLYFIN_URL), str(username), (
+                "Password: " + pwd if CREATE_PASSWORD else NO_PASSWORD_MESSAGE)))
+    else:
+        creds = "Hostname: {}\nUsername: {}\n{}{}\n".format(str(JELLYFIN_URL), str(username), (
+            "Password: " + pwd if CREATE_PASSWORD else NO_PASSWORD_MESSAGE))
+    await user.create_dm()
+    await user.dm_channel.send("You have been added to {}!\n{}".format(
+        str(SERVER_NICKNAME), creds))
+
+
+def get_jellyfin_users():
+    """
+    Return dictionary {'user_name': 'user_id'}
+    """
+    users = {}
+    for u in jf.getUsers():
+        users[u['name']] = u['id']
+    return users
+
+
+def add_to_jellyfin(username, discordId, note):
+    """
+    Add a Discord user to Jellyfin
+
+    :returns ('policyMade': True/False, 'userId': str(id)/str(failure reason), 'password': str/None)
+    """
+    try:
+        p = None
+        r = jf.makeUser(username)
+        if str(r.status_code).startswith('2'):
+            uid = json.loads(r.text)['Id']
+            p = add_password(uid)
+            policyEnforced = False
+            if not p:
+                print("Password update for {} failed. Moving on...".format(username))
+            success = db.add_user_to_db(discordId, username, uid, note)
+            if success:
+                policy = {
                     "IsAdministrator": "false",
                     "IsHidden": "true",
                     "IsHiddenRemotely": "true",
@@ -174,225 +158,123 @@ class Jellyfin(commands.Cog):
                         "TVHeadEnd Recordings"
                     ]
                 }
-                if success:
-                    return j_post("Users/" + str(Id) + "/Policy", None, payload).status_code, p
-                else:
-                    return "500", p # doesn't start with 2, so will be judged as error
-        except Exception as e:
-            print(e)
-    
-    def remove_from_jellyfin(self, id):
-        """
-        Remove a Discord user from Jellyfin
-        Returns:
-        200 - user found and removed successfully
-        600 - user found, but not removed
-        700 - user not found in database
-        500 - unknown error
-        """
-        try:
-            jellyfinId = self.find_user_in_db("Jellyfin", id)
-            s = 200
-            if not jellyfinId:
-                s = 700
-            else:
-                payload = {
-                    "IsAdministrator": "false",
-                    "IsHidden": "true",
-                    "IsHiddenRemotely": "true",
-                    "IsDisabled": "true",
-                    "EnableRemoteControlOfOtherUsers": "false",
-                    "EnableSharedDeviceControl": "false",
-                    "EnableRemoteAccess": "true",
-                    "EnableLiveTvManagement": "false",
-                    "EnableLiveTvAccess": "false",
-                    "EnableContentDeletion": "false",
-                    "EnableSubtitleManagement": "false",
-                    "EnableAllDevices": "true",
-                    "EnableAllChannels": "false",
-                    "EnablePublicSharing": "false",
-                    "BlockedChannels": [
-                        "IPTV",
-                        "TVHeadEnd Recordings"
-                    ]
-                }
-                #s = requests.post(JELLYFIN_URL + "/Users/" + str(jellyfinId) + "/Policy?api_key=" + JELLYFIN_KEY, json=payload).status_code
-                # Doesn't delete user, instead makes deactive.
-                # Delete function not documented in Jellyfin API, but exists in old Jellyfin API and still works
-                r = j_delete("Users/" + str(jellyfinId), None)
-                if not str(r.status_code).startswith("2"):
-                    s = 600
-            if s == 200:
-                self.remove_user_from_db(id)
-            return str(s)
-        except Exception as e:
-            print(e)
-            return "500"
-    
-    def describe_table(self, table):
-        conn = sqlite3.connect(SQLITE_FILE)
-        cur = conn.cursor()
-        cur.execute("PRAGMA  table_info([" + str(table) + "])")
-        result = cur.fetchall()
-        cur.close()
-        conn.close()
-        if result:
-            return result
-        else:
-            return None
-            
-    def add_user_to_db(self, DiscordId, JellyfinName, JellyfinId, note):
-        result = False
-        conn = sqlite3.connect(SQLITE_FILE)
-        cur = conn.cursor()
-        query = ""
-        if note == 't':
-            timestamp = int(time.time()) + (3600 * TRIAL_LENGTH)
-            query = "INSERT OR IGNORE INTO users (DiscordID, JellyfinUsername, JellyfinID, ExpirationStamp, Note) VALUES ('{did}', '{ju}', '{jid}', '{time}', '{note}')".format(did=str(DiscordId), ju=str(JellyfinName), jid=str(JellyfinId), time=str(timestamp), note=str(note))
-            cur.execute(str(query))
-            query = "UPDATE users SET ExpirationStamp = '{time}' WHERE JellyfinID = '{jid}'".format(time=str(timestamp), jid=str(JellyfinId))
-        else:
-            query = "INSERT OR IGNORE INTO users (DiscordID, JellyfinUsername, JellyfinID, Note) VALUES ('{did}', '{ju}', '{jid}', '{note}')".format(did=str(DiscordId), ju=str(JellyfinName), jid=str(JellyfinId), note=str(note))
-        cur.execute(str(query))
-        if int(cur.rowcount) > 0:
-            result = True
-        conn.commit()
-        cur.close()
-        conn.close()
-        return result
-        
-    def remove_user_from_db(self, id):
-        conn = sqlite3.connect(SQLITE_FILE)
-        cur = conn.cursor()
-        cur.execute(str("DELETE FROM users WHERE DiscordID = '" + str(id) + "'"))
-        conn.commit()
-        cur.close()
-        conn.close()
-            
-    def find_user_in_db(self, JellyfinOrDiscord, data):
-        """
-        Returns JellyfinID/DiscordID
-        """
-        conn = sqlite3.connect(SQLITE_FILE)
-        cur = conn.cursor()
-        query = "SELECT " + ("JellyfinID" if JellyfinOrDiscord == "Jellyfin" else "DiscordID") + " FROM users WHERE " + ("DiscordID" if JellyfinOrDiscord == "Jellyfin" else "JellyfinID") + " = '" + str(data) + "'"
-        cur.execute(str(query))
-        result = cur.fetchone()
-        cur.close()
-        conn.close()
-        if result:
-            return result[0]
-        else:
-            return None
-        
-    def find_username_in_db(self, JellyfinOrDiscord, data):
-        """
-        Returns JellyfinUsername/DiscordID, Note
-        """
-        conn = sqlite3.connect(SQLITE_FILE)
-        cur = conn.cursor()
-        query = "SELECT " + ("JellyfinUsername" if JellyfinOrDiscord == "Jellyfin" else "DiscordID") + ", Note FROM users WHERE " + ("DiscordID" if JellyfinOrDiscord == "Jellyfin" else "JellyfinUsername") + " = '" + str(data) + "'"
-        cur.execute(str(query))
-        result = cur.fetchone()
-        cur.close()
-        conn.close()
-        if result:
-            return result[0], result[1]
-        else:
-            return None, None
-        
-    def find_entry_in_db(self, type, data):
-        """
-        Returns whole entry
-        """
-        conn = sqlite3.connect(SQLITE_FILE)
-        cur = conn.cursor()
-        query = "SELECT * FROM users WHERE " + type + " = '" + str(data) + "'"
-        cur.execute(query)
-        result = cur.fetchone()
-        cur.close()
-        conn.close()
-        if result:
-            return result
-        else:
-            return None
-        
-    def get_all_entries_in_db(self):
-        """
-        Returns all database entries
-        """
-        conn = sqlite3.connect(SQLITE_FILE)
-        cur = conn.cursor()
-        query = "SELECT * FROM users"
-        cur.execute(query)
-        result = cur.fetchall()
-        cur.close()
-        conn.close()
-        if result:
-            return result
-        else:
-            return None
-        
+                if update_policy(uid, policy):
+                    policyEnforced = True
+            return policyEnforced, uid, p
+
+        return False, r.content.decode("utf-8"), p
+    except Exception as e:
+        print(e)
+        return False, None, None
+
+
+def remove_from_jellyfin(id):
+    """
+    Remove a Discord user from Jellyfin
+    Returns:
+    200 - user found and removed successfully
+    600 - user found, but not removed
+    700 - user not found in database
+    500 - unknown error
+    """
+    try:
+        jellyfinId = db.find_user_in_db("Jellyfin", id)
+        if not jellyfinId:
+            return 700  # user not found
+        disable_policy = {
+            "IsAdministrator": "false",
+            "IsHidden": "true",
+            "IsHiddenRemotely": "true",
+            "IsDisabled": "true",
+            "EnableRemoteControlOfOtherUsers": "false",
+            "EnableSharedDeviceControl": "false",
+            "EnableRemoteAccess": "true",
+            "EnableLiveTvManagement": "false",
+            "EnableLiveTvAccess": "false",
+            "EnableContentDeletion": "false",
+            "EnableSubtitleManagement": "false",
+            "EnableAllDevices": "true",
+            "EnableAllChannels": "false",
+            "EnablePublicSharing": "false",
+            "BlockedChannels": [
+                "IPTV",
+                "TVHeadEnd Recordings"
+            ]
+        }
+        r = jf.deleteUser(jellyfinId)
+        if not str(r.status_code).startswith('2'):
+            return 600  # user not deleted
+        db.remove_user_from_db(id)
+        return 200  # user removed successfully
+    except Exception as e:
+        print(e)
+        return 500  # unknown error
+
+
+def remove_nonsub(memberID):
+    if memberID not in exemptsubs:
+        remove_from_jellyfin(memberID)
+
+
+class Jellyfin(commands.Cog):
+
     async def purge_winners(self, ctx):
         try:
-            conn = sqlite3.connect(SQLITE_FILE)
+            winners = db.getWinners()
             monitorlist = []
-            cur = conn.cursor()
-            cur.execute("SELECT JellyfinID FROM users WHERE Note = 'w'")
-            for u in cur.fetchall():
+            for u in winners:
                 monitorlist.append(u[0])
-            cur.close()
-            conn.close()
             print("Winners: ")
             print(monitorlist)
             removed_list = ""
             error_message = ""
             for u in monitorlist:
                 try:
-                    payload = {"CustomQueryString": "SELECT SUM(PlayDuration) FROM PlaybackActivity WHERE UserId = '" + u + "' AND DateCreated >= date(julianday(date('now'))-14)", "ReplaceUserId": "false"}
+                    query = {
+                        "CustomQueryString": "SELECT SUM(PlayDuration) FROM PlaybackActivity WHERE UserId = '{}' AND "
+                                             "DateCreated >= date(julianday(date('now'))-14)".format(str(u)),
+                        "ReplaceUserId": "false"}
                     # returns time watched in last 14 days, in seconds
-                    time = j_post("user_usage_stats/submit_custom_query", None, payload)['results'][0][0]
-                    if time == None:
-                        time = 0
-                    time = int(time)
-                    if time < WINNER_THRESHOLD:
-                        print(u + " has NOT met the duration requirements. Purging...")
+                    watchtime = jf.statsCustomQuery(query)['results'][0][0]
+                    if not watchtime:
+                        watchtime = 0
+                    watchtime = int(watchtime)
+                    if watchtime < WINNER_THRESHOLD:
+                        print('{} has NOT met the duration requirements. Purging...'.format(u))
                         mention_id = await self.remove_winner(str(u))
-                        removed_list = removed_list + (mention_id if mention_id != None else "")
+                        removed_list += (mention_id if mention_id is not None else "")
                 except Exception as e:
                     print(e)
-                    error_message = error_message + "Error checking " + str(u) + ". "
+                    error_message += "Error checking {}. ".format(str(u))
                     pass
-            if removed_list != "":
-                await ctx.send(removed_list + "You have been removed as a Winner due to inactivity.")
+            if removed_list:
+                await ctx.send("{}You have been removed as a Winner due to inactivity.".format(removed_list))
             else:
                 await ctx.send("No winners purged.")
-            if error_message != "":
+            if error_message:
                 await ctx.send(error_message)
         except Exception as e:
             print(e)
             await ctx.send("Something went wrong. Please try again later.")
-            
+
     async def remove_winner(self, jellyfinId):
         try:
-            id = self.find_user_in_db("Discord", jellyfinId)
-            if id != None:
-                code = self.remove_from_jellyfin(jellyfinId)
+            id = db.find_user_in_db("Discord", jellyfinId)
+            if id is not None:
+                code = remove_from_jellyfin(jellyfinId)
                 if code.startswith('2'):
                     user = self.bot.get_user(int(id))
                     await user.create_dm()
-                    await user.dm_channel.send("You have been removed from " + str(SERVER_NICKNAME) + " due to inactivity.")
-                    await user.remove_roles(discord.utils.get(self.bot.get_guild(int(SERVER_ID)).roles, name="Winner"), reason="Inactive winner")
-                    return "<@" + id + ">, "
+                    await user.dm_channel.send(
+                        "You have been removed from {} due to inactivity.".format(str(SERVER_NICKNAME)))
+                    await user.remove_roles(discord.utils.get(self.bot.get_guild(int(SERVER_ID)).roles, name="Winner"),
+                                            reason="Inactive winner")
+                    return "<@{}>, ".format(id)
         except Exception as e:
             pass
         return None
-        
-    def remove_nonsub(self, memberID):
-        if memberID not in exemptsubs:
-            self.remove_from_jellyfin(memberID)
-        
-    @tasks.loop(seconds=SUB_CHECK_TIME*(3600*24))
+
+    @tasks.loop(seconds=SUB_CHECK_TIME * (3600 * 24))
     async def check_subs(self):
         print("Checking Jellyfin subs...")
         exemptRoles = []
@@ -402,20 +284,17 @@ class Jellyfin(commands.Cog):
                 exemptRoles.append(r)
         for member in self.bot.get_guild(int(SERVER_ID)).members:
             if not any(x in member.roles for x in exemptRoles):
-                self.remove_nonsub(member.id)
+                remove_nonsub(member.id)
         print("Jellyfin Subs check completed.")
-        
-    @tasks.loop(seconds=TRIAL_CHECK_FREQUENCY*60)
+
+    @tasks.loop(seconds=TRIAL_CHECK_FREQUENCY * 60)
     async def check_trials(self):
         print("Checking Jellyfin trials...")
-        conn = sqlite3.connect(SQLITE_FILE)
-        cur = conn.cursor()
-        query = "SELECT DiscordID FROM users WHERE ExpirationStamp<=" + str(int(time.time())) + " AND Note = 't'";
-        cur.execute(str(query))
+        trials = db.getTrials()
         trial_role = discord.utils.get(self.bot.get_guild(int(SERVER_ID)).roles, name=TRIAL_ROLE_NAME)
-        for u in cur:
-            print("Ending trial for " + str(u[0]))
-            self.remove_from_jellyfin(int(u[0]))
+        for u in trials:
+            print("Ending trial for {}".format(str(u[0])))
+            remove_from_jellyfin(int(u[0]))
             try:
                 user = self.bot.get_guild(int(SERVER_ID)).get_member(int(u[0]))
                 await user.create_dm()
@@ -423,12 +302,9 @@ class Jellyfin(commands.Cog):
                 await user.remove_roles(trial_role, reason="Trial has ended.")
             except Exception as e:
                 print(e)
-                print("Discord user " + str(u[0]) + " not found.")
-        cur.close()
-        conn.close()
+                print("Discord user {} not found.".format(str(u[0])))
         print("Jellyfin Trials check completed.")
-        
-    
+
     @commands.group(aliases=["Jellyfin", "jf", "JF"], pass_context=True)
     async def jellyfin(self, ctx: commands.Context):
         """
@@ -436,9 +312,9 @@ class Jellyfin(commands.Cog):
         """
         if ctx.invoked_subcommand is None:
             await ctx.send("What subcommand?")
-            
+
     @jellyfin.command(name="access", pass_context=True)
-    ### Anyone can use this command
+    # Anyone can use this command
     async def jellyfin_access(self, ctx: commands.Context, JellyfinUsername: str = None):
         """
         Check if you or another user has access to the Jellyfin server
@@ -446,21 +322,23 @@ class Jellyfin(commands.Cog):
         hasAccess = False
         name = ""
         if JellyfinUsername is None:
-            name, note = self.find_username_in_db("Jellyfin", ctx.message.author.id)
+            name, note = db.find_username_in_db("Jellyfin", ctx.message.author.id)
         else:
             name = JellyfinUsername
-        if name in self.get_jellyfin_users().keys():
-            await ctx.send(("You have" if JellyfinUsername is None else name + " has") + " access to " + SERVER_NICKNAME)
+        if name in get_jellyfin_users().keys():
+            await ctx.send(
+                '{} access to {}'.format(("You have" if JellyfinUsername is None else name + " has"), SERVER_NICKNAME))
         else:
-            await ctx.send(("You do" if JellyfinUsername is None else name + " does") + " not have access to " + SERVER_NICKNAME)
-            
+            await ctx.send('{} not have access to {}'.format(("You do" if JellyfinUsername is None else name + " does"),
+                                                             SERVER_NICKNAME))
+
     @jellyfin_access.error
     async def jellyfin_access_error(self, ctx, error):
-        await ctx.send("Sorry, something went wrong.")
         print(error)
-            
+        await ctx.send("Sorry, something went wrong.")
+
     @jellyfin.command(name="status", aliases=['ping', 'up', 'online'], pass_context=True)
-    ### Anyone can use this command
+    # Anyone can use this command
     async def jellyfin_status(self, ctx: commands.Context):
         """
         Check if the Jellyfin server is online
@@ -470,12 +348,12 @@ class Jellyfin(commands.Cog):
             await ctx.send(SERVER_NICKNAME + " is having connection issues right now.")
         else:
             await ctx.send(SERVER_NICKNAME + " is up and running.")
-            
+
     @jellyfin_status.error
     async def jellyfin_status_error(self, ctx, error):
-        await ctx.send("Sorry, I couldn't test the connection.")
         print(error)
-        
+        await ctx.send("Sorry, I couldn't test the connection.")
+
     @jellyfin.command(name="winners", pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
     async def jellyfin_winners(self, ctx: commands.Context):
@@ -492,7 +370,7 @@ class Jellyfin(commands.Cog):
             await ctx.send(response)
         except Exception as e:
             await ctx.send("Error pulling winners from database.")
-                
+
     @jellyfin.command(name="purge", pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
     async def jellyfin_purge(self, ctx: commands.Context):
@@ -501,8 +379,8 @@ class Jellyfin(commands.Cog):
         """
         await ctx.send("Purging winners...")
         await self.purge_winners(ctx)
-        
-    @jellyfin.command(name="cleandb", aliases=['clean','scrub', 'syncdb'], pass_context=True)
+
+    @jellyfin.command(name="cleandb", aliases=['clean', 'scrub', 'syncdb'], pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
     async def jellyfin_cleandb(self, ctx: commands.Context):
         """
@@ -511,74 +389,69 @@ class Jellyfin(commands.Cog):
         run this to remove the user's entry in the
         Jellyfin user database.
         """
-        existingUsers = self.get_jellyfin_users()
-        dbEntries = self.get_all_entries_in_db()
+        existingUsers = get_jellyfin_users()
+        dbEntries = db.get_all_entries_in_db()
         if dbEntries:
             deletedUsers = ""
             for entry in dbEntries:
-                if entry[1] not in existingUsers.keys(): # entry[1] is JellyfinUsername
+                if entry[1] not in existingUsers.keys():  # entry[1] is JellyfinUsername
                     deletedUsers += entry[1] + ", "
-                    self.remove_user_from_db(entry[0]) # entry[0] is DiscordID
+                    db.remove_user_from_db(entry[0])  # entry[0] is DiscordID
             if deletedUsers:
                 await ctx.send("The following users were deleted from the database: " + deletedUsers[:-2])
             else:
                 await ctx.send("No old users found and removed from database.")
         else:
             await ctx.send("An error occurred when grabbing users from the database.")
-        
+
     @jellyfin_cleandb.error
     async def jellyfin_cleandb_error(self, ctx, error):
-        await ctx.send("Something went wrong.")
         print(error)
-        
-    @jellyfin.command(name="count", aliases=["subs","number"], pass_context=True)
+        await ctx.send("Something went wrong.")
+
+    @jellyfin.command(name="count", aliases=["subs", "number"], pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
     async def jellyfin_count(self, ctx: commands.Context):
         """
         Get the number of enabled Jellyfin users
         """
-        count = len(self.get_jellyfin_users())
+        count = len(get_jellyfin_users())
         if count > 0:
             await ctx.send(str(SERVER_NICKNAME) + " has " + str(count) + " users.")
         else:
             await ctx.send("An error occurred.")
-            
+
     @jellyfin_count.error
     async def jellyfin_count_error(self, ctx, error):
-        await ctx.send("Something went wrong. Please try again later.")
         print(error)
-    
-    @jellyfin.command(name="add", aliases=["new","join"], pass_context=True)
+        await ctx.send("Something went wrong. Please try again later.")
+
+    @jellyfin.command(name="add", aliases=["new", "join"], pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
     async def jellyfin_add(self, ctx: commands.Context, user: discord.Member, username: str):
         """
         Add a Discord user to Jellyfin
         """
-        s, p = self.add_to_jellyfin(username, user.id, 's')
+        s, p = add_to_jellyfin(username, user.id, 's')
         if str(s).startswith("2"):
-            await user.create_dm()
-            creds = ""
-            if USE_HASTEBIN:
-                creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "/jellyfin\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n")
-            else:
-                creds = "Hostname: " + str(JELLYFIN_URL) + "/jellyfin\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
-            await user.dm_channel.send("You have been added to " + str(SERVER_NICKNAME) + "!\n" + creds)
-            await ctx.send("You've been added, " + user.mention + "! Please check your direct messages for login information.")
+            await sendAddMessage(user, username, (p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE))
+            await ctx.send(
+                "You've been added, {}! Please check your direct messages for login information.".format(user.mention))
         else:
-            await ctx.send("An error occurred while adding " + user.mention)
-            
+            await ctx.send("An error occurred while adding {}".format(user.mention))
+
     @jellyfin_add.error
     async def jellyfin_add_error(self, ctx, error):
-        await ctx.send("Please mention the Discord user to add to Jellyfin, as well as their Jellyfin username.")
         print(error)
-            
-    @jellyfin.command(name="remove", aliases=["delete","rem"], pass_context=True)
+        await ctx.send("Please mention the Discord user to add to Jellyfin, as well as their Jellyfin username.")
+
+    @jellyfin.command(name="remove", aliases=["delete", "rem"], pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
     async def jellyfin_remove(self, ctx: commands.Context, user: discord.Member):
         """
         Delete a Discord user from Jellyfin
         """
-        s = self.remove_from_jellyfin(user.id)
+        s = remove_from_jellyfin(user.id)
         if str(s).startswith("2"):
             await ctx.send("You've been removed from " + str(SERVER_NICKNAME) + ", " + user.mention + ".")
         elif str(s).startswith("6"):
@@ -587,39 +460,33 @@ class Jellyfin(commands.Cog):
             await ctx.send("There are no accounts for " + user.mention)
         else:
             await ctx.send("An error occurred while removing " + user.mention)
-            
+
     @jellyfin_remove.error
     async def jellyfin_remove_error(self, ctx, error):
-        await ctx.send("Please mention the Discord user to remove from Jellyfin.")
         print(error)
-        
+        await ctx.send("Please mention the Discord user to remove from Jellyfin.")
+
     @jellyfin.command(name="trial", pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
     async def jellyfin_trial(self, ctx: commands.Context, user: discord.Member, JellyfinUsername: str):
         """
         Start a trial of Jellyfin
         """
-        s, p  = self.add_to_jellyfin(JellyfinUsername, user.id, 't')
+        s, p = add_to_jellyfin(JellyfinUsername, user.id, 't')
         if str(s).startswith("2"):
-            await user.create_dm()
-            creds = ""
-            if USE_HASTEBIN:
-                creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "/jellyfin\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n")
-            else:
-                creds = "Hostname: " + str(JELLYFIN_URL) + "/jellyfin\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
-            await user.dm_channel.send("You have been added to " + str(SERVER_NICKNAME) + "!\n" + creds)
-            await ctx.send("You've been added, " + user.mention + "! Please check your direct messages for login information.")
+            await sendAddMessage(user, JellyfinUsername, (p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE))
         else:
-            await ctx.send("An error occurred while starting a trial for " + user.mention)
-            
+            await ctx.send("An error occurred while starting a trial for {}".format(user.mention))
+
     @jellyfin_trial.error
     async def jellyfin_trial_error(self, ctx, error):
-        await ctx.send("Please mention the Discord user to add to Jellyfin, as well as their Jellyfin username.")
         print(error)
-        
+        await ctx.send("Please mention the Discord user to add to Jellyfin, as well as their Jellyfin username.")
+
     @jellyfin.command(name="import", pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
-    async def jellyfin_import(self, ctx: commands.Context, user: discord.Member, JellyfinUsername: str, subType: str, serverNumber: int = None):
+    async def jellyfin_import(self, ctx: commands.Context, user: discord.Member, JellyfinUsername: str, subType: str,
+                              serverNumber: int = None):
         """
         Add existing Jellyfin users to the database.
         user - tag a Discord user
@@ -628,7 +495,7 @@ class Jellyfin(commands.Cog):
         Default in database: 's' for Subscriber, 'w' for Winner, 't' for Trial.
         NOTE: subType 't' will make a new 24-hour timestamp for the user.
         """
-        users = self.get_jellyfin_users()
+        users = get_jellyfin_users()
         if JellyfinUsername not in users.keys():
             await ctx.send("Not an existing Jellyfin user.")
         else:
@@ -636,7 +503,7 @@ class Jellyfin(commands.Cog):
             if len(subType) > 4:
                 await ctx.send("subType must be less than 5 characters long.")
             else:
-                new_entry = self.add_user_to_db(user.id, JellyfinUsername, JellyfinId, subType)
+                new_entry = db.add_user_to_db(user.id, JellyfinUsername, jellyfinId, subType)
                 if new_entry:
                     if subType == 't':
                         await ctx.send("Trial user was added/new timestamp issued.")
@@ -644,12 +511,13 @@ class Jellyfin(commands.Cog):
                         await ctx.send("User added to the database.")
                 else:
                     await ctx.send("User already exists in the database.")
-                    
+
     @jellyfin_import.error
     async def jellyfin_import_error(self, ctx, error):
-        await ctx.send("Please mention the Discord user to add to the database, including their Plex username and sub type.")
         print(error)
-        
+        await ctx.send(
+            "Please mention the Discord user to add to the database, including their Jellyfin username and sub type.")
+
     @jellyfin.group(name="find", aliases=["id"], pass_context=True)
     @commands.has_role(ADMIN_ROLE_NAME)
     async def jellyfin_find(self, ctx: commands.Context):
@@ -658,34 +526,35 @@ class Jellyfin(commands.Cog):
         """
         if ctx.invoked_subcommand is None:
             await ctx.send("What subcommand?")
-        
+
     @jellyfin_find.command(name="jellyfin", aliases=["j"])
     async def jellyfin_find_jellyfin(self, ctx: commands.Context, user: discord.Member):
         """
         Find Discord member's Jellyfin username
         """
-        name, note = self.find_username_in_db("Jellyfin", user.id)
+        name, note = db.find_username_in_db("Jellyfin", user.id)
         if name:
-            await ctx.send(user.mention + " is Jellyfin user: " + name + (" [Trial]" if note == 't' else " [Subscriber]"))
+            await ctx.send('{} is Jellyfin user: {}{}'.format(user.mention, name,
+                                                              (" [Trial]" if note == 't' else " [Subscriber]")))
         else:
             await ctx.send("User not found.")
-        
+
     @jellyfin_find.command(name="discord", aliases=["d"])
     async def jellyfin_find_discord(self, ctx: commands.Context, JellyfinUsername: str):
         """
         Find Jellyfin user's Discord name
         """
-        id, note = self.find_username_in_db("Discord", JellyfinUsername)
+        id, note = db.find_username_in_db("Discord", JellyfinUsername)
         if id:
-            await ctx.send(JellyfinUsername + " is Discord user: " + self.bot.get_user(int(id)).mention)
+            await ctx.send('{} is Discord user: {}'.format(JellyfinUsername, self.bot.get_user(int(id)).mention))
         else:
             await ctx.send("User not found.")
-            
+
     @jellyfin_find.error
     async def jellyfin_find_error(self, ctx, error):
         await ctx.send("An error occurred while looking for that user.")
         print(error)
-            
+
     @jellyfin.group(name="info")
     @commands.has_role(ADMIN_ROLE_NAME)
     async def jellyfin_info(self, ctx: commands.Context):
@@ -694,55 +563,55 @@ class Jellyfin(commands.Cog):
         """
         if ctx.invoked_subcommand is None:
             await ctx.send("What subcommand?")
-            
+
     @jellyfin_info.command(name="jellyfin", aliases=["e"])
     async def jellyfin_info_jellyfin(self, ctx, JellyfinUsername: str):
         """
         Get database entry for Jellyfin username
         """
-        embed = discord.Embed(title=("Info for " + str(JellyfinUsername)))
-        n = self.describe_table("users")
-        d = self.find_entry_in_db("JellyfinUsername", JellyfinUsername)
+        embed = discord.Embed(title=("Info for {}".format(str(JellyfinUsername))))
+        n = db.describe_table("users")
+        d = db.find_entry_in_db("JellyfinUsername", JellyfinUsername)
         if d:
-            for i in range(0,len(n)):
-                val=str(d[i])
+            for i in range(0, len(n)):
+                val = str(d[i])
                 if str(n[i][1]) == "DiscordID":
-                    val=val+" ("+self.bot.get_user(int(d[i])).mention+")"
+                    val = val + " (" + self.bot.get_user(int(d[i])).mention + ")"
                 if str(n[i][1]) == "Note":
-                    val=("Trial" if d[i] == 't' else "Subscriber")
-                if d[i] != None:
-                    embed.add_field(name=str(n[i][1]),value=val,inline=False)
+                    val = ("Trial" if d[i] == 't' else "Subscriber")
+                if d[i] is not None:
+                    embed.add_field(name=str(n[i][1]), value=val, inline=False)
             await ctx.send(embed=embed)
         else:
             await ctx.send("That user is not in the database.")
-        
+
     @jellyfin_info.command(name="discord", aliases=["d"])
     async def jellyfin_info_discord(self, ctx, user: discord.Member):
         """
         Get database entry for Discord user
         """
-        embed = discord.Embed(title=("Info for " + user.name))
-        n = self.describe_table("users")
-        d = self.find_entry_in_db("DiscordID", user.id)
+        embed = discord.Embed(title=("Info for {}".format(user.name)))
+        n = db.describe_table("users")
+        d = db.find_entry_in_db("DiscordID", user.id)
         if d:
-            for i in range(0,len(n)):
-                name=str(n[i][1])
-                val=str(d[i])
+            for i in range(0, len(n)):
+                name = str(n[i][1])
+                val = str(d[i])
                 if str(n[i][1]) == "DiscordID":
-                    val=val+" ("+self.bot.get_user(int(d[i])).mention+")"
+                    val = val + " (" + self.bot.get_user(int(d[i])).mention + ")"
                 if str(n[i][1]) == "Note":
-                    val=("Trial" if d[i] == 't' else "Subscriber")
-                if d[i] != None:
-                    embed.add_field(name=str(n[i][1]),value=val,inline=False)
+                    val = ("Trial" if d[i] == 't' else "Subscriber")
+                if d[i] is not None:
+                    embed.add_field(name=str(n[i][1]), value=val, inline=False)
             await ctx.send(embed=embed)
         else:
             await ctx.send("That user is not in the database.")
-        
+
     @jellyfin_info.error
     async def jellyfin_info_error(self, ctx, error):
-        await ctx.send("User not found.")
         print(error)
-        
+        await ctx.send("User not found.")
+
     @jellyfin.command(name="migrate", pass_context=True)
     async def jellyfin_migrate(self, ctx: commands.Context):
         """
@@ -756,27 +625,20 @@ class Jellyfin(commands.Cog):
             reader = csv.DictReader(f)
             writer = csv.writer(f)
             for row in reader:
-                jellyfin_username = row['Discord_Tag'].split("#")[0] # Jellyfin username will be Discord username
+                jellyfin_username = row['Discord_Tag'].split("#")[0]  # Jellyfin username will be Discord username
                 user = discord.utils.get(ctx.message.guild.members, name=jellyfin_username)
-                s, p = self.add_to_jellyfin(jellyfin_username, user.id, 's') # Users added as 'Subscribers'
+                s, p = add_to_jellyfin(jellyfin_username, user.id, 's')  # Users added as 'Subscribers'
                 if str(s).startswith("2"):
-                    await user.create_dm()
-                    creds = ""
-                    if USE_HASTEBIN:
-                        creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "/jellyfin\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n")
-                    else:
-                        creds = "Hostname: " + str(JELLYFIN_URL) + "/jellyfin\nUsername: " + str(username) + "\n" +("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
-                    await user.dm_channel.send("You have been added to " + str(SERVER_NICKNAME) + "!\n" + creds)
-                    #await ctx.send("You've been added, " + user.mention + "! Please check your direct messages for login information.")
+                    await sendAddMessage(user, jellyfin_username, (p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE))
                     data = [str(row['Discord_Tag']), str(row['Plex_Username']), str(jellyfin_username)]
                     writer.writerow(data)
                     count += 1
                 else:
                     failed.append(jellyfin_username)
             f.close()
-        await ctx.send(str(count) + " users added to Jellyfin." + ("" if len(failed) == 0 else "The following users were not added successfully: " + "\n".join(failed)))
-        
-        
+        await ctx.send("{} users added to Jellyfin.{}".format(str(count), (
+            "" if len(failed) == 0 else "The following users were not added successfully: " + "\n".join(failed))))
+
     @commands.Cog.listener()
     async def on_message(self, message):
         if AUTO_WINNERS:
@@ -784,30 +646,30 @@ class Jellyfin(commands.Cog):
                 tempWinner = discord.utils.get(message.guild.roles, name=TEMP_WINNER_ROLE_NAME)
                 for u in message.mentions:
                     await u.add_roles(tempWinner, reason="Winner - access winner invite channel")
-            if message.channel.id == WINNER_CHANNEL and discord.utils.get(message.guild.roles, name=TEMP_WINNER_ROLE_NAME) in message.author.roles:
-                username = message.content.strip() #Only include username, nothing else
-                s, p = self.add_to_jellyfin(username, message.author.id, 'w')
+            if message.channel.id == WINNER_CHANNEL and discord.utils.get(message.guild.roles,
+                                                                          name=TEMP_WINNER_ROLE_NAME) in message.author.roles:
+                username = message.content.strip()  # Only include username, nothing else
+                s, p = add_to_jellyfin(username, message.author.id, 'w')
                 if str(s).startswith("2"):
-                    await user.create_dm()
-                    creds = ""
-                    if USE_HASTEBIN:
-                        creds = hastebin("Hostname: " + str(JELLYFIN_URL) + "/jellyfin\nUsername: " + str(username) + "\n" + ("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n")
-                    else:
-                        creds = "Hostname: " + str(JELLYFIN_URL) + "/jellyfin\nUsername: " + str(username) + "\n" +("Password: " + p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE) + "\n"
-                    await user.dm_channel.send("You have been added to " + str(SERVER_NICKNAME) + "!\n" + creds)
-                    await ctx.send("You've been added, " + user.mention + "! Please check your direct messages for login information.")
-                    await message.author.remove_roles(discord.utils.get(message.guild.roles, name=TEMP_WINNER_ROLE_NAME), reason="Winner was processed successfully.")
+                    await sendAddMessage(message.author, username, (p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE))
+                    await message.channel.send(
+                        "You've been added, {}! Please check your direct messages for login information.".format(
+                            message.author.mention))
+                    await message.author.remove_roles(
+                        discord.utils.get(message.guild.roles, name=TEMP_WINNER_ROLE_NAME),
+                        reason="Winner was processed successfully.")
                 else:
                     if "exist" in s:
-                        await ctx.send(s)
+                        await message.channel.send(s)
                     else:
-                        await ctx.send("An error occurred while adding " + message.author.mention)
-        
+                        await message.channel.send("An error occurred while adding {}".format(message.author.mention))
+
     @commands.Cog.listener()
     async def on_ready(self):
         self.check_trials.start()
         self.check_subs.start()
-            
+
     def __init__(self, bot):
         self.bot = bot
+        jf.authenticate()
         print("Jellyfin Manager ready to go.")

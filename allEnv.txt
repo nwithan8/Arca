@@ -49,7 +49,10 @@ export JELLYFIN_URL=''
 # Jellyfin server URL (format: 'http://myip.com:port')
 export JELLYFIN_KEY='' 
 # Jellyfin API key
-
+export JELLYFIN_ADMIN_USER=''
+# Username for the Jellyfin admin user
+export JELLYFIN_ADMIN_PASS=''
+# Password for the Jellyfin admin user
 
 # NEEDED FOR: Emby Manager
 export EMBY_SERVER_NAME=''
