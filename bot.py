@@ -25,7 +25,8 @@ exts = [
 #"yahoofantasy.__init__",
 #"smart_home.sengled_lights.__init__",
 #"smart_home.google_home.__init__",
-#"smart_home.wink.__init__"
+#"smart_home.wink.__init__",
+"general.__init__",
 ]
 
 for ext in exts:
