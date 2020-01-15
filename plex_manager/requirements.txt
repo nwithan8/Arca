@@ -1,6 +1,0 @@
-discord
-requests
-imdbpie
-mysql-connector-python
-asyncio
-PlexAPI
