@@ -12,7 +12,7 @@ formatter = commands.HelpCommand(show_check_failure=False)
 
 exts = [
 #"espn.__init__",
-#"plex.__init__",
+"plex.__init_plex__",
 #"core.manager",
 #"plex_manager_nodb.__init__",
 #"plex_manager.__init__",
@@ -26,7 +26,7 @@ exts = [
 #"smart_home.sengled_lights.__init__",
 #"smart_home.google_home.__init__",
 #"smart_home.wink.__init__",
-"general.__init__",
+#"general.__init__",
 ]
 
 for ext in exts:
