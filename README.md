@@ -15,7 +15,7 @@ Cog Function
 	
  # Installation
  1. ```git clone https://github.com/nwithan8/nwithan8-cogs.git```
- 2. Set <a href="https://askubuntu.com/questions/58814/how-do-i-add-environment-variables">environmental variables</a> (see allEnv.txt, or individual env.txt in each cog folder)
+ 2. Set <a href="https://askubuntu.com/questions/58814/how-do-i-add-environment-variables">environmental variables</a> (see allEnv.txt)
  3. Install required packages with ```pip3 install -r requirements.txt```
  4. Set up databases with ```mysql -u root -p < makePEJdb.sql```
  5. Run with ```./bot.py```
