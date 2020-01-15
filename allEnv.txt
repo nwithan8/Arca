@@ -1,3 +1,7 @@
+# You will need to export all these values as environmental tokens (not all are needed if only using some, not all, of the cogs)
+# Complete the form, then copy-paste it into your .bashrc file and reload with `source .bashrc` or by closing and reopening your terminal.
+
+
 export DISCORD_BOT_TOKEN=''
 # Bot Token from https://discordapp.com/developers/applications/
 export DISCORD_SERVER_ID=''
