@@ -1,3 +1,5 @@
+# Thanks to https://github.com/windfreaker for this script
+
 from discord import ActivityType
 from discord.ext import commands
 
