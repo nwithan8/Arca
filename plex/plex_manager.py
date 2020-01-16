@@ -11,7 +11,7 @@ import time
 from plexapi.server import PlexServer
 import plexapi
 from plexapi.myplex import MyPlexAccount
-import db_commands as DB
+from plex.db_commands import DB
 import urllib
 import json
 import re
