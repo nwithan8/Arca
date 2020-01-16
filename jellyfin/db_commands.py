@@ -118,3 +118,25 @@ class DB:
             return result
         else:
             return None
+
+    def getWinners(self):
+        """
+        Get all users with 'w' note
+        """
+        conn = sqlite3.connect(self.SQLITE_FILE)
+        cur = conn.cursor()
+        cur.execute("SELECT JellyfinID FROM users WHERE Note = 'w'")
+        results = cur.fetchall()
+        cur.close()
+        conn.close()
+        return results
+
+    def getTrials(self):
+        conn = sqlite3.connect(self.SQLITE_FILE)
+        cur = conn.cursor()
+        query = "SELECT DiscordID FROM users WHERE ExpirationStamp<={} AND Note = 't'".format(str(int(time.time())))
+        cur.execute(str(query))
+        results = cur.fetchall()
+        cur.close()
+        conn.close()
+        return results

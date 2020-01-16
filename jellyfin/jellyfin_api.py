@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 import os
 
 JELLYFIN_URL = os.environ.get('JELLYFIN_URL')
-JELLYFIN_API_KEY = os.environ.get('JELLYFIN_API_KEY')
+JELLYFIN_API_KEY = os.environ.get('JELLYFIN_KEY')
 JELLYFIN_ADMIN_USERNAME = os.environ.get('JELLYFIN_ADMIN_USER')
 JELLYFIN_ADMIN_PASSWORD = os.environ.get('JELLYFIN_ADMIN_PASS')
 
@@ -79,8 +79,7 @@ def post(cmd, params, payload):
 
 def postWithToken(hdr, method, data=None):
     hdr = {'accept': 'application/json', 'Content-Type': 'application/json', **hdr}
-    res = requests.post('{}{}'.format(JELLYFIN_URL, method), headers=hdr, data=json.dumps(data))
-    return res
+    return requests.post('{}{}'.format(JELLYFIN_URL, method), headers=hdr, data=json.dumps(data))
 
 
 def delete(cmd, params):
@@ -91,7 +90,7 @@ def delete(cmd, params):
 def makeUser(username):
     url = '/Users/New'
     data = {
-        'Name': username
+        'Name': str(username)
     }
     return post(url, None, payload=data)
 
@@ -124,7 +123,7 @@ def updatePolicy(userId, policy=None):
     if not policy:
         policy = JELLYFIN_USER_POLICY
     url = '/Users/{}/Policy'.format(userId)
-    return post(url, None, payload=policy)
+    return postWithToken(hdr=token_header, method=url, data=policy)
 
 
 def search(keyword):
@@ -144,7 +143,7 @@ def getUsers():
 
 def updateRating(itemId, upvote):
     url = '/Users/{}/Items/{}/Rating?{}'.format(str(admin_id), str(itemId), urlencode({'Likes': upvote}))
-    print(url)
+
     return postWithToken(hdr=token_header, method=url)
 
 

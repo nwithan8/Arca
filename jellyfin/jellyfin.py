@@ -12,11 +12,11 @@ import os
 import random
 import string
 import csv
-import jellyfin_api as jf
-import db_commands as DB
+import jellyfin.jellyfin_api as jf
+from jellyfin.db_commands import DB
 
 # Discord-to-Jellyfin database (SQLite3)
-SQLITE_FILE = '/nwithan8-cogs/jellyfin_manager/JellyfinDiscord.db'  # File path + name + extension (i.e. "/root/nwithan8-cogs/jellyfin_manager/JellyfinDiscord.db"
+SQLITE_FILE = 'jellyfin/JellyfinDiscord.db'  # File path + name + extension (i.e. "/root/nwithan8-cogs/jellyfin_manager/JellyfinDiscord.db"
 '''
 Database schema:
 
@@ -58,7 +58,7 @@ WINNER_CHANNEL = 0  # Channel ID
 GIVEAWAY_BOT_ID = 0
 
 # Credentials settings
-CREATE_PASSWORD = False
+CREATE_PASSWORD = True
 NO_PASSWORD_MESSAGE = "Leave password blank on first login, but please secure your account by setting a password."
 USE_HASTEBIN = False
 HASTEBIN_URL = 'https://hastebin.com'
@@ -67,7 +67,7 @@ HASTEBIN_URL = 'https://hastebin.com'
 MIGRATION_FILE = "/"  # file path + name (leave off ".csv" extension)
 
 # DO NOT EDIT
-db = DB(SQLITE_FILE)
+db = DB(SQLITE_FILE, TRIAL_LENGTH)
 
 
 def password(length):
@@ -87,7 +87,7 @@ def add_password(uid):
     return None
 
 
-def update_policy(uid, policy):
+def update_policy(uid, policy=None):
     if str(jf.updatePolicy(uid, policy).status_code).startswith('2'):
         return True
     return False
@@ -95,7 +95,7 @@ def update_policy(uid, policy):
 
 def hastebin(content, url=HASTEBIN_URL):
     post = requests.post(f'{url}/documents', data=content.encode('utf-8'))
-    return url + '/' + post.json()['key']
+    return '{}/{}'.format(url, post.json()['key'])
 
 
 async def sendAddMessage(user, username, pwd=None):
@@ -104,7 +104,7 @@ async def sendAddMessage(user, username, pwd=None):
             "Hostname: {}\nUsername: {}\n{}\n".format(str(JELLYFIN_URL), str(username), (
                 "Password: " + pwd if CREATE_PASSWORD else NO_PASSWORD_MESSAGE)))
     else:
-        creds = "Hostname: {}\nUsername: {}\n{}{}\n".format(str(JELLYFIN_URL), str(username), (
+        creds = "Hostname: {}\nUsername: {}\n{}\n".format(str(JELLYFIN_URL), str(username), (
             "Password: " + pwd if CREATE_PASSWORD else NO_PASSWORD_MESSAGE))
     await user.create_dm()
     await user.dm_channel.send("You have been added to {}!\n{}".format(
@@ -138,7 +138,7 @@ def add_to_jellyfin(username, discordId, note):
                 print("Password update for {} failed. Moving on...".format(username))
             success = db.add_user_to_db(discordId, username, uid, note)
             if success:
-                policy = {
+                POLICY = {
                     "IsAdministrator": "false",
                     "IsHidden": "true",
                     "IsHiddenRemotely": "true",
@@ -149,19 +149,21 @@ def add_to_jellyfin(username, discordId, note):
                     "EnableLiveTvManagement": "false",
                     "EnableLiveTvAccess": "false",
                     "EnableContentDeletion": "false",
+                    "EnableContentDownloading": "false",
+                    "EnableSyncTranscoding": "false",
                     "EnableSubtitleManagement": "false",
                     "EnableAllDevices": "true",
                     "EnableAllChannels": "false",
                     "EnablePublicSharing": "false",
+                    "InvalidLoginAttemptCount": 5,
                     "BlockedChannels": [
                         "IPTV",
                         "TVHeadEnd Recordings"
                     ]
                 }
-                if update_policy(uid, policy):
+                if update_policy(uid, POLICY):
                     policyEnforced = True
             return policyEnforced, uid, p
-
         return False, r.content.decode("utf-8"), p
     except Exception as e:
         print(e)
@@ -319,8 +321,6 @@ class Jellyfin(commands.Cog):
         """
         Check if you or another user has access to the Jellyfin server
         """
-        hasAccess = False
-        name = ""
         if JellyfinUsername is None:
             name, note = db.find_username_in_db("Jellyfin", ctx.message.author.id)
         else:
@@ -432,8 +432,8 @@ class Jellyfin(commands.Cog):
         """
         Add a Discord user to Jellyfin
         """
-        s, p = add_to_jellyfin(username, user.id, 's')
-        if str(s).startswith("2"):
+        s, u, p = add_to_jellyfin(username, user.id, 's')
+        if s:
             await sendAddMessage(user, username, (p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE))
             await ctx.send(
                 "You've been added, {}! Please check your direct messages for login information.".format(user.mention))
@@ -452,11 +452,11 @@ class Jellyfin(commands.Cog):
         Delete a Discord user from Jellyfin
         """
         s = remove_from_jellyfin(user.id)
-        if str(s).startswith("2"):
+        if s == 200:
             await ctx.send("You've been removed from " + str(SERVER_NICKNAME) + ", " + user.mention + ".")
-        elif str(s).startswith("6"):
+        elif s == 600:
             await ctx.send(user.mention + " could not be removed.")
-        elif str(s).startswith("7"):
+        elif s == 700:
             await ctx.send("There are no accounts for " + user.mention)
         else:
             await ctx.send("An error occurred while removing " + user.mention)
@@ -472,8 +472,8 @@ class Jellyfin(commands.Cog):
         """
         Start a trial of Jellyfin
         """
-        s, p = add_to_jellyfin(JellyfinUsername, user.id, 't')
-        if str(s).startswith("2"):
+        s, u, p = add_to_jellyfin(JellyfinUsername, user.id, 't')
+        if s:
             await sendAddMessage(user, JellyfinUsername, (p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE))
         else:
             await ctx.send("An error occurred while starting a trial for {}".format(user.mention))
@@ -564,7 +564,7 @@ class Jellyfin(commands.Cog):
         if ctx.invoked_subcommand is None:
             await ctx.send("What subcommand?")
 
-    @jellyfin_info.command(name="jellyfin", aliases=["e"])
+    @jellyfin_info.command(name="jellyfin", aliases=["j"])
     async def jellyfin_info_jellyfin(self, ctx, JellyfinUsername: str):
         """
         Get database entry for Jellyfin username
@@ -627,8 +627,8 @@ class Jellyfin(commands.Cog):
             for row in reader:
                 jellyfin_username = row['Discord_Tag'].split("#")[0]  # Jellyfin username will be Discord username
                 user = discord.utils.get(ctx.message.guild.members, name=jellyfin_username)
-                s, p = add_to_jellyfin(jellyfin_username, user.id, 's')  # Users added as 'Subscribers'
-                if str(s).startswith("2"):
+                s, u, p = add_to_jellyfin(jellyfin_username, user.id, 's')  # Users added as 'Subscribers'
+                if s:
                     await sendAddMessage(user, jellyfin_username, (p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE))
                     data = [str(row['Discord_Tag']), str(row['Plex_Username']), str(jellyfin_username)]
                     writer.writerow(data)
@@ -649,8 +649,8 @@ class Jellyfin(commands.Cog):
             if message.channel.id == WINNER_CHANNEL and discord.utils.get(message.guild.roles,
                                                                           name=TEMP_WINNER_ROLE_NAME) in message.author.roles:
                 username = message.content.strip()  # Only include username, nothing else
-                s, p = add_to_jellyfin(username, message.author.id, 'w')
-                if str(s).startswith("2"):
+                s, u, p = add_to_jellyfin(username, message.author.id, 'w')
+                if s:
                     await sendAddMessage(message.author, username, (p if CREATE_PASSWORD else NO_PASSWORD_MESSAGE))
                     await message.channel.send(
                         "You've been added, {}! Please check your direct messages for login information.".format(
@@ -668,6 +668,7 @@ class Jellyfin(commands.Cog):
     async def on_ready(self):
         self.check_trials.start()
         self.check_subs.start()
+        pass
 
     def __init__(self, bot):
         self.bot = bot
