@@ -14,6 +14,7 @@ import string
 import csv
 import jellyfin.jellyfin_api as jf
 from jellyfin.db_commands import DB
+from helper.pastebin import hastebin, privatebin
 
 # Discord-to-Jellyfin database (SQLite3)
 SQLITE_FILE = 'jellyfin/JellyfinDiscord.db'  # File path + name + extension (i.e. "/root/nwithan8-cogs/jellyfin_manager/JellyfinDiscord.db"
@@ -60,7 +61,8 @@ GIVEAWAY_BOT_ID = 0
 # Credentials settings
 CREATE_PASSWORD = True
 NO_PASSWORD_MESSAGE = "Leave password blank on first login, but please secure your account by setting a password."
-USE_HASTEBIN = False
+USE_PASTEBIN = 'privatebin'  # 'privatebin', 'hastebin' or None
+PRIVATEBIN_URL = 'https://privatebin.datahoarder.dev'
 HASTEBIN_URL = 'https://hastebin.com'
 
 # Migrate/mass import users
@@ -93,22 +95,30 @@ def update_policy(uid, policy=None):
     return False
 
 
-def hastebin(content, url=HASTEBIN_URL):
-    post = requests.post(f'{url}/documents', data=content.encode('utf-8'))
-    return '{}/{}'.format(url, post.json()['key'])
-
-
 async def sendAddMessage(user, username, pwd=None):
-    if USE_HASTEBIN:
-        creds = hastebin(
-            "Hostname: {}\nUsername: {}\n{}\n".format(str(JELLYFIN_URL), str(username), (
-                "Password: " + pwd if CREATE_PASSWORD else NO_PASSWORD_MESSAGE)))
-    else:
-        creds = "Hostname: {}\nUsername: {}\n{}\n".format(str(JELLYFIN_URL), str(username), (
-            "Password: " + pwd if CREATE_PASSWORD else NO_PASSWORD_MESSAGE))
+    text = "Hostname: {}\nUsername: {}\n{}\n".format(str(JELLYFIN_URL), str(username), (
+                    "Password: " + pwd if CREATE_PASSWORD else NO_PASSWORD_MESSAGE))
+    if USE_PASTEBIN:
+        if USE_PASTEBIN == 'privatebin':
+            data, error = privatebin(
+                text=text,
+                url=PRIVATEBIN_URL,
+                pass_protect=False,
+                expiration='1week',
+                burn_after_reading=False
+            )
+        if USE_PASTEBIN == 'hastebin':
+            data, error = hastebin(
+                text=text,
+                url=HASTEBIN_URL
+            )
+        if not error:
+            text = data['url']
+        else:
+            print("Error uploading to pastebin: {}".format(error))
     await user.create_dm()
     await user.dm_channel.send("You have been added to {}!\n{}".format(
-        str(SERVER_NICKNAME), creds))
+        str(SERVER_NICKNAME), text))
 
 
 def get_jellyfin_users():
