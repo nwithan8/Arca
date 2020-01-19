@@ -26,14 +26,14 @@ class DB:
         if note == 't':
             timestamp = int(time.time()) + (3600 * self.TRIAL_LENGTH)
             query = "INSERT OR IGNORE INTO users (DiscordID, PlexUsername, ExpirationStamp{serverNumOpt}, " \
-                    "Note) VALUES ('{discordId}', '{plexUsername}', '{expirationStamp}'{serverNum}, '{note}'"\
+                    "Note) VALUES ('{discordId}', '{plexUsername}', '{expirationStamp}'{serverNum}, '{note}')"\
                 .format(serverNumOpt=(", ServerNum" if serverNumber is not None else ""), discordId=discordId, plexUsername=plexUsername, expirationStamp=str(timestamp), serverNum=((",'" + serverNumber + "'") if serverNumber else ""), note=str(note))
             cur.execute(str(query))
             query = "UPDATE users SET ExpirationStamp = '{} WHERE PlexUsername = '{}'".format(str(timestamp), str(plexUsername))
             # Awaiting SQLite 3.24 support/adoption to use cleaner UPSERT function
         else:
             query = "INSERT OR IGNORE INTO users (DiscordID, PlexUsername{serverNumOpt}, Note) VALUES ('{discordId}'," \
-                    "'{plexUsername}'{serverNum}, '{note}'".format(serverNumOpt=(
+                    "'{plexUsername}'{serverNum}, '{note}')".format(serverNumOpt=(
                 ", ServerNum" if serverNumber is not None else ""), discordId=str(discordId), plexUsername=str(
                 plexUsername), serverNum=((",'" + str(serverNumber) + "'") if serverNumber is not None else ""), note=str(note))
         cur.execute(str(query))
