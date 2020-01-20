@@ -2,36 +2,7 @@ import requests
 import socket
 import json
 from urllib.parse import urlencode
-import os
-
-JELLYFIN_URL = os.environ.get('JELLYFIN_URL')
-JELLYFIN_API_KEY = os.environ.get('JELLYFIN_KEY')
-JELLYFIN_ADMIN_USERNAME = os.environ.get('JELLYFIN_ADMIN_USER')
-JELLYFIN_ADMIN_PASSWORD = os.environ.get('JELLYFIN_ADMIN_PASS')
-
-JELLYFIN_USER_POLICY = {
-    "IsAdministrator": "false",
-    "IsHidden": "true",
-    "IsHiddenRemotely": "true",
-    "IsDisabled": "false",
-    "EnableRemoteControlOfOtherUsers": "false",
-    "EnableSharedDeviceControl": "false",
-    "EnableRemoteAccess": "true",
-    "EnableLiveTvManagement": "false",
-    "EnableLiveTvAccess": "false",
-    "EnableContentDeletion": "false",
-    "EnableContentDownloading": "false",
-    "EnableSyncTranscoding": "false",
-    "EnableSubtitleManagement": "false",
-    "EnableAllDevices": "true",
-    "EnableAllChannels": "false",
-    "EnablePublicSharing": "false",
-    "InvalidLoginAttemptCount": 5,
-    "BlockedChannels": [
-        "IPTV",
-        "TVHeadEnd Recordings"
-    ]
-}
+import jellyfin.settings as settings
 
 token_header = None
 admin_id = None
@@ -50,8 +21,8 @@ def authenticate():
             Version=1,
             Token=""  # not required
         )}
-    data = {'Username': JELLYFIN_ADMIN_USERNAME, 'Password': JELLYFIN_ADMIN_PASSWORD,
-            'Pw': JELLYFIN_ADMIN_PASSWORD}
+    data = {'Username': settings.JELLYFIN_ADMIN_USERNAME, 'Password': settings.JELLYFIN_ADMIN_PASSWORD,
+            'Pw': settings.JELLYFIN_ADMIN_PASSWORD}
     try:
         res = postWithToken(hdr=xEmbyAuth, method='/Users/AuthenticateByName', data=data).json()
         token_header = {'X-Emby-Token': '{}'.format(res['AccessToken'])}
@@ -62,29 +33,32 @@ def authenticate():
 
 def get(cmd, params=None):
     return json.loads(requests.get(
-        '{}{}?api_key={}{}'.format(JELLYFIN_URL, cmd, JELLYFIN_API_KEY, ("&" + params if params else ""))).text)
+        '{}{}?api_key={}{}'.format(settings.JELLYFIN_URL, cmd, settings.JELLYFIN_API_KEY,
+                                   ("&" + params if params else ""))).text)
 
 
 def getWithToken(hdr, method, data=None):
     hdr = {'accept': 'application/json', **hdr}
-    res = requests.get('{}{}'.format(JELLYFIN_URL, method), headers=hdr, data=json.dumps(data)).json()
+    res = requests.get('{}{}'.format(settings.JELLYFIN_URL, method), headers=hdr, data=json.dumps(data)).json()
     return res
 
 
 def post(cmd, params, payload):
     return requests.post(
-        '{}{}?api_key={}{}'.format(JELLYFIN_URL, cmd, JELLYFIN_API_KEY, ("&" + params if params is not None else "")),
+        '{}{}?api_key={}{}'.format(settings.JELLYFIN_URL, cmd, settings.JELLYFIN_API_KEY,
+                                   ("&" + params if params is not None else "")),
         json=payload)
 
 
 def postWithToken(hdr, method, data=None):
     hdr = {'accept': 'application/json', 'Content-Type': 'application/json', **hdr}
-    return requests.post('{}{}'.format(JELLYFIN_URL, method), headers=hdr, data=json.dumps(data))
+    return requests.post('{}{}'.format(settings.JELLYFIN_URL, method), headers=hdr, data=json.dumps(data))
 
 
 def delete(cmd, params):
     return requests.delete(
-        '{}{}?api_key={}{}'.format(JELLYFIN_URL, cmd, JELLYFIN_API_KEY, ("&" + params if params is not None else "")))
+        '{}{}?api_key={}{}'.format(settings.JELLYFIN_URL, cmd, settings.JELLYFIN_API_KEY,
+                                   ("&" + params if params is not None else "")))
 
 
 def makeUser(username):
@@ -121,7 +95,7 @@ def setUserPassword(userId, currentPass, newPass):
 
 def updatePolicy(userId, policy=None):
     if not policy:
-        policy = JELLYFIN_USER_POLICY
+        policy = settings.JELLYFIN_USER_POLICY
     url = '/Users/{}/Policy'.format(userId)
     return postWithToken(hdr=token_header, method=url, data=policy)
 
@@ -163,3 +137,7 @@ def addToPlaylist(playlistId, itemIds):
 def statsCustomQuery(query):
     url = '/user_usage_stats/submit_custom_query'
     return post(url, None, query)
+
+
+def getStatus():
+    return requests.get('{}/swagger'.format(settings.JELLYFIN_URL), timeout=10).status_code

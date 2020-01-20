@@ -24,7 +24,7 @@ class DB:
         cur = conn.cursor()
         query = ""
         if note == 't':
-            timestamp = int(time.time()) + (3600 * self.TRIAL_LENGTH)
+            timestamp = int(time.time()) + self.TRIAL_LENGTH
             query = "INSERT OR IGNORE INTO users (DiscordID, PlexUsername, ExpirationStamp{serverNumOpt}, " \
                     "Note) VALUES ('{discordId}', '{plexUsername}', '{expirationStamp}'{serverNum}, '{note}')"\
                 .format(serverNumOpt=(", ServerNum" if serverNumber is not None else ""), discordId=discordId, plexUsername=plexUsername, expirationStamp=str(timestamp), serverNum=((",'" + serverNumber + "'") if serverNumber else ""), note=str(note))
@@ -119,7 +119,7 @@ class DB:
     def getTrials(self):
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
-        query = "SELECT DiscordID FROM users WHERE ExpirationStamp<={time} AND Note = 't'".format(str(int(time.time())))
+        query = "SELECT DiscordID FROM users WHERE ExpirationStamp<={} AND Note = 't'".format(str(int(time.time())))
         cur.execute(str(query))
         results = cur.fetchall()
         cur.close()

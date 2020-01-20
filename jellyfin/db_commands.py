@@ -24,7 +24,7 @@ class DB:
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
         if note == 't':
-            timestamp = int(time.time()) + (3600 * self.TRIAL_LENGTH)
+            timestamp = int(time.time()) + self.TRIAL_LENGTH
             query = "INSERT OR IGNORE INTO users (DiscordID, JellyfinUsername, JellyfinID, ExpirationStamp, " \
                     "Note) VALUES ('{did}', '{ju}', '{jid}', '{time}', '{note}')".format(
                 did=str(DiscordId), ju=str(JellyfinName), jid=str(JellyfinId), time=str(timestamp), note=str(note))

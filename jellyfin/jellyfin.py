@@ -182,7 +182,7 @@ class Jellyfin(commands.Cog):
                     await user.create_dm()
                     await user.dm_channel.send(
                         "You have been removed from {} due to inactivity.".format(str(settings.JELLYFIN_SERVER_NICKNAME)))
-                    await user.remove_roles(discord.utils.get(self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).roles, name="Winner"),
+                    await user.remove_roles(discord.utils.get(self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).roles, name=settings.WINNER_ROLE_NAME),
                                             reason="Inactive winner")
                     return "<@{}>, ".format(id)
         except Exception as e:

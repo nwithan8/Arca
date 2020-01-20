@@ -1,3 +1,4 @@
+cryptography
 discord
 requests
 imdbpie
