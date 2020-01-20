@@ -24,6 +24,21 @@ imdb = Imdb()
 shows = defaultdict(list)
 movies = defaultdict(list)
 
+if settings.USE_OMBI:
+    OMBI_URL = '{}/api/v1/'.format(settings.OMBI_URL)
+    ombi_import = '{}Job/plexuserimporter'.format(OMBI_URL)
+    ombi_users = '{}Identity/Users'.format(OMBI_URL)
+    ombi_delete = '{}Identity/'.format(OMBI_URL)
+    ombi_movie_count = '{}Request/movie/total'.format(OMBI_URL)
+    ombi_movie_id = '{}Request/movie/1/'.format(OMBI_URL)
+    ombi_approve_movie = '{}Request/movie/approve'.format(OMBI_URL)
+    ombi_tv_count = '{}Request/tv/total'.format(OMBI_URL)
+    ombi_tv_id = '{}Request/tv/1/'.format(OMBI_URL)
+    ombi_approve_tv = '{}Request/tv/approve'.format(OMBI_URL)
+    approve_header = {'ApiKey': settings.OMBI_API_KEY, 'accept': 'application/json',
+                      'Content-Type': 'application/json-patch+json'}
+    ombi_headers = {'ApiKey': settings.OMBI_API_KEY}
+
 
 def t_request(cmd, params, serverNumber=None):
     if params:
@@ -279,3 +294,29 @@ def getPlexUsers(serverNumber=None):
                 if s.name == tempServerName or s.name == tempServerAltName:
                     users.append(u.username.lower())
     return users
+
+
+def add_to_tautulli(plexname, serverNumber=None):
+    if settings.USE_TAUTULLI:
+        response = t_request("refresh_users_list", None, serverNumber)
+
+
+def delete_from_tautulli(plexname, serverNumber=None):
+    if settings.USE_TAUTULLI:
+        response = t_request("delete_user", "user_id=" + str(plexname), serverNumber)
+
+
+def add_to_ombi(plexname):
+    if settings.USE_OMBI:
+        requests.post(ombi_import, headers=ombi_headers)
+
+
+def delete_from_ombi(plexname):
+    if settings.USE_OMBI:
+        data = requests.get(ombi_users, headers=ombi_headers).json()
+        uid = ""
+        for i in data:
+            if i['userName'].lower() == plexname:
+                uid = i['id']
+        delete = str(ombi_delete) + str(uid)
+        requests.delete(delete, headers=ombi_headers)

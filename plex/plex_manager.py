@@ -11,32 +11,14 @@ import time
 from plexapi.server import PlexServer
 import plexapi
 from plex.db_commands import DB
-import json
 from discord.ext import commands
 import plex.settings as settings
 import plex.plex_api as px
 
 plex = px.plex
 
-if settings.USE_OMBI:
-    OMBI_URL = '{}/api/v1/'.format(settings.OMBI_URL)
-    ombi_import = '{}Job/plexuserimporter'.format(OMBI_URL)
-    ombi_users = '{}Identity/Users'.format(OMBI_URL)
-    ombi_delete = '{}Identity/'.format(OMBI_URL)
-    ombi_movie_count = '{}Request/movie/total'.format(OMBI_URL)
-    ombi_movie_id = '{}Request/movie/1/'.format(OMBI_URL)
-    ombi_approve_movie = '{}Request/movie/approve'.format(OMBI_URL)
-    ombi_tv_count = '{}Request/tv/total'.format(OMBI_URL)
-    ombi_tv_id = '{}Request/tv/1/'.format(OMBI_URL)
-    ombi_approve_tv = '{}Request/tv/approve'.format(OMBI_URL)
-    approve_header = {'ApiKey': settings.OMBI_API_KEY, 'accept': 'application/json',
-                      'Content-Type': 'application/json-patch+json'}
-    ombi_headers = {'ApiKey': settings.OMBI_API_KEY}
-
 db = DB(settings.SQLITE_FILE, settings.MULTI_PLEX, (settings.TRIAL_LENGTH * 3600))
 
-
-# Code below #
 
 def trial_message(startOrStop, serverNumber=None):
     if startOrStop == 'start':
@@ -46,32 +28,6 @@ def trial_message(startOrStop, serverNumber=None):
     else:
         return "Hello, your {}-hour trial of {} has ended".format(settings.TRIAL_LENGTH, settings.PLEX_SERVER_NAME[
             serverNumber] if serverNumber else settings.PLEX_SERVER_NAME[0])
-
-
-def add_to_tautulli(serverNumber=None):
-    if settings.USE_TAUTULLI:
-        response = px.t_request("refresh_users_list", None, serverNumber)
-
-
-def delete_from_tautulli(plexname, serverNumber=None):
-    if settings.USE_TAUTULLI:
-        response = px.t_request("delete_user", "user_id={plexname}".format(str(plexname)), serverNumber)
-
-
-def add_to_ombi():
-    if settings.USE_OMBI:
-        requests.post(ombi_import, headers=ombi_headers)
-
-
-def delete_from_ombi(plexname):
-    if settings.USE_OMBI:
-        data = requests.get(ombi_users, headers=ombi_headers).json()
-        id = ""
-        for i in data:
-            if i['userName'].lower() == plexname:
-                uid = i['id']
-        delete = str(ombi_delete) + str(uid)
-        requests.delete(delete, headers=ombi_headers)
 
 
 async def add_to_plex(plexname, discordId, note, serverNumber=None):
@@ -84,9 +40,9 @@ async def add_to_plex(plexname, discordId, note, serverNumber=None):
                                                   allowCameraUpload=False, allowChannels=False, filterMovies=None,
                                                   filterTelevision=None, filterMusic=None)
             await asyncio.sleep(30)
-            add_to_tautulli(serverNumber)
+            px.add_to_tautulli(serverNumber)
             if note != 't':  # Trial members do not have access to Ombi
-                add_to_ombi()
+                px.add_to_ombi()
             return True
         else:
             print("{} could not be added to the database.".format(plexname))
@@ -109,8 +65,8 @@ def delete_from_plex(id):
         if plexname is not None:
             tempPlex.myPlexAccount().removeFriend(user=plexname)
             if note != 't':
-                delete_from_ombi(plexname)  # Error if trying to remove trial user that doesn't exist in Ombi?
-            delete_from_tautulli(plexname, serverNumber)
+                px.delete_from_ombi(plexname)  # Error if trying to remove trial user that doesn't exist in Ombi?
+            px.delete_from_tautulli(plexname, serverNumber)
             db.remove_user_from_db(id)
             return True, serverNumber
         else:
@@ -403,7 +359,6 @@ class PlexManager(commands.Cog):
         Mention the Discord user and their Plex username
         Include optional serverNumber to add to a specific server (if using multiple Plex servers)
         """
-        added = False
         if settings.MULTI_PLEX:
             if serverNumber is None:  # No specific number indicated. Defaults adding to the least-fill server
                 serverNumber = px.getSmallestServer()
@@ -435,7 +390,8 @@ class PlexManager(commands.Cog):
                     role = discord.utils.get(ctx.message.guild.roles, name=settings.AFTER_APPROVED_ROLE_NAME)
                     await user.add_roles(role, reason="Access membership channels")
                     await ctx.send(
-                        user.mention + " You've been invited, " + PlexUsername + ". Welcome to " + settings.PLEX_SERVER_NAME[0] + "!")
+                        user.mention + " You've been invited, " + PlexUsername + ". Welcome to " +
+                        settings.PLEX_SERVER_NAME[0] + "!")
                 else:
                     await ctx.send(user.name + " could not be added to Plex.")
             except plexapi.exceptions.BadRequest:
@@ -497,7 +453,8 @@ class PlexManager(commands.Cog):
                 await ctx.send(PlexUsername + " is not a valid Plex username.")
         else:
             await ctx.send(
-                'Starting ' + settings.PLEX_SERVER_NAME[0] + ' trial for ' + PlexUsername + '. Please wait about 30 seconds...')
+                'Starting ' + settings.PLEX_SERVER_NAME[
+                    0] + ' trial for ' + PlexUsername + '. Please wait about 30 seconds...')
             try:
                 added = await add_to_plex(PlexUsername, user.id, 't')
                 if added:
@@ -674,7 +631,8 @@ class PlexManager(commands.Cog):
                         serverNumber = px.getSmallestServer()
                     await add_to_plex(plexname, message.author.id, 'w', serverNumber)
                     await message.channel.send(
-                        message.author.mention + " You've been invited, " + plexname + ". Welcome to " + settings.PLEX_SERVER_NAME[serverNumber] + "!")
+                        message.author.mention + " You've been invited, " + plexname + ". Welcome to " +
+                        settings.PLEX_SERVER_NAME[serverNumber] + "!")
                     await message.author.remove_roles(
                         discord.utils.get(message.guild.roles, name=settings.TEMP_WINNER_ROLE_NAME),
                         reason="Winner was processed successfully.")
