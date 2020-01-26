@@ -73,3 +73,12 @@ GIVEAWAY_BOT_ID = 0  # User ID for the Giveaway Bot that announces contest winne
 # Credentials settings
 CREDENTIALS_FOLDER = 'plex/credentials'
 
+# Plex Recs settings
+# ex. 'oneWordLowercaseNicknameForGroup': [libraryNumber, libraryNumber]
+# Separate each group listing by a , like below
+PLEX_RECS_LIBRARIES = {
+    'movie': [1],
+    'show': [2],
+    'artist': [3, 6],
+    '4kmovie': [4]
+}

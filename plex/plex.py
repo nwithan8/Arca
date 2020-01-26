@@ -12,6 +12,7 @@ import asyncio
 import plex.plex_api as px
 from plex.db_commands import DB
 import plex.settings as settings
+import plex.plex_recs as pr
 
 db = DB(settings.SQLITE_FILE, None, None)
 
@@ -37,9 +38,11 @@ def selectIcon(state):
 
 class Plex(commands.Cog):
 
-    @tasks.loop(count=1)
-    async def getLibraries(self):
-        px.getLibraries()
+    @tasks.loop(minutes=60.0)  # update library every hour
+    async def makeLibraries(self):
+        pr.cleanLibraries()
+        for groupName in pr.libraries.keys():
+            pr.makeLibrary(groupName)
         print("Libraries updated.")
         print("Plex ready.")
 
@@ -54,44 +57,111 @@ class Plex(commands.Cog):
     @plex.group(name="rec", aliases=["sug", "recommend", "suggest"], pass_context=True)
     async def plex_rec(self, ctx: commands.Context, mediaType: str):
         """
-        Movie or show recommendations from Plex
-        
-        Say 'movie' or 'show'.
-        Use 'plex rec <mediaType> new <PlexUsername> for a unwatched recommendation.
+        Movie, show or artist recommendation from Plex
+
+        Say 'movie', 'show' or 'artist'
+        Use 'plexrec <mediaType> new <PlexUsername>' for an unwatched recommendation.
         """
         if ctx.invoked_subcommand is None:
-            if mediaType.lower() not in ('movie', 'show'):
-                await ctx.send("Please try again, indicating either 'movie' or 'show'")
+            mediaType = mediaType.lower()
+            if mediaType.lower() not in pr.libraries.keys():
+                acceptedTypes = "', '".join(pr.libraries.keys())
+                await ctx.send("Please try again, indicating '{}'".format(acceptedTypes))
             else:
-                await ctx.send("Looking for a " + mediaType + "...")
+                holdMessage = await ctx.send(
+                    "Looking for a{} {}...".format("n" if (mediaType[0] in ['a', 'e', 'i', 'o', 'u']) else "",
+                                                   mediaType))
                 async with ctx.typing():
-                    res, att, sugg = px.recommend(mediaType, False, None)
-                    if att is not None:
-                        await ctx.send(res, embed=att)
-                    else:
-                        await ctx.send(res)
+                    response, embed, mediaItem = pr.makeRecommendation(mediaType, False, None)
+                await holdMessage.delete()
+                if embed is not None:
+                    await ctx.send(response, embed=embed)
+                else:
+                    await ctx.send(response)
+                if str(ctx.message.author.id) == str(settings.DISCORD_ADMIN_ID):
+                    response, numberOfPlayers = pr.getPlayers(mediaType)
+                    if response:
+                        askAboutPlayer = True
+                        while askAboutPlayer:
+                            try:
+                                def check(react, reactUser, numPlayers):
+                                    return str(react.emoji) in emoji_numbers[
+                                                               :numberOfPlayers] and reactUser.id == settings.DISCORD_ADMIN_ID
+
+                                playerQuestion = await ctx.send(response)
+                                for i in range(0, numberOfPlayers - 1):
+                                    await playerQuestion.add_reaction(emoji_numbers[i])
+                                reaction, user = await self.bot.wait_fo('reaction_add', timeout=60.0, check=check)
+                                if reaction:
+                                    playerNumber = emoji_numbers.index(str(reaction.emoji))
+                                    mediaItem = pr.getFullMediaItem(mediaItem)
+                                    if mediaItem:
+                                        pr.playMedia(playerNumber, mediaItem)
+                                    else:
+                                        await ctx.send(
+                                            "Sorry, something went wrong while loading that {}.".format(mediaType))
+                            except asyncio.TimeoutError:
+                                await playerQuestion.delete()
+                                askAboutPlayer = False
 
     @plex_rec.error
     async def plex_rec_error(self, ctx, error):
-        await ctx.send("Please indicate either 'movie' or 'show'. Add 'new <username>' for an unseen suggestion.")
+        print(error)
+        await ctx.send("Sorry, something went wrong while looking for a recommendation.")
 
     @plex_rec.command(name="new", aliases=["unseen"])
     async def plex_rec_new(self, ctx: commands.Context, PlexUsername: str):
         """
-        Get a new movie or show recommendation
+        Get a new movie, show or artist recommendation
+        Include your Plex username
         """
-        mediaType = "movie" if "movie" in str(ctx.message.content).lower() else (
-            "show" if "show" in str(ctx.message.content).lower() else None)
+        mediaType = None
+        for group in pr.libraries.keys():
+            if group in ctx.message.content.lower():
+                mediaType = group
+                break
         if not mediaType:
-            await ctx.send("Please try again, indicating either 'movie' or 'show'")
+            acceptedTypes = "', '".join(pr.libraries.keys())
+            await ctx.send("Please try again, indicating '{}'".format(acceptedTypes))
         else:
-            await ctx.send("Looking for a new " + mediaType + "...")
+            holdMessage = await ctx.send("Looking for a new {}...".format(mediaType))
             async with ctx.typing():
-                res, att, sugg = px.recommend(mediaType, True, PlexUsername)
-                if att is not None:
-                    await ctx.send(res, embed=att)
-                else:
-                    await ctx.send(res)
+                response, embed, mediaItem = pr.makeRecommendation(mediaType, True, PlexUsername)
+            await holdMessage.delete()
+            if embed is not None:
+                await ctx.send(response, embed=embed)
+            else:
+                await ctx.send(response)
+            if str(ctx.message.author.id) == str(settings.DISCORD_ADMIN_ID):
+                response, numberOfPlayers = pr.getPlayers(mediaType)
+                if response:
+                    askAboutPlayer = True
+                    while askAboutPlayer:
+                        try:
+                            def check(react, reactUser, numPlayers):
+                                return str(react.emoji) in emoji_numbers[
+                                                           :numberOfPlayers] and reactUser.id == settings.DISCORD_ADMIN_ID
+
+                            playerQuestion = await ctx.send(response)
+                            for i in range(0, numberOfPlayers - 1):
+                                await playerQuestion.add_reaction(emoji_numbers[i])
+                            reaction, user = await self.bot.wait_fo('reaction_add', timeout=60.0, check=check)
+                            if reaction:
+                                playerNumber = emoji_numbers.index(str(reaction.emoji))
+                                mediaItem = pr.getFullMediaItem(mediaItem)
+                                if mediaItem:
+                                    pr.playMedia(playerNumber, mediaItem)
+                                else:
+                                    await ctx.send(
+                                        "Sorry, something went wrong while loading that {}.".format(mediaType))
+                        except asyncio.TimeoutError:
+                            await playerQuestion.delete()
+                            askAboutPlayer = False
+
+    @plex_rec_new.error
+    async def plex_rec_new_error(self, ctx, error):
+        print(error)
+        await ctx.send("Sorry, something went wrong while looking for a new recommendation.")
 
     @plex.command(name="stats", aliases=["statistics"], pass_context=True)
     async def plex_stats(self, ctx: commands.Context, PlexUsername: str):
@@ -158,7 +228,8 @@ class Plex(commands.Cog):
             timeRange) + (' days' if int(timeRange) > 1 else ' day'))
         count = 1
         if searchTerm.lower() == "movies":
-            for m in px.t_request("get_home_stats", "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
+            for m in \
+            px.t_request("get_home_stats", "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
                 'response']['data'][0]['rows']:
                 embed.add_field(name=str(count) + ". " + str(m['title']),
                                 value=str(m['total_plays']) + (" plays" if int(m['total_plays']) > 1 else " play"),
@@ -166,7 +237,8 @@ class Plex(commands.Cog):
                 count = count + 1
             await ctx.send(embed=embed)
         elif searchTerm.lower() == "shows":
-            for m in px.t_request("get_home_stats", "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
+            for m in \
+            px.t_request("get_home_stats", "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
                 'response']['data'][1]['rows']:
                 embed.add_field(name=str(count) + ". " + str(m['title']),
                                 value=str(m['total_plays']) + (" plays" if int(m['total_plays']) > 1 else " play"),
@@ -174,7 +246,8 @@ class Plex(commands.Cog):
                 count = count + 1
             await ctx.send(embed=embed)
         elif searchTerm.lower() == "artists":
-            for m in px.t_request("get_home_stats", "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
+            for m in \
+            px.t_request("get_home_stats", "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
                 'response']['data'][2]['rows']:
                 embed.add_field(name=str(count) + ". " + str(m['title']),
                                 value=str(m['total_plays']) + (" plays" if int(m['total_plays']) > 1 else " play"),
@@ -182,7 +255,8 @@ class Plex(commands.Cog):
                 count = count + 1
             await ctx.send(embed=embed)
         elif searchTerm.lower() == "users":
-            for m in px.t_request("get_home_stats", "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
+            for m in \
+            px.t_request("get_home_stats", "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
                 'response']['data'][7]['rows']:
                 embed.add_field(name=str(count) + ". " + str(m['friendly_name']),
                                 value=str(m['total_plays']) + (" plays" if int(m['total_plays']) > 1 else " play"),
@@ -252,8 +326,8 @@ class Plex(commands.Cog):
                             try:
                                 loc = emoji_numbers.index(str(reaction.emoji))
                                 px.t_request('terminate_session',
-                                        'session_id=' + str(session_ids[loc]) + '&message=' + str(
-                                            settings.TERMINATE_MESSAGE))
+                                             'session_id=' + str(session_ids[loc]) + '&message=' + str(
+                                                 settings.TERMINATE_MESSAGE))
                                 end_notification = await ctx.send(content="Stream " + str(loc + 1) + " was ended.")
                                 await end_notification.delete(delay=1.0)
                             except:
@@ -320,7 +394,7 @@ class Plex(commands.Cog):
                         await ra_embed.edit(embed=e)
                         await ra_embed.clear_reactions()
                 else:
-                    if (cur - 1 >= 0):
+                    if cur - 1 >= 0:
                         cur = cur - 1
                         url = settings.TAUTULLI_BASE_URL + "/api/v2?apikey=" + settings.TAUTULLI_API_KEY + "&cmd=pms_image_proxy&img=" + \
                               recently_added['response']['data']['recently_added'][cur]['thumb']
@@ -374,9 +448,10 @@ class Plex(commands.Cog):
                     libraryID, title = px.getMediaInfo(ratingKey)
                     mediaItem = px.getMediaItem(title, ratingKey, libraryID)
                     if mediaItem:
-                        playlist_title = settings.SUBSCRIBER_PLAYLIST_TITLE.format(username) if mediaItem.type in ['artist',
-                                                                                                          'album',
-                                                                                                          'track'] else settings.SUBSCRIBER_WATCHLIST_TITLEs.format(
+                        playlist_title = settings.SUBSCRIBER_PLAYLIST_TITLE.format(username) if mediaItem.type in [
+                            'artist',
+                            'album',
+                            'track'] else settings.SUBSCRIBER_WATCHLIST_TITLEs.format(
                             username)
                         try:
                             playlist = px.checkPlaylist(playlist_title)
@@ -407,4 +482,4 @@ class Plex(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         print("Plex - updating libraries...")
-        self.getLibraries.start()
+        self.makeLibraries.start()
