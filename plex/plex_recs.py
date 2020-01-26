@@ -162,7 +162,7 @@ def makeRecommendation(mediaType, unwatched, PlexUsername):
     else:
         recommendation = findRec(None, mediaType, False)
     embed = makeEmbed(recommendation)
-    return "How about {}?\nClick 🎞️ to watch a trailer.".format(recommendation.title), embed, recommendation
+    return "How about {}?{}".format(recommendation.title, ('\nClick 🎞️ to watch a trailer.' if recommendation.type not in ['artist', 'album', 'track'] else "")), embed, recommendation
 
 
 def getPlayers(mediaType):
