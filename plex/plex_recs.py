@@ -162,7 +162,7 @@ def makeRecommendation(mediaType, unwatched, PlexUsername):
     else:
         recommendation = findRec(None, mediaType, False)
     embed = makeEmbed(recommendation)
-    return "How about {}?\nClick the 'film' reaction to watch a trailer.".format(recommendation.title), embed, recommendation
+    return "How about {}?\nClick 🎞️ to watch a trailer.".format(recommendation.title), embed, recommendation
 
 
 def getPlayers(mediaType):
