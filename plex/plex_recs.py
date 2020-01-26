@@ -34,7 +34,7 @@ def request(cmd, params):
 def cleanLibraries():
     global libraries
     for groupName, items in libraries.items():
-        items[1].clear
+        libraries[groupName][1] = []
 
 
 class SmallMediaItem:

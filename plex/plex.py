@@ -185,6 +185,17 @@ class Plex(commands.Cog):
         print(error)
         await ctx.send("Sorry, something went wrong while looking for a new recommendation.")
 
+    @plex.command(name="update", aliases=["refresh"], pass_context=True)
+    async def plex_update(self, ctx: commands.Context):
+        """
+        Update Plex libraries for Plex Recs
+        """
+        message = await ctx.send("Updating Plex libraries...")
+        pr.cleanLibraries()
+        for groupName in pr.libraries.keys():
+            pr.makeLibrary(groupName)
+        await message.edit(content="Plex libraries updated.")
+
     @plex.command(name="stats", aliases=["statistics"], pass_context=True)
     async def plex_stats(self, ctx: commands.Context, PlexUsername: str):
         """
@@ -215,7 +226,7 @@ class Plex(commands.Cog):
         """
         Size of Plex libraries
         """
-        embed = discord.Embed(title=settings.PLEX_SERVER_NICKNAME + " Library Statistics")
+        embed = discord.Embed(title=settings.PLEX_SERVER_NAME[0] + " Library Statistics")
         size = 0
         for l in px.t_request("get_libraries", None)['response']['data']:
             if l['section_name'] not in ['']:  # Exempt sections from list if needed
@@ -372,7 +383,7 @@ class Plex(commands.Cog):
         """
         See recently added content
         """
-        e = discord.Embed(title="Recently Added to " + str(settings.PLEX_SERVER_NICKNAME))
+        e = discord.Embed(title="Recently Added to " + str(settings.PLEX_SERVER_NAME[0]))
         count = 5
         cur = 0
         recently_added = px.t_request("get_recently_added", "count=" + str(count))
