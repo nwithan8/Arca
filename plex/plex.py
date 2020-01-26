@@ -75,9 +75,20 @@ class Plex(commands.Cog):
                     response, embed, mediaItem = pr.makeRecommendation(mediaType, False, None)
                 await holdMessage.delete()
                 if embed is not None:
-                    await ctx.send(response, embed=embed)
+                    recMessage = await ctx.send(response, embed=embed)
                 else:
                     await ctx.send(response)
+                if mediaItem.type not in ['artist', 'album', 'track']:
+                    await recMessage.add_reaction('🎞️')
+                    try:
+                        def check(trailerReact, trailerReactUser):
+                            return trailerReact.emoji == '🎞️' and trailerReactUser.id != self.bot.user.id
+
+                        showTrailer, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
+                        if showTrailer:
+                            await ctx.send(pr.getTrailerURL(mediaItem))
+                    except asyncio.TimeoutError:
+                        await recMessage.clear_reactions()
                 if str(ctx.message.author.id) == str(settings.DISCORD_ADMIN_ID):
                     response, numberOfPlayers = pr.getPlayers(mediaType)
                     if response:
@@ -91,7 +102,7 @@ class Plex(commands.Cog):
                                 playerQuestion = await ctx.send(response)
                                 for i in range(0, numberOfPlayers - 1):
                                     await playerQuestion.add_reaction(emoji_numbers[i])
-                                reaction, user = await self.bot.wait_fo('reaction_add', timeout=60.0, check=check)
+                                reaction, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
                                 if reaction:
                                     playerNumber = emoji_numbers.index(str(reaction.emoji))
                                     mediaItem = pr.getFullMediaItem(mediaItem)
@@ -129,9 +140,20 @@ class Plex(commands.Cog):
                 response, embed, mediaItem = pr.makeRecommendation(mediaType, True, PlexUsername)
             await holdMessage.delete()
             if embed is not None:
-                await ctx.send(response, embed=embed)
+                recMessage = await ctx.send(response, embed=embed)
             else:
                 await ctx.send(response)
+            if mediaItem.type not in ['artist', 'album', 'track']:
+                await recMessage.add_reaction('🎞️')
+                try:
+                    def check(trailerReact, trailerReactUser):
+                        return trailerReact.emoji == '🎞️' and trailerReactUser.id != self.bot.user.id
+
+                    showTrailer, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
+                    if showTrailer:
+                        await ctx.send(pr.getTrailerURL(mediaItem))
+                except asyncio.TimeoutError:
+                    await recMessage.clear_reactions()
             if str(ctx.message.author.id) == str(settings.DISCORD_ADMIN_ID):
                 response, numberOfPlayers = pr.getPlayers(mediaType)
                 if response:
@@ -145,7 +167,7 @@ class Plex(commands.Cog):
                             playerQuestion = await ctx.send(response)
                             for i in range(0, numberOfPlayers - 1):
                                 await playerQuestion.add_reaction(emoji_numbers[i])
-                            reaction, user = await self.bot.wait_fo('reaction_add', timeout=60.0, check=check)
+                            reaction, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
                             if reaction:
                                 playerNumber = emoji_numbers.index(str(reaction.emoji))
                                 mediaItem = pr.getFullMediaItem(mediaItem)
@@ -229,8 +251,9 @@ class Plex(commands.Cog):
         count = 1
         if searchTerm.lower() == "movies":
             for m in \
-            px.t_request("get_home_stats", "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
-                'response']['data'][0]['rows']:
+                    px.t_request("get_home_stats",
+                                 "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
+                        'response']['data'][0]['rows']:
                 embed.add_field(name=str(count) + ". " + str(m['title']),
                                 value=str(m['total_plays']) + (" plays" if int(m['total_plays']) > 1 else " play"),
                                 inline=False)
@@ -238,8 +261,9 @@ class Plex(commands.Cog):
             await ctx.send(embed=embed)
         elif searchTerm.lower() == "shows":
             for m in \
-            px.t_request("get_home_stats", "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
-                'response']['data'][1]['rows']:
+                    px.t_request("get_home_stats",
+                                 "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
+                        'response']['data'][1]['rows']:
                 embed.add_field(name=str(count) + ". " + str(m['title']),
                                 value=str(m['total_plays']) + (" plays" if int(m['total_plays']) > 1 else " play"),
                                 inline=False)
@@ -247,8 +271,9 @@ class Plex(commands.Cog):
             await ctx.send(embed=embed)
         elif searchTerm.lower() == "artists":
             for m in \
-            px.t_request("get_home_stats", "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
-                'response']['data'][2]['rows']:
+                    px.t_request("get_home_stats",
+                                 "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
+                        'response']['data'][2]['rows']:
                 embed.add_field(name=str(count) + ". " + str(m['title']),
                                 value=str(m['total_plays']) + (" plays" if int(m['total_plays']) > 1 else " play"),
                                 inline=False)
@@ -256,8 +281,9 @@ class Plex(commands.Cog):
             await ctx.send(embed=embed)
         elif searchTerm.lower() == "users":
             for m in \
-            px.t_request("get_home_stats", "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
-                'response']['data'][7]['rows']:
+                    px.t_request("get_home_stats",
+                                 "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
+                        'response']['data'][7]['rows']:
                 embed.add_field(name=str(count) + ". " + str(m['friendly_name']),
                                 value=str(m['total_plays']) + (" plays" if int(m['total_plays']) > 1 else " play"),
                                 inline=False)

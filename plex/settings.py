@@ -82,3 +82,5 @@ PLEX_RECS_LIBRARIES = {
     'artist': [3, 6],
     '4kmovie': [4]
 }
+
+YOUTUBE_API_KEY = 'AIzaSyB4DdmAkhKtJ6NMgSJIgMCFkVJ8KD1uBk0'

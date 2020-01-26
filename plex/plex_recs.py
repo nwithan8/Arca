@@ -6,6 +6,7 @@ import random
 from progress.bar import Bar
 import plex.plex_api as px
 import plex.settings as settings
+from urllib.parse import quote
 
 imdbf = ImdbFacade()
 imdb = Imdb()
@@ -37,12 +38,12 @@ def cleanLibraries():
 
 
 class SmallMediaItem:
-    def __init__(self, title, year, ratingKey, librarySectionID, type):
+    def __init__(self, title, year, ratingKey, librarySectionID, mediaType):
         self.title = title
         self.year = year
         self.ratingKey = ratingKey
         self.librarySectionID = librarySectionID
-        self.type = type
+        self.type = mediaType
 
 
 def makeLibrary(libraryName):
@@ -55,7 +56,9 @@ def makeLibrary(libraryName):
                 bar = Bar('Loading {} (Library section {})'.format(libraryName, libraryNumber), max=int(count))
                 librarySection = px.plex.library.sectionByID(str(libraryNumber))
                 for item in librarySection.all():
-                    libraries[libraryName][1].append(SmallMediaItem(item.title, (None if librarySection.type == 'artist' else item.year), item.ratingKey, item.librarySectionID, item.type))
+                    libraries[libraryName][1].append(
+                        SmallMediaItem(item.title, (None if librarySection.type == 'artist' else item.year),
+                                       item.ratingKey, item.librarySectionID, item.type))
                     bar.next()
                 bar.finish()
             return True
@@ -77,7 +80,8 @@ def getPoster(embed, title):
 def makeEmbed(mediaItem):
     embed = discord.Embed(title=mediaItem.title,
                           url='{base}/web/index.html#!/server/{id}/details?key=%2Flibrary%2Fmetadata%2F{ratingKey}'.format(
-                              base=settings.PLEX_SERVER_URL[0], id=settings.PLEX_SERVER_ID[0], ratingKey=mediaItem.ratingKey,
+                              base=settings.PLEX_SERVER_URL[0], id=settings.PLEX_SERVER_ID[0],
+                              ratingKey=mediaItem.ratingKey,
                               description="Watch it on {}".format(settings.PLEX_SERVER_NAME[0])))
     if mediaItem.type not in ['artist', 'album', 'track']:
         embed = getPoster(embed, mediaItem.title)
@@ -115,6 +119,8 @@ def pickUnwatched(history, mediaList):
     """
     if history == "Error":
         return False
+    if len(history) >= mediaList:
+        return 'All'
     choice = random.choice(mediaList)
     if choice.title in history:
         return pickUnwatched(history, mediaList)
@@ -135,7 +141,8 @@ def findRec(username, mediaType, unwatched=False):
     """
     try:
         if unwatched:
-            return pickUnwatched(history=getHistory(username, libraries[mediaType][0]), mediaList=libraries[mediaType][1])
+            return pickUnwatched(history=getHistory(username, libraries[mediaType][0]),
+                                 mediaList=libraries[mediaType][1])
         else:
             return pickRandom(libraries[mediaType][1])
     except Exception as e:
@@ -150,10 +157,12 @@ def makeRecommendation(mediaType, unwatched, PlexUsername):
         recommendation = findRec(PlexUsername, mediaType, True)
         if not recommendation:
             return "I couldn't find that Plex username"
+        if recommendation == 'All':
+            return "You've already played everything in that section!"
     else:
         recommendation = findRec(None, mediaType, False)
     embed = makeEmbed(recommendation)
-    return "How about {}?".format(recommendation.title), embed, recommendation
+    return "How about {}?\nClick the 'film' reaction to watch a trailer.".format(recommendation.title), embed, recommendation
 
 
 def getPlayers(mediaType):
@@ -181,3 +190,14 @@ def getFullMediaItem(mediaItem):
 
 def playMedia(playerNumber, mediaItem):
     owner_players[playerNumber].goToMedia(mediaItem)
+
+
+def getTrailerURL(mediaItem):
+    url = 'https://www.googleapis.com/youtube/v3/search?q={query}&key={key}&part=snippet&type=video'.format(
+        query=quote('{} {} trailer'.format(mediaItem.title, ('movie' if mediaItem.type == 'movie' else 'tv show'))),
+        key=settings.YOUTUBE_API_KEY
+    )
+    result = requests.get(url).json()['items'][0]
+    if result:
+        return 'https://www.youtube.com/watch?v={}'.format(result['id']['videoId'])
+    return "Sorry, I couldn't grab the trailer."
