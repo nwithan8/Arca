@@ -53,6 +53,9 @@ class DB:
         conn.close()
 
     def find_user_in_db(self, PlexOrDiscord, data):
+        """
+        Get DiscordID ('Discord')/PlexUsername ('Plex') (PlexOrDiscord) of PlexUsername/DiscordID (data)
+        """
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
         query = "SELECT {getWhat} FROM users WHERE {whereWhat} = '{data}'".format(getWhat=("PlexUsername, Note" + (

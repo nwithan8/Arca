@@ -188,6 +188,28 @@ class PlexManager(commands.Cog):
                 print("Failed to remove Discord user " + str(u[0]) + " from Plex.")
         print("Plex trials check complete.")
 
+    @tasks.loop(seconds=60)
+    async def check_playing(self):
+        activity = px.t_request('get_activity')
+        if activity:
+            guild = await self.bot.fetch_guild(settings.DISCORD_SERVER_ID)
+            if guild:
+                watching_role = discord.utils.get(guild.roles,
+                                                  name=settings.CURRENTLY_PLAYING_ROLE_NAME)
+                guild = self.bot.get_guild(guild.id)  # Yes, this is unfortunately necessary
+                users_with_role = [member for member in guild.members if (watching_role in member.roles)]
+                active_users = [session['username'] for session in activity['response']['data']['sessions']]
+                # Remove old users first
+                for user in users_with_role:
+                    plexUsername = db.find_user_in_db('Plex', str(user.id))[0]
+                    if not plexUsername or plexUsername not in active_users:
+                        await user.remove_roles(watching_role, reason="Not watching Plex.")
+                # Now add new users
+                for username in active_users:
+                    discordID = db.find_user_in_db('Discord', username)[0]
+                    if discordID:
+                        await guild.get_member(int(discordID)).add_roles(watching_role, reason="Is watching Plex.")
+
     @commands.group(name="pm", aliases=["PM", "PlexMan", "plexman"], pass_context=True)
     async def pm(self, ctx: commands.Context):
         """
@@ -642,8 +664,9 @@ class PlexManager(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        self.check_trials.start()
-        self.check_subs.start()
+        #self.check_trials.start()
+        #self.check_subs.start()
+        self.check_playing.start()
 
     def __init__(self, bot):
         self.bot = bot

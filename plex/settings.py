@@ -24,17 +24,15 @@ SUBSCRIBER_WATCHLIST_TITLE = "{}'s Watchlist"
 SUBSCRIBER_PLAYLIST_TITLE = "{}'s Playlist"
 
 # Tautulli settings
+USE_TAUTULLI = True
 TAUTULLI_URL = []
 TAUTULLI_API_KEY = []
 MULTI_TAUTULLI = False
 
 # Ombi settings
-USE_OMBI = False
+USE_OMBI = True
 OMBI_URL = ''
 OMBI_API_KEY = ''
-
-# Credentials setting
-credentials_folder = 'plex/credentials'
 
 # Discord-to-Plex database (SQLite3)
 SQLITE_FILE = 'plex/PlexDiscord.db'  # File path + name + extension (i.e."/root/nwithan8-cogs/plex_manager/PlexDiscord.db"
@@ -50,6 +48,7 @@ AFTER_APPROVED_ROLE_NAME = ''  # Role given after someone is added to Plex
 SUB_ROLES = ["Monthly Subscriber", "Yearly Subscriber", "Winner", "Bot"]  # Users with any of these roles is exempt from removal
 EXEMPT_SUBS = [DISCORD_ADMIN_ID]  # Discord IDs for users exempt from subscriber checks/deletion, separated by commas
 SUB_CHECK_TIME = 7  # days
+CURRENTLY_PLAYING_ROLE_NAME = 'Watching'
 
 # Trial settings
 TRIAL_ROLE_NAME = "Trial Member"  # Role given to a trial user
@@ -82,5 +81,4 @@ PLEX_RECS_LIBRARIES = {
     'artist': [3, 6],
     '4kmovie': [4]
 }
-
 YOUTUBE_API_KEY = 'AIzaSyB4DdmAkhKtJ6NMgSJIgMCFkVJ8KD1uBk0'
