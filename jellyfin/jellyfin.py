@@ -272,13 +272,9 @@ class Jellyfin(commands.Cog):
         """
         List winners' Jellyfin usernames
         """
-        conn = sqlite3.connect(SQLITE_FILE)
         try:
-            response = "Winners:"
-            cur = conn.cursor()
-            cur.execute("SELECT JellyfinUsername FROM users WHERE Note = 'w'")
-            for u in cur.fetchall():
-                response = response + "\n" + (u[0])
+            winners = db.getWinners()
+            response = '\n'.join([u[0] for u in winners])
             await ctx.send(response)
         except Exception as e:
             await ctx.send("Error pulling winners from database.")
@@ -365,13 +361,13 @@ class Jellyfin(commands.Cog):
         """
         s = remove_from_jellyfin(user.id)
         if s == 200:
-            await ctx.send("You've been removed from " + str(settings.JELLYFIN_SERVER_NICKNAME) + ", " + user.mention + ".")
+            await ctx.send("You've been removed from {}, {}.".format(settings.JELLYFIN_SERVER_NICKNAME, user.mention))
         elif s == 600:
-            await ctx.send(user.mention + " could not be removed.")
+            await ctx.send("{} could not be removed.".format(user.mention))
         elif s == 700:
-            await ctx.send("There are no accounts for " + user.mention)
+            await ctx.send("There are no accounts for {}".format(user.mention))
         else:
-            await ctx.send("An error occurred while removing " + user.mention)
+            await ctx.send("An error occurred while removing {}".format(user.mention))
 
     @jellyfin_remove.error
     async def jellyfin_remove_error(self, ctx, error):
@@ -580,7 +576,6 @@ class Jellyfin(commands.Cog):
     async def on_ready(self):
         self.check_trials.start()
         self.check_subs.start()
-        pass
 
     def __init__(self, bot):
         self.bot = bot
