@@ -1,8 +1,0 @@
-discord
-requests
-mysql-connector-python
-asyncio
-urllib3
-bs4
-progress
-lxml
