@@ -7,7 +7,7 @@ import requests
 import plex.settings as settings
 from os.path import exists
 import xml.etree.ElementTree as ET
-from plex.encryption import Encryption
+from helper.encryption import Encryption
 
 plex = PlexServer(settings.PLEX_SERVER_URL[0], settings.PLEX_SERVER_TOKEN[0])
 
