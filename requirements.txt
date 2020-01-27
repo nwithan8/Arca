@@ -1,3 +1,4 @@
+aiohttp
 GitPython
 urllib3
 discord
@@ -10,3 +11,4 @@ feedparser
 PlexAPI
 progress
 lxml
+cryptography
