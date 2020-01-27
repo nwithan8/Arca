@@ -85,13 +85,15 @@ def add_to_emby(username, discordId, note, useEmbyConnect=False):
     """
     try:
         p = None
-        r = em.makeUser(username, connect=useEmbyConnect)
+        r = em.makeUser(username)
         if str(r.status_code).startswith('2'):
             uid = json.loads(r.text)['Id']
             p = add_password(uid)
             policyEnforced = False
             if not p:
                 print("Password update for {} failed. Moving on...".format(username))
+            if useEmbyConnect:
+                em.addConnectUser(connect_username=username, user_id=uid)
             success = db.add_user_to_db(discordId, username, uid, note)
             if success:
                 if update_policy(uid, settings.EMBY_USER_POLICY):
@@ -343,7 +345,8 @@ class Emby(commands.Cog):
         """
         Add a Discord user to Emby
         """
-        s, u, p = add_to_emby(username, user.id, 's', useEmbyConnect=(True if useEmbyConnect else False))
+        # s, u, p = add_to_emby(username, user.id, 's', useEmbyConnect=(True if useEmbyConnect else False))
+        s, u, p = add_to_emby(username, user.id, 's', useEmbyConnect=False)
         if s:
             await sendAddMessage(user, username, (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
             await ctx.send(
@@ -357,7 +360,7 @@ class Emby(commands.Cog):
         await ctx.send("Please mention the Discord user to add to Emby, as well as their Emby username.")
 
     @emby.command(name="connect", pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ID)
+    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
     async def emby_connect(self, ctx: commands.Context, user: discord.Member, embyConnectUsername: str):
         """
         Connect a local Emby user to an Emby Connect user
@@ -603,6 +606,7 @@ class Emby(commands.Cog):
     async def on_ready(self):
         self.check_trials.start()
         self.check_subs.start()
+        pass
 
     def __init__(self, bot):
         self.bot = bot

@@ -47,6 +47,7 @@ class DB:
                         note=str(note)
                     )
         cur.execute(str(query))
+        print(cur.rowcount)
         if int(cur.rowcount) > 0:
             result = True
         conn.commit()

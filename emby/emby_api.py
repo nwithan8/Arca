@@ -52,6 +52,8 @@ def post(cmd, params, payload):
 
 def postWithToken(hdr, method, data=None):
     hdr = {'accept': 'application/json', 'Content-Type': 'application/json', **hdr}
+    print(hdr)
+    print('{}{}'.format(settings.EMBY_URL, method))
     return requests.post('{}{}'.format(settings.EMBY_URL, method), headers=hdr, data=json.dumps(data))
 
 
@@ -61,20 +63,20 @@ def delete(cmd, params):
                                    ("&" + params if params is not None else "")))
 
 
-def makeUser(username, connect=False):
+def makeUser(username):
     url = '/Users/New'
     data = {
         'Name': str(username)
     }
-    res = post(url, None, payload=data)
-    if str(res.status_code).startswith('2') and connect:
-        return addConnectUser(username, res.json()['Id'])
-    return res
+    return post(url, None, payload=data)
 
 
 def addConnectUser(connect_username, user_id):
-    url = '/Users/{}/Connect/Link?ConnectUsername={}'.format(user_id, connect_username)
-    return postWithToken(hdr=token_header, method=url)
+    url = '/Users/{}/Connect/Link?connectUsername={}'.format(user_id, connect_username)
+    res = postWithToken(hdr=token_header, method=url)
+    print(res)
+    print(res.text)
+    return res
 
 
 def deleteUser(userId):

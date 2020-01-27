@@ -34,10 +34,10 @@ EMBY_USER_POLICY = {
 SQLITE_FILE = 'emby/EmbyDiscord.db'  # File path + name + extension (i.e. "/root/nwithan8-cogs/jellyfin_manager/JellyfinDiscord.db"
 '''
 Database schema:
-JellyfinDiscord.users
+EmbyDiscord.users
 0|DiscordID|VARCHAR(100)|1||0
-1|JellyfinUsername|VARCHAR(100)|0||0
-2|JellyfinID|VARCHAR(200)|1||0
+1|EmbyUsername|VARCHAR(100)|0||0
+2|EmbyID|VARCHAR(200)|1||0
 3|ExpirationStamp|INT(11)|0||0
 4|Note|VARCHAR(5)|0||0
 '''
