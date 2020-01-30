@@ -89,8 +89,8 @@ def getMediaItem(title, ratingKey=None, libraryID=None):
 
 
 def getMediaInfo(ratingKey):
-    r = requests.get('{}/library/metadata/{}?X-Plex-Token={}'.format(settings.PLEX_SERVER_URL, str(ratingKey),
-                                                                     PLEX_SERVER_TOKEN)).content
+    r = requests.get('{}/library/metadata/{}?X-Plex-Token={}'.format(settings.PLEX_SERVER_URL[0], str(ratingKey),
+                                                                     settings.PLEX_SERVER_TOKEN[0])).content
     tree = ET.fromstring(r)
     return tree.get('librarySectionID'), tree[0].get('title')
 
@@ -100,7 +100,7 @@ def getRatingKey(url):
 
 
 def getUrl(text):
-    pattern = '{}\S*'.format(settings.PLEX_SERVER_URL.replace('.', '\.'))
+    pattern = '{}\S*'.format(settings.PLEX_SERVER_URL[0].replace('.', '\.'))
     return str(re.search(pattern, text).group(0))
 
 
@@ -112,15 +112,15 @@ def checkPlaylist(playlistName):
 
 
 def urlInMessage(message):
-    if settings.PLEX_SERVER_ID in message.content and 'metadata%2F' in message.content:
+    if settings.PLEX_SERVER_ID[0] in message.content and 'metadata%2F' in message.content:
         return getUrl(message.content)
     if message.embeds:
         for embed in message.embeds:
-            if settings.PLEX_SERVER_ID in embed.title and 'metadata%2F' in embed.title:
+            if settings.PLEX_SERVER_ID[0] in embed.title and 'metadata%2F' in embed.title:
                 return getUrl(embed.title)
-            elif settings.PLEX_SERVER_ID in embed.description and 'metadata%2F' in embed.description:
+            elif settings.PLEX_SERVER_ID[0] in embed.description and 'metadata%2F' in embed.description:
                 return getUrl(embed.description)
-            elif settings.PLEX_SERVER_ID in embed.description and 'metadata%2F' in embed.url:
+            elif settings.PLEX_SERVER_ID[0] in embed.description and 'metadata%2F' in embed.url:
                 return getUrl(embed.url)
         return None
     return None
@@ -129,7 +129,7 @@ def urlInMessage(message):
 def getSmallestServer():
     serverNumber = 0
     smallestCount = 100
-    for i in len(0, settings.PLEX_SERVER_URL):
+    for i in len(0, settings.PLEX_SERVER_URL[0]):
         tempCount = countServerSubs(i)
         if tempCount < smallestCount:
             serverNumber = i
