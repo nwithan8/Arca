@@ -197,7 +197,7 @@ def delete_from_tautulli(plexname, serverNumber=None):
         response = t_request("delete_user", "user_id=" + str(plexname), serverNumber)
 
 
-def add_to_ombi(plexname):
+def add_to_ombi():
     if settings.USE_OMBI:
         requests.post(ombi_import, headers=ombi_headers)
 
