@@ -1,5 +1,9 @@
 import sqlite3
 import time
+import jellyfin.settings as settings
+
+if settings.USE_DROPBOX:
+    import helper.dropbox_handler as dbx
 
 
 class DB:
@@ -7,19 +11,32 @@ class DB:
         self.SQLITE_FILE = SQLITE_FILE
         self.TRIAL_LENGTH = TRIAL_LENGTH
 
+    def download(self):
+        if settings.USE_DROPBOX:
+            return dbx.download_file(self.SQLITE_FILE)
+        return True
+
+    def upload(self):
+        if settings.USE_DROPBOX:
+            return dbx.upload_file(self.SQLITE_FILE)
+        return True
+
     def describe_table(self, table):
+        self.download()
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
         cur.execute("PRAGMA  table_info([{}])".format(str(table)))
         result = cur.fetchall()
         cur.close()
         conn.close()
+        self.upload()
         if result:
             return result
         else:
             return None
 
     def add_user_to_db(self, DiscordId, JellyfinName, JellyfinId, note):
+        self.download()
         result = False
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
@@ -41,20 +58,24 @@ class DB:
         conn.commit()
         cur.close()
         conn.close()
+        self.upload()
         return result
 
     def remove_user_from_db(self, uid):
+        self.download()
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
         cur.execute(str("DELETE FROM users WHERE DiscordID = '{}'".format(str(uid))))
         conn.commit()
         cur.close()
         conn.close()
+        self.upload()
 
     def find_user_in_db(self, JellyfinOrDiscord, data):
         """
         Returns JellyfinID/DiscordID
         """
+        self.download()
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
         query = "SELECT {} FROM users WHERE {} = '{}'".format((
@@ -64,6 +85,7 @@ class DB:
         result = cur.fetchone()
         cur.close()
         conn.close()
+        self.upload()
         if result:
             return result[0]
         else:
@@ -73,6 +95,7 @@ class DB:
         """
         Returns JellyfinUsername/DiscordID, Note
         """
+        self.download()
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
         query = "SELECT {}, Note FROM users WHERE {} = '{}'".format((
@@ -82,6 +105,7 @@ class DB:
         result = cur.fetchone()
         cur.close()
         conn.close()
+        self.upload()
         if result:
             return result[0], result[1]
         else:
@@ -91,6 +115,7 @@ class DB:
         """
         Returns whole entry
         """
+        self.download()
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
         query = "SELECT * FROM users WHERE {} = '{}'".format(type, str(data))
@@ -98,6 +123,7 @@ class DB:
         result = cur.fetchone()
         cur.close()
         conn.close()
+        self.upload()
         if result:
             return result
         else:
@@ -107,6 +133,7 @@ class DB:
         """
         Returns all database entries
         """
+        self.download()
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
         query = "SELECT * FROM users"
@@ -114,6 +141,7 @@ class DB:
         result = cur.fetchall()
         cur.close()
         conn.close()
+        self.upload()
         if result:
             return result
         else:
@@ -123,15 +151,18 @@ class DB:
         """
         Get all users with 'w' note
         """
+        self.download()
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
         cur.execute("SELECT JellyfinID FROM users WHERE Note = 'w'")
         results = cur.fetchall()
         cur.close()
         conn.close()
+        self.upload()
         return results
 
     def getTrials(self):
+        self.download()
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
         query = "SELECT DiscordID FROM users WHERE ExpirationStamp<={} AND Note = 't'".format(str(int(time.time())))
@@ -139,4 +170,5 @@ class DB:
         results = cur.fetchall()
         cur.close()
         conn.close()
+        self.upload()
         return results

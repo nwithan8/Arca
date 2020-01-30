@@ -77,7 +77,7 @@ def get_emby_users():
     return users
 
 
-def add_to_emby(username, discordId, note, useEmbyConnect=False):
+async def add_to_emby(username, discordId, note, useEmbyConnect=False):
     """
     Add a Discord user to Emby
 
@@ -93,7 +93,7 @@ def add_to_emby(username, discordId, note, useEmbyConnect=False):
             if not p:
                 print("Password update for {} failed. Moving on...".format(username))
             if useEmbyConnect:
-                em.addConnectUser(connect_username=username, user_id=uid)
+                await em.addConnectUser(connect_username=username, user_id=uid)
             success = db.add_user_to_db(discordId, username, uid, note)
             if success:
                 if update_policy(uid, settings.EMBY_USER_POLICY):
@@ -346,7 +346,7 @@ class Emby(commands.Cog):
         Add a Discord user to Emby
         """
         # s, u, p = add_to_emby(username, user.id, 's', useEmbyConnect=(True if useEmbyConnect else False))
-        s, u, p = add_to_emby(username, user.id, 's', useEmbyConnect=False)
+        s, u, p = await add_to_emby(username, user.id, 's', useEmbyConnect=False)
         if s:
             await sendAddMessage(user, username, (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
             await ctx.send(
@@ -367,7 +367,7 @@ class Emby(commands.Cog):
         """
         user_id = db.find_user_in_db("Emby", user.id)
         if user_id:
-            res = em.addConnectUser(embyConnectUsername, user_id)
+            res = await em.addConnectUser(embyConnectUsername, user_id)
             if str(res.status_code).startswith('2'):
                 await ctx.send("The local account for {} has been successfully linked to {}".format(user.mention,
                                                                                                     embyConnectUsername))
@@ -604,8 +604,8 @@ class Emby(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        self.check_trials.start()
-        self.check_subs.start()
+        #self.check_trials.start()
+        #self.check_subs.start()
         pass
 
     def __init__(self, bot):

@@ -1,11 +1,11 @@
 import os
 
 # Jellyfin settings
-JELLYFIN_URL = os.environ.get('JELLYFIN_URL')
-JELLYFIN_API_KEY = os.environ.get('JELLYFIN_KEY')
-JELLYFIN_ADMIN_USERNAME = os.environ.get('JELLYFIN_ADMIN_USER')
-JELLYFIN_ADMIN_PASSWORD = os.environ.get('JELLYFIN_ADMIN_PASS')
-JELLYFIN_SERVER_NICKNAME = os.environ.get('JELLYFIN_SERVER_NAME')
+JELLYFIN_URL = ''
+JELLYFIN_API_KEY = ''
+JELLYFIN_ADMIN_USERNAME = ''
+JELLYFIN_ADMIN_PASSWORD = ''
+JELLYFIN_SERVER_NICKNAME = ''
 JELLYFIN_USER_POLICY = {
     "IsAdministrator": "false",
     "IsHidden": "true",
@@ -41,10 +41,11 @@ JellyfinDiscord.users
 3|ExpirationStamp|INT(11)|0||0
 4|Note|VARCHAR(5)|0||0
 '''
+USE_DROPBOX = True  # Store database in Dropbox, download and upload dynamically
 
 # Discord settings
-DISCORD_SERVER_ID = os.environ.get('DISCORD_SERVER_ID')
-DISCORD_ADMIN_ID = os.environ.get('ADMIN_ID')  # Presumably you, or whoever is the administrator of the Discord server
+DISCORD_SERVER_ID = ''
+DISCORD_ADMIN_ID = ''  # Presumably you, or whoever is the administrator of the Discord server
 DISCORD_ADMIN_ROLE_NAME = "Admin"  # Only users with this role can call most administrative commands
 AFTER_APPROVED_ROLE_NAME = "Invited"  # Role given after someone is added to Jellyfin
 SUB_ROLES = ["Monthly Subscriber", "Yearly Subscriber", "Winner", "Bot"]  # Users with any of these roles is exempt from removal
@@ -75,9 +76,9 @@ GIVEAWAY_BOT_ID = 0  # User ID for the Giveaway Bot that announces contest winne
 # Credentials settings
 CREATE_PASSWORD = True  # Create a random password for new Jellyfin users (or else, keep a blank password)
 NO_PASSWORD_MESSAGE = "Leave password blank on first login, but please secure your account by setting a password."
-USE_PASTEBIN = 'privatebin'  # 'privatebin', 'hastebin' or None
-PRIVATEBIN_URL = 'https://privatebin.datahoarder.dev'
-HASTEBIN_URL = 'https://hastebin.com'
+USE_PASTEBIN = None  # 'privatebin', 'hastebin' or None
+PRIVATEBIN_URL = ''
+HASTEBIN_URL = ''
 
 # Migrate/mass import users
 MIGRATION_FILE = "/"  # file path + name (leave off ".csv" extension)

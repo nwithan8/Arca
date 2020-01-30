@@ -199,6 +199,7 @@ class PlexManager(commands.Cog):
                 guild = self.bot.get_guild(guild.id)  # Yes, this is unfortunately necessary
                 users_with_role = [member for member in guild.members if (watching_role in member.roles)]
                 active_users = [session['username'] for session in activity['response']['data']['sessions']]
+                print('Users currently using Plex: {}'.format(active_users))
                 # Remove old users first
                 for user in users_with_role:
                     plexUsername = db.find_user_in_db('Plex', str(user.id))[0]
@@ -324,7 +325,7 @@ class PlexManager(commands.Cog):
         run this to remove the user's entry in the
         Plex user database.
         """
-        existingUsers = px.getPlexUsers()
+        existingUsers = px.getPlexFriends()
         dbEntries = db.get_all_entries_in_db()
         if dbEntries:
             deletedUsers = ""
@@ -333,7 +334,7 @@ class PlexManager(commands.Cog):
                     # existingUsers (returned as lowercase)
                     deletedUsers += entry[1] + "\n"
                     print("Deleting " + str(entry[1]) + " from the Plex database...")
-                    db.remove_user_from_db(entry[0])  # entry[0] is DiscordID
+                    # db.remove_user_from_db(entry[0])  # entry[0] is DiscordID
             if deletedUsers:
                 await ctx.send("The following users were deleted from the database:\n" + deletedUsers[:-1])
             else:
@@ -366,7 +367,7 @@ class PlexManager(commands.Cog):
                 else:
                     await ctx.send("That server number does not exist.")
         else:
-            await ctx.send(settings.PLEX_SERVER_NAME[0] + " has " + str(px.countServerSubs(-1)) + " users")
+            await ctx.send(settings.PLEX_SERVER_NAME[0] + " has " + str(px.countServerSubs()) + " users")
 
     @pm_count.error
     async def pm_count_error(self, ctx, error):

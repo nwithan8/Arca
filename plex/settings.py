@@ -36,9 +36,17 @@ OMBI_API_KEY = ''
 
 # Discord-to-Plex database (SQLite3)
 SQLITE_FILE = 'plex/PlexDiscord.db'  # File path + name + extension (i.e."/root/nwithan8-cogs/plex_manager/PlexDiscord.db"
-# Database Schema:
-# PlexDiscord.users
-# (DiscordID BIGINT, PlexUsername 'VARCHAR(100)', PlexEmail 'VARCHAR(320)', ServerNum INT, ExpirationStamp INT, Note 'VARCHAR(5)')
+'''
+0|DiscordID|VARCHAR(100)|1||0
+1|PlexUsername|VARCHAR(100)|1||0
+2|email|VARCHAR(100)|0||0
+3|ExpirationStamp|INT(11)|0||0
+4|whichPlexServer|INT(11)|0||0
+5|whichTautServer|INT(11)|0||0
+6|method|VARCHAR(5)|0||0
+7|Note|VARCHAR(5)|0||0
+'''
+USE_DROPBOX = True  # Store database in Dropbox, download and upload dynamically
 
 # Discord settings
 DISCORD_SERVER_ID = ''
