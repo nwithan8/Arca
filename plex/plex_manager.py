@@ -391,7 +391,11 @@ class PlexManager(commands.Cog):
             await ctx.send('Adding ' + PlexUsername + ' to ' + settings.PLEX_SERVER_NAME[
                 serverNumber] + '. Please wait about 30 seconds...')
             try:
-                added = await add_to_plex(PlexUsername, user.id, 's', serverNumber)
+                note = 's'
+                if discord.utils.get(self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).roles,
+                                     name=settings.WINNER_ROLE_NAME) in user.roles:
+                    note = 'w'
+                added = await add_to_plex(PlexUsername, user.id, note, serverNumber)
                 if added:
                     role = discord.utils.get(ctx.message.guild.roles, name=settings.AFTER_APPROVED_ROLE_NAME)
                     await user.add_roles(role, reason="Access membership channels")
@@ -407,7 +411,11 @@ class PlexManager(commands.Cog):
             await ctx.send(
                 'Adding ' + PlexUsername + ' to ' + settings.PLEX_SERVER_NAME[0] + '. Please wait about 30 seconds...')
             try:
-                added = await add_to_plex(PlexUsername, user.id, 's', serverNumber)
+                note = 's'
+                if discord.utils.get(self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).roles,
+                                     name=settings.WINNER_ROLE_NAME) in user.roles:
+                    note = 'w'
+                added = await add_to_plex(PlexUsername, user.id, note, serverNumber)
                 if added:
                     role = discord.utils.get(ctx.message.guild.roles, name=settings.AFTER_APPROVED_ROLE_NAME)
                     await user.add_roles(role, reason="Access membership channels")
@@ -664,8 +672,8 @@ class PlexManager(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        #self.check_trials.start()
-        #self.check_subs.start()
+        # self.check_trials.start()
+        # self.check_subs.start()
         self.check_playing.start()
 
     def __init__(self, bot):
