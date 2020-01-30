@@ -137,11 +137,11 @@ def getSmallestServer():
     return serverNumber
 
 
-def countServerSubs(serverNumber):
+def countServerSubs(serverNumber=None):
     tempPlex = plex
-    tempServerName = settings.PLEX_SERVER_NAME
-    tempServerAltName = settings.PLEX_SERVER_ALT_NAME
-    if serverNumber >= 0:
+    tempServerName = settings.PLEX_SERVER_NAME[0]
+    tempServerAltName = settings.PLEX_SERVER_ALT_NAME[0]
+    if serverNumber and serverNumber >= 0:
         tempPlex = PlexServer(settings.PLEX_SERVER_URL[serverNumber], settings.PLEX_SERVER_TOKEN[serverNumber])
         tempServerName = settings.PLEX_SERVER_NAME[serverNumber]
         tempServerAltName = settings.PLEX_SERVER_ALT_NAME[serverNumber]
@@ -153,38 +153,25 @@ def countServerSubs(serverNumber):
     return count
 
 
-def getPlexUsers(serverNumber=None):
+def getPlexFriends(serverNumber=None):
     """
-    Returns all usernames (lowercase for comparison)
+    # Returns all usernames of Plex Friends (access in + access out)
+    (lowercase for comparison)
     """
-    users = []
-    tempPlex = plex
-    tempServerName = settings.PLEX_SERVER_NAME
-    tempServerAltName = settings.PLEX_SERVER_ALT_NAME
     if settings.MULTI_PLEX:
-        if serverNumber:  # from specific server
+        if serverNumber:  # from a specific server
             tempPlex = PlexServer(settings.PLEX_SERVER_URL[serverNumber], settings.PLEX_SERVER_TOKEN[serverNumber])
-            tempServerName = settings.PLEX_SERVER_NAME[serverNumber]
-            tempServerAltName = settings.PLEX_SERVER_ALT_NAME[serverNumber]
-            for u in tempPlex.myPlexAccount().users():
-                for s in u.servers:
-                    if s.name == tempServerName or s.name == tempServerAltName:
-                        users.append(u.username.lower())
+            return [u.username.lower() for u in tempPlex.myPlexAccount().users()]
         else:  # from all servers
-            for serverNumber in range(len(settings.PLEX_SERVER_URL)):
-                tempPlex = PlexServer(settings.PLEX_SERVER_URL[serverNumber], settings.PLEX_SERVER_TOKEN[serverNumber])
-                tempServerName = settings.PLEX_SERVER_NAME[serverNumber]
-                tempServerAltName = settings.PLEX_SERVER_ALT_NAME[serverNumber]
+            users = []
+            for i in range(len(settings.PLEX_SERVER_URL)):
+                tempPlex = PlexServer(settings.PLEX_SERVER_URL[i], settings.PLEX_SERVER_TOKEN[i])
                 for u in tempPlex.myPlexAccount().users():
-                    for s in u.servers:
-                        if s.name == tempServerName or s.name == tempServerAltName:
-                            users.append(u.username.lower())
-    else:  # from the single server
-        for u in tempPlex.myPlexAccount().users():
-            for s in u.servers:
-                if s.name == tempServerName or s.name == tempServerAltName:
                     users.append(u.username.lower())
-    return users
+            return users
+    else:  # from the one server
+        tempPlex = PlexServer(settings.PLEX_SERVER_URL[0], settings.PLEX_SERVER_TOKEN[0])
+        return [u.username.lower() for u in tempPlex.myPlexAccount().users()]
 
 
 def add_to_tautulli(plexname, serverNumber=None):
