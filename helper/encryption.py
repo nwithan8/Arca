@@ -11,6 +11,7 @@ def getKey(key_file):
         key = open(key_file, 'r').read()
         return Fernet(key)
     except Exception as e:
+        print("Could not locate encryption key. Creating a new one...")
         key = makeKey()
         saveKey(makeKey(), key_file)
         return Fernet(key)

@@ -1,7 +1,7 @@
 import sqlite3
 import time
 
-from helper.dropbox_handler import dbx
+import helper.dropbox_handler as dbx
 
 
 class DB:

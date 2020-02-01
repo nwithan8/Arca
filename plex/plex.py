@@ -387,7 +387,7 @@ class Plex(commands.Cog):
         count = 5
         cur = 0
         recently_added = px.t_request("get_recently_added", "count=" + str(count))
-        url = settings.TAUTULLI_BASE_URL + "/api/v2?apikey=" + settings.TAUTULLI_API_KEY + "&cmd=pms_image_proxy&img=" + \
+        url = settings.TAUTULLI_URL[0] + "/api/v2?apikey=" + settings.TAUTULLI_API_KEY[0] + "&cmd=pms_image_proxy&img=" + \
               recently_added['response']['data']['recently_added'][cur]['thumb']
         e.set_image(url=url)
         listing = recently_added['response']['data']['recently_added'][cur]
@@ -419,7 +419,7 @@ class Plex(commands.Cog):
                 if reaction.emoji == u"\u27A1":
                     if (cur + 1 < count):
                         cur = cur + 1
-                        url = settings.TAUTULLI_BASE_URL + "/api/v2?apikey=" + settings.TAUTULLI_API_KEY + "&cmd=pms_image_proxy&img=" + \
+                        url = settings.TAUTULLI_URL[0] + "/api/v2?apikey=" + settings.TAUTULLI_API_KEY[0] + "&cmd=pms_image_proxy&img=" + \
                               recently_added['response']['data']['recently_added'][cur]['thumb']
                         e.set_image(url=url)
                         listing = recently_added['response']['data']['recently_added'][cur]
@@ -433,7 +433,7 @@ class Plex(commands.Cog):
                 else:
                     if cur - 1 >= 0:
                         cur = cur - 1
-                        url = settings.TAUTULLI_BASE_URL + "/api/v2?apikey=" + settings.TAUTULLI_API_KEY + "&cmd=pms_image_proxy&img=" + \
+                        url = settings.TAUTULLI_URL[0] + "/api/v2?apikey=" + settings.TAUTULLI_API_KEY[0] + "&cmd=pms_image_proxy&img=" + \
                               recently_added['response']['data']['recently_added'][cur]['thumb']
                         e.set_image(url=url)
                         listing = recently_added['response']['data']['recently_added'][cur]

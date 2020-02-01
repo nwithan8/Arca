@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 from helper.encryption import Encryption
 
 plex = PlexServer(settings.PLEX_SERVER_URL[0], settings.PLEX_SERVER_TOKEN[0])
-auth_header = "{'X-Plex-Token': {token}}".format(token=settings.PLEX_SERVER_TOKEN[0])
+auth_header = "{'X-Plex-Token': '" + settings.PLEX_SERVER_TOKEN[0] + "'}"
 cloud_key = None
 
 crypt = Encryption('{}/credskey.txt'.format(settings.CREDENTIALS_FOLDER))
@@ -178,17 +178,20 @@ def getPlexFriends(serverNumber=None):
 
 def add_to_tautulli(plexname, serverNumber=None):
     if settings.USE_TAUTULLI:
-        response = t_request("refresh_users_list", None, serverNumber)
+        return t_request("refresh_users_list", None, serverNumber)
+    return None
 
 
 def delete_from_tautulli(plexname, serverNumber=None):
     if settings.USE_TAUTULLI:
-        response = t_request("delete_user", "user_id=" + str(plexname), serverNumber)
+        return t_request("delete_user", "user_id=" + str(plexname), serverNumber)
+    return None
 
 
 def add_to_ombi():
     if settings.USE_OMBI:
-        requests.post(ombi_import, headers=ombi_headers)
+        return requests.post(ombi_import, headers=ombi_headers)
+    return None
 
 
 def delete_from_ombi(plexname):
@@ -198,13 +201,29 @@ def delete_from_ombi(plexname):
         for i in data:
             if i['userName'].lower() == plexname:
                 uid = i['id']
-        delete = str(ombi_delete) + str(uid)
-        requests.delete(delete, headers=ombi_headers)
+        to_delete = str(ombi_delete) + str(uid)
+        return requests.delete(to_delete, headers=ombi_headers)
+    return None
 
 
 def get(hdr, endpoint, data=None):
+    """ Returns JSON """
     hdr = {'accept': 'application/json', **hdr}
     res = requests.get('{}{}'.format(settings.PLEX_SERVER_URL[0], endpoint), headers=hdr, data=json.dumps(data)).json()
+    return res
+
+
+def post(hdr, endpoint, data=None):
+    """ Returns response """
+    hdr = {'accept': 'application/json', **hdr}
+    res = requests.post('{}{}'.format(settings.PLEX_SERVER_URL[0], endpoint), headers=hdr, data=json.dumps(data))
+    return res
+
+
+def delete(hdr, endpoint, data=None):
+    """ Returns response """
+    hdr = {'accept': 'application/json', **hdr}
+    res = requests.delete('{}{}'.format(settings.PLEX_SERVER_URL[0], endpoint), headers=hdr, data=json.dumps(data))
     return res
 
 
@@ -217,6 +236,20 @@ def get_cloud_key():
         else:
             return None
     return cloud_key
+
+
+def get_live_tv_dvrs():
+    data = get(hdr=auth_header, endpoint='/livetv/dvrs')
+    if data:
+        return data.get('MediaContainer').get('Dvr')
+    return None
+
+
+def get_live_tv_sessions():
+    data = get(hdr=auth_header, endpoint='/livetv/sessions')
+    if data:
+        return data.get('MediaContainer')
+    return None
 
 
 def get_hubs(identifier=None):
@@ -234,4 +267,26 @@ def get_hubs(identifier=None):
 def get_dvr_schedule():
     data = get(hdr=auth_header, endpoint='/media/subscriptions/scheduled')
     if data:
-        pass
+        return data.get('MediaContainer')
+    return None
+
+
+def get_dvr_items():
+    data = get(hdr=auth_header, endpoint='/media/subscriptions')
+    if data:
+        return data.get('MediaContainer')
+    return None
+
+
+def delete_dvr_item(itemID):
+    data = delete(hdr=auth_header, endpoint='/media/subscription/{}'.format(itemID))
+    if str(data.status_code).startswith('2'):
+        return True
+    return False
+
+
+def get_homepage_items():
+    data = get(hdr=auth_header, endpoint='/hubs')
+    if data:
+        return data.get('MediaContainer').get('Hubs')
+    return None
