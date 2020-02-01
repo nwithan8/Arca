@@ -34,7 +34,6 @@ def make_list(data):
     for country in data:
         response += "%20s|%10s|%7s|%10s\n" % (
         country['Country_Region'], str(country['Confirmed']), str(country['Deaths']), str(country['Recovered']))
-    print(response)
     return "```" + response + "```"
     """
     embed.add_field(name='\u200b', value="%20s|%10s|%7s|%10s" % (convert_to_length("Country", 20), convert_to_length("Confirmed", 10), convert_to_length("Deaths", 7), convert_to_length("Recovered", 10)),
