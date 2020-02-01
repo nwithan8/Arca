@@ -84,7 +84,7 @@ def remove_nonsub(memberID):
 
 
 async def backup_database():
-    db.backup('backup/PlexDiscord.db.bk-{}'.format(datetime.datetime.now().strftime("%m-%d-%y")))
+    db.backup('backup/PlexDiscord.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
 
 
 class PlexManager(commands.Cog):
@@ -740,8 +740,8 @@ class PlexManager(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        # self.check_trials.start()
-        # self.check_subs.start()
+        #self.check_trials_timer.start()
+        #self.check_subs_timer.start()
         self.check_playing.start()
 
     def __init__(self, bot):

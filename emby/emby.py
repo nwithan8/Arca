@@ -134,7 +134,7 @@ def remove_nonsub(memberID):
 
 
 async def backup_database():
-    db.backup('backup/EmbyDiscord.db.bk-{}'.format(datetime.datetime.now().strftime("%m-%d-%y")))
+    db.backup('backup/EmbyDiscord.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
 
 
 class Emby(commands.Cog):
@@ -663,8 +663,8 @@ class Emby(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        #self.check_trials.start()
-        #self.check_subs.start()
+        #self.check_trials_timer.start()
+        #self.check_subs_timer.start()
         pass
 
     def __init__(self, bot):

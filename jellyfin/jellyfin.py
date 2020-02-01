@@ -132,7 +132,7 @@ def remove_nonsub(memberID):
 
 
 async def backup_database():
-    db.backup('backup/JellyfinDiscord.db.bk-{}'.format(datetime.datetime.now().strftime("%m-%d-%y")))
+    db.backup('backup/JellyfinDiscord.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
 
 
 class Jellyfin(commands.Cog):
@@ -633,8 +633,8 @@ class Jellyfin(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        self.check_trials.start()
-        self.check_subs.start()
+        self.check_trials_timer.start()
+        self.check_subs_timer.start()
 
     def __init__(self, bot):
         self.bot = bot
