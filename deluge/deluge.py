@@ -95,3 +95,7 @@ class Deluge(commands.Cog):
         self.bot = bot
         self.login()
         print("Deluge ready.")
+
+
+def setup(bot):
+    bot.add_cog(Deluge(bot))

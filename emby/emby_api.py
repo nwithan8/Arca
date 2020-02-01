@@ -1,4 +1,6 @@
 import requests
+import requests_async as req_async
+import time
 import socket
 import json
 from urllib.parse import urlencode
@@ -57,6 +59,19 @@ def postWithToken(hdr, method, data=None):
     return requests.post('{}{}'.format(settings.EMBY_URL, method), headers=hdr, data=json.dumps(data))
 
 
+async def postWithTokenWait(hdr, method, data=None):
+    hdr = {'accept': 'application/json', 'Content-Type': 'application/json', **hdr}
+    print(hdr)
+    print('{}{}'.format(settings.EMBY_URL, method))
+    res = await req_async.post('{}{}'.format(settings.EMBY_URL, method), headers=hdr, data=json.dumps(data), timeout=10, stream=True)
+    while str(res.status_code).startswith('5'):
+        print(res.status_code)
+        time.sleep(1)
+    print(res.status_code)
+    return res
+    # return requests.post('{}{}'.format(settings.EMBY_URL, method), headers=hdr, data=json.dumps(data))
+
+
 def delete(cmd, params):
     return requests.delete(
         '{}{}?api_key={}{}'.format(settings.EMBY_URL, cmd, settings.EMBY_API_KEY,
@@ -71,9 +86,10 @@ def makeUser(username):
     return post(url, None, payload=data)
 
 
-def addConnectUser(connect_username, user_id):
+async def addConnectUser(connect_username, user_id):
     url = '/Users/{}/Connect/Link?connectUsername={}'.format(user_id, connect_username)
     res = postWithToken(hdr=token_header, method=url)
+    time.sleep(1)
     print(res)
     print(res.text)
     return res

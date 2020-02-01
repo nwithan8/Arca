@@ -15,12 +15,17 @@ class DB:
     def download(self):
         if self.USE_DROPBOX:
             return dbx.download_file(self.SQLITE_FILE)
-        return True
+        return False
 
     def upload(self):
         if self.USE_DROPBOX:
             return dbx.upload_file(self.SQLITE_FILE)
-        return True
+        return False
+
+    def backup(self, name):
+        if self.USE_DROPBOX:
+            return dbx.upload_file(filePath=self.SQLITE_FILE, rename=name)
+        return False
 
     def describe_table(self, table):
         self.download()
