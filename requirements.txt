@@ -11,3 +11,4 @@ PlexAPI
 progress
 lxml
 cryptography
+dropbox
