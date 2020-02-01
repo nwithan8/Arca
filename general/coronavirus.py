@@ -32,7 +32,8 @@ def make_list(data):
     response = "Conavirus numbers (Updated {})\n\n".format(timestamp)
     response += "%20s|%10s|%7s|%10s\n\n" % ("Country", "Confirmed", "Death", "Recovered")
     for country in data:
-        response += "%20s|%10s|%7s|%10s\n" % (country['Country_Region'], str(country['Confirmed']), str(country['Deaths']), str(country['Recovered']))
+        response += "%20s|%10s|%7s|%10s\n" % (
+        country['Country_Region'], str(country['Confirmed']), str(country['Deaths']), str(country['Recovered']))
     print(response)
     return "```" + response + "```"
     """
@@ -59,6 +60,9 @@ class Coronavirus(commands.Cog):
 
     @commands.command(name="coronavirus", aliases=['corona'], pass_content=True)
     async def coronavirus(self, ctx: commands.Context):
+        """
+        Get global data on the coronavirus (via ArcGIS)
+        """
         data = get_data()
         if data:
             await ctx.send(make_list(data))
@@ -73,3 +77,7 @@ class Coronavirus(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         print("Coronavirus ready to go!")
+
+
+def setup(bot):
+    bot.add_cog(Coronavirus(bot))

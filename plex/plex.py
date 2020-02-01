@@ -10,11 +10,11 @@ import datetime
 from decimal import *
 import asyncio
 import plex.plex_api as px
-from plex.db_commands import DB
+from helper.db_commands import DB
 import plex.settings as settings
 import plex.plex_recs as pr
 
-db = DB(settings.SQLITE_FILE, None, None)
+db = DB(SERVER_TYPE='Plex', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=None, MULTI_PLEX=None, USE_DROPBOX=settings.USE_DROPBOX)
 
 owner_players = []
 # Numbers 1-9
@@ -520,3 +520,7 @@ class Plex(commands.Cog):
         self.bot = bot
         print("Plex - updating libraries...")
         self.makeLibraries.start()
+
+
+def setup(bot):
+    bot.add_cog(Plex(bot))

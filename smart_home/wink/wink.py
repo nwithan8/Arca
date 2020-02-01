@@ -204,3 +204,7 @@ class Wink(commands.Cog):
         self.setup()
         self.authenticate()
         print("Wink ready to go.")
+
+
+def setup(bot):
+    bot.add_cog(Wink(bot))

@@ -182,3 +182,7 @@ class Sengled(commands.Cog):
         self.bot = bot
         if self.update():
             print("Sengled ready to go.")
+
+
+def setup(bot):
+    bot.add_cog(Sengled(bot))

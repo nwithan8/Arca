@@ -6,16 +6,16 @@ Copyright (C) 2019 Nathan Harris
 import discord
 from discord.ext import commands, tasks
 import json
-import sqlite3
 import random
 import string
 import csv
+from datetime import datetime
 import jellyfin.settings as settings
 import jellyfin.jellyfin_api as jf
-from jellyfin.db_commands import DB
+from helper.db_commands import DB
 from helper.pastebin import hastebin, privatebin
 
-db = DB(settings.SQLITE_FILE, (settings.TRIAL_LENGTH * 3600))
+db = DB(SERVER_TYPE='Jellyfin', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600), USE_DROPBOX=settings.USE_DROPBOX)
 
 
 def password(length):
@@ -131,6 +131,10 @@ def remove_nonsub(memberID):
         remove_from_jellyfin(memberID)
 
 
+async def backup_database():
+    db.backup('backup/JellyfinDiscord.db.bk-{}'.format(datetime.datetime.now().strftime("%m-%d-%y")))
+
+
 class Jellyfin(commands.Cog):
 
     async def purge_winners(self, ctx):
@@ -189,7 +193,6 @@ class Jellyfin(commands.Cog):
             pass
         return None
 
-    @tasks.loop(seconds=settings.SUB_CHECK_TIME * (3600 * 24))
     async def check_subs(self):
         print("Checking Jellyfin subs...")
         exemptRoles = []
@@ -202,7 +205,6 @@ class Jellyfin(commands.Cog):
                 remove_nonsub(member.id)
         print("Jellyfin Subs check completed.")
 
-    @tasks.loop(seconds=settings.TRIAL_CHECK_FREQUENCY * 60)
     async def check_trials(self):
         print("Checking Jellyfin trials...")
         trials = db.getTrials()
@@ -219,6 +221,18 @@ class Jellyfin(commands.Cog):
                 print(e)
                 print("Discord user {} not found.".format(str(u[0])))
         print("Jellyfin Trials check completed.")
+
+    @tasks.loop(hours=24)
+    async def backup_database_timer(self):
+        await backup_database()
+
+    @tasks.loop(hours=settings.SUB_CHECK_TIME * 24)
+    async def check_subs_timer(self):
+        await self.check_subs()
+
+    @tasks.loop(minutes=settings.TRIAL_CHECK_FREQUENCY)
+    async def check_trials_timer(self):
+        await self.check_trials()
 
     @commands.group(aliases=["Jellyfin", "jf", "JF"], pass_context=True)
     async def jellyfin(self, ctx: commands.Context):
@@ -288,6 +302,36 @@ class Jellyfin(commands.Cog):
         await ctx.send("Purging winners...")
         await self.purge_winners(ctx)
 
+    @jellyfin.command(name="subcheck")
+    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    async def jellyfin_subs(self, ctx: commands.Context):
+        """
+        Find and removed lapsed subscribers
+        This is automatically done once a week
+        """
+        await self.check_subs()
+        await ctx.send("Sub check complete.")
+
+    @jellyfin_subs.error
+    async def jellyfin_subs_error(self, ctx, error):
+        print(error)
+        await ctx.send("Something went wrong.")
+
+    @jellyfin.command(name="trialcheck")
+    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    async def jellyfin_trial_check(self, ctx: commands.Context):
+        """
+        Find and remove lapsed trials
+        This is automatically done at the interval set in Settings
+        """
+        await self.check_trials()
+        await ctx.send("Trial check complete.")
+
+    @jellyfin_trial_check.error
+    async def jellyfin_trial_check_error(self, ctx, error):
+        print(error)
+        await ctx.send("Something went wrong.")
+
     @jellyfin.command(name="cleandb", aliases=['clean', 'scrub', 'syncdb'], pass_context=True)
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
     async def jellyfin_cleandb(self, ctx: commands.Context):
@@ -314,6 +358,21 @@ class Jellyfin(commands.Cog):
 
     @jellyfin_cleandb.error
     async def jellyfin_cleandb_error(self, ctx, error):
+        print(error)
+        await ctx.send("Something went wrong.")
+
+    @jellyfin.command(name="backupdb")
+    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    async def jellyfin_backupdb(self, ctx: commands.Context):
+        """
+        Backup the database to Dropbox.
+        This is automatically done every 24 hours.
+        """
+        await backup_database()
+        await ctx.send("Backup complete.")
+
+    @jellyfin_backupdb.error
+    async def jellyfin_backupdb_error(self, ctx, error):
         print(error)
         await ctx.send("Something went wrong.")
 
@@ -581,3 +640,7 @@ class Jellyfin(commands.Cog):
         self.bot = bot
         jf.authenticate()
         print("Jellyfin Manager ready to go.")
+
+
+def setup(bot):
+    bot.add_cog(Jellyfin(bot))

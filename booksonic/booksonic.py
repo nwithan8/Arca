@@ -106,3 +106,7 @@ class Booksonic(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         print("Booksonic, ready to go!")
+
+
+def setup(bot):
+    bot.add_cog(Booksonic(bot))

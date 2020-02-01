@@ -474,3 +474,7 @@ class ESPN(commands.Cog):
         self.bot = bot
         print("ESPN - updating teams...")
         self.teams.start()
+
+
+def setup(bot):
+    bot.add_cog(ESPN(bot))

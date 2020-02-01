@@ -147,3 +147,6 @@ class Roles(commands.Cog):
         self.bot = bot
         print("Roles ready to go!")
         
+
+def setup(bot):
+    bot.add_cog(Roles(bot))

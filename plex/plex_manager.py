@@ -8,16 +8,18 @@ from discord.ext import commands, tasks
 import requests
 import asyncio
 import time
+from datetime import datetime
 from plexapi.server import PlexServer
 import plexapi
-from plex.db_commands import DB
+from helper.db_commands import DB
 from discord.ext import commands
 import plex.settings as settings
 import plex.plex_api as px
 
 plex = px.plex
 
-db = DB(settings.SQLITE_FILE, settings.MULTI_PLEX, (settings.TRIAL_LENGTH * 3600))
+db = DB(SERVER_TYPE='Plex', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600),
+        MULTI_PLEX=settings.MULTI_PLEX, USE_DROPBOX=settings.USE_DROPBOX)
 
 
 def trial_message(startOrStop, serverNumber=None):
@@ -79,6 +81,10 @@ def delete_from_plex(id):
 def remove_nonsub(memberID):
     if memberID not in settings.EXEMPT_SUBS:
         delete_from_plex(memberID)
+
+
+async def backup_database():
+    db.backup('backup/PlexDiscord.db.bk-{}'.format(datetime.datetime.now().strftime("%m-%d-%y")))
 
 
 class PlexManager(commands.Cog):
@@ -153,7 +159,6 @@ class PlexManager(commands.Cog):
         else:
             return None
 
-    @tasks.loop(seconds=settings.SUB_CHECK_TIME * (3600 * 24))
     async def check_subs(self):
         print("Checking Plex subs...")
         settings.EXEMPT_ROLES = []
@@ -166,7 +171,6 @@ class PlexManager(commands.Cog):
                 remove_nonsub(member.id)
         print("Plex subs check complete.")
 
-    @tasks.loop(seconds=settings.TRIAL_CHECK_FREQUENCY * 60)
     async def check_trials(self):
         print("Checking Plex trials...")
         trials = db.getTrials()
@@ -187,6 +191,17 @@ class PlexManager(commands.Cog):
             else:
                 print("Failed to remove Discord user " + str(u[0]) + " from Plex.")
         print("Plex trials check complete.")
+
+    @tasks.loop(hours=24)
+    async def backup_database_timer(self):
+        await backup_database()
+
+    async def check_subs_timer(self):
+        await self.check_subs()
+
+    @tasks.loop(minutes=settings.TRIAL_CHECK_FREQUENCY)
+    async def check_trials_timer(self):
+        await self.check_trials()
 
     @tasks.loop(seconds=60)
     async def check_playing(self):
@@ -268,6 +283,7 @@ class PlexManager(commands.Cog):
         await ctx.send("Sorry, something went wrong.")
 
     @pm.command(name="status", aliases=['ping', 'up', 'online'], pass_context=True)
+    # Anyone can use this command
     async def pm_status(self, ctx: commands.Context):
         """
         Check if the Plex server(s) is/are online
@@ -317,7 +333,43 @@ class PlexManager(commands.Cog):
         await ctx.send("Purging winners...")
         await self.purge_winners(ctx)
 
+    @pm_purge.error
+    async def pm_purge_error(self, ctx, error):
+        print(error)
+        await ctx.send("Something went wrong.")
+
+    @pm.command(name="subcheck")
+    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    async def pm_subs(self, ctx: commands.Context):
+        """
+        Find and removed lapsed subscribers
+        This is automatically done once a week
+        """
+        await self.check_subs()
+        await ctx.send("Sub check complete.")
+
+    @pm_subs.error
+    async def pm_subs_error(self, ctx, error):
+        print(error)
+        await ctx.send("Something went wrong.")
+
+    @pm.command(name="trialcheck")
+    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    async def pm_trial_check(self, ctx: commands.Context):
+        """
+        Find and remove lapsed trials
+        This is automatically done at the interval set in Settings
+        """
+        await self.check_trials()
+        await ctx.send("Trial check complete.")
+
+    @pm_trial_check.error
+    async def pm_trial_check_error(self, ctx, error):
+        print(error)
+        await ctx.send("Something went wrong.")
+
     @pm.command(name="cleandb", aliases=["clean", "scrub", "syncdb"], pass_context=True)
+    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
     async def pm_cleandb(self, ctx: commands.Context):
         """
         Remove old users from database
@@ -344,6 +396,21 @@ class PlexManager(commands.Cog):
 
     @pm_cleandb.error
     async def pm_cleandb_error(self, ctx, error):
+        print(error)
+        await ctx.send("Something went wrong.")
+
+    @pm.command(name="backupdb")
+    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    async def pm_backupdb(self, ctx: commands.Context):
+        """
+        Backup the database to Dropbox.
+        This is automatically done every 24 hours.
+        """
+        await backup_database()
+        await ctx.send("Backup complete.")
+
+    @pm_backupdb.error
+    async def pm_backupdb_error(self, ctx, error):
         print(error)
         await ctx.send("Something went wrong.")
 
@@ -680,3 +747,7 @@ class PlexManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         print("Plex Manager ready to go.")
+
+
+def setup(bot):
+    bot.add_cog(PlexManager(bot))

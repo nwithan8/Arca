@@ -43,6 +43,7 @@ def table_spaces(size, text):
     else:
         return " " + space + " "
 
+
 def league_check(league):
     """
     :param league:
@@ -246,7 +247,7 @@ class YahooFantasy(commands.Cog):
             team_list = team_list + t['name'] + "\n"
         team_list = team_list[:-1] + "```"
         await ctx.send(team_list)
-        
+
     @fantasy_teams.error
     async def fantasy_teams_error(self, ctx, error):
         await ctx.send("Please include a valid <league>")
@@ -286,7 +287,8 @@ class YahooFantasy(commands.Cog):
                 count = 1
                 for s, i in stat_name_ids.items():
                     if str(i) in p1_stats and str(i) in p2_stats:
-                        embed.add_field(name=table_spaces(len(p1['name']['full']), p1_stats[i]) + "|" + table_spaces(len(p2['name']['full']), p2_stats[i]), value=s, inline=False)
+                        embed.add_field(name=table_spaces(len(p1['name']['full']), p1_stats[i]) + "|" + table_spaces(
+                            len(p2['name']['full']), p2_stats[i]), value=s, inline=False)
                         count = count + 1
                 if count > 1:
                     await ctx.send(embed=embed)
@@ -320,7 +322,7 @@ class YahooFantasy(commands.Cog):
                     fa_stats = {}
                     for a in fa:
                         for s in l.player_details(a['name'])['player_stats']['stats']:
-                            #print(s)
+                            # print(s)
                             if s['stat']['stat_id'] == str(stat_id):
                                 if s['stat']['value'] == "-":
                                     fa_stats[a['name']] = 0
@@ -331,7 +333,8 @@ class YahooFantasy(commands.Cog):
                     embed = discord.Embed(title="Top " + position.upper() + " free agents, ranked by " + stat['name'])
                     for n, v in fa_stats.items():
                         if count < 24:
-                            embed.add_field(name=n + " - " + str(v), value=(l.player_details(n)['editorial_name_full_name'] if 'editorial_name_full_name' in n.keys() else '\u200b'))
+                            embed.add_field(name=n + " - " + str(v), value=(l.player_details(n)[
+                                                                                'editorial_name_full_name'] if 'editorial_name_full_name' in n.keys() else '\u200b'))
                             count += 1
                     if count > 1:
                         await ctx.send(embed=embed)
@@ -343,7 +346,7 @@ class YahooFantasy(commands.Cog):
                         positions_list = positions_list + p + ", "
                     await ctx.send(
                         "That position doesn't exist. Please use the available positions: " + positions_list[:-2])
-                    
+
     @fantasy_free_agents.error
     async def fantasy_free_agents_error(self, ctx, error):
         await ctx.send("Sorry, something went wrong.")
@@ -361,18 +364,24 @@ class YahooFantasy(commands.Cog):
             count = 1
             for p in roster:
                 if count < 24:
-                    embed.add_field(name=p['name'] + " - " + p['selected_position'], value=(p['status'] if p['status'] else '\u200b'))
+                    embed.add_field(name=p['name'] + " - " + p['selected_position'],
+                                    value=(p['status'] if p['status'] else '\u200b'))
                     count += 1
                 else:
                     ctx.send(embed=embed)
-                    embed = discord.Embed(title="Roster for " + ("current week" if week == None else "Week " + str(week)) + " (Page " + (count / 24) + ")")
+                    embed = discord.Embed(
+                        title="Roster for " + ("current week" if week == None else "Week " + str(week)) + " (Page " + (
+                                    count / 24) + ")")
             await ctx.send(embed=embed)
-        
+
     @fantasy_roster.error
     async def fantasy_roster_error(self, ctx, error):
         await ctx.send("Sorry, something went wrong.")
-    
-    
+
     def __init__(self, bot):
         self.bot = bot
         print("YahooFantasy ready to go.")
+
+
+def setup(bot):
+    bot.add_cog(YahooFantasy(bot))

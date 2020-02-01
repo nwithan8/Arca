@@ -221,3 +221,7 @@ class News(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         print("News ready.")
+
+
+def setup(bot):
+    bot.add_cog(News(bot))

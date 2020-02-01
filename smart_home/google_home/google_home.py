@@ -66,3 +66,7 @@ class GoogleHome(commands.Cog):
         self.setup('Bedroom speaker')
         #self.speak('Bedroom speaker', 'Hello')
         print("Google Home ready to go.")
+
+
+def setup(bot):
+    bot.add_cog(GoogleHome(bot))

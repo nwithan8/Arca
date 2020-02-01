@@ -10,6 +10,8 @@ import xml.etree.ElementTree as ET
 from helper.encryption import Encryption
 
 plex = PlexServer(settings.PLEX_SERVER_URL[0], settings.PLEX_SERVER_TOKEN[0])
+auth_header = "{'X-Plex-Token': {token}}".format(token=settings.PLEX_SERVER_TOKEN[0])
+cloud_key = None
 
 crypt = Encryption('{}/credskey.txt'.format(settings.CREDENTIALS_FOLDER))
 
@@ -198,3 +200,38 @@ def delete_from_ombi(plexname):
                 uid = i['id']
         delete = str(ombi_delete) + str(uid)
         requests.delete(delete, headers=ombi_headers)
+
+
+def get(hdr, endpoint, data=None):
+    hdr = {'accept': 'application/json', **hdr}
+    res = requests.get('{}{}'.format(settings.PLEX_SERVER_URL[0], endpoint), headers=hdr, data=json.dumps(data)).json()
+    return res
+
+
+def get_cloud_key():
+    global cloud_key
+    if not cloud_key:
+        data = get(hdr=auth_header, endpoint='/tv.plex.providers.epg.cloud')
+        if data:
+            cloud_key = data.get('MediaContainer').get('Directory')[1].get('title')
+        else:
+            return None
+    return cloud_key
+
+
+def get_hubs(identifier=None):
+    data = get(hdr=auth_header, endpoint='/{}/hubs/discover'.format(get_cloud_key()))
+    if data:
+        if identifier:
+            for hub in data['MediaContainer']['Hub']:
+                if hub['title'] == identifier:
+                    return hub
+            return None
+        return data
+    return None
+
+
+def get_dvr_schedule():
+    data = get(hdr=auth_header, endpoint='/media/subscriptions/scheduled')
+    if data:
+        pass

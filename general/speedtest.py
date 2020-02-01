@@ -137,3 +137,7 @@ class SpeedTest(commands.Cog):
             await ctx.send("Ookla is not currently supported.")
         else:
             await ctx.send("Please try again with 'Fast' or 'Ookla'")
+
+
+def setup(bot):
+    bot.add_cog(SpeedTest(bot))

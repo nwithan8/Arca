@@ -6,16 +6,16 @@ Copyright (C) 2019 Nathan Harris
 import discord
 from discord.ext import commands, tasks
 import json
-import sqlite3
 import random
 import string
 import csv
+from datetime import datetime
 import emby.settings as settings
 import emby.emby_api as em
-from emby.db_commands import DB
+from helper.db_commands import DB
 from helper.pastebin import hastebin, privatebin
 
-db = DB(settings.SQLITE_FILE, (settings.TRIAL_LENGTH * 3600))
+db = DB(SERVER_TYPE='Emby', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600), USE_DROPBOX=settings.USE_DROPBOX)
 
 
 def password(length):
@@ -133,6 +133,10 @@ def remove_nonsub(memberID):
         remove_from_emby(memberID)
 
 
+async def backup_database():
+    db.backup('backup/EmbyDiscord.db.bk-{}'.format(datetime.datetime.now().strftime("%m-%d-%y")))
+
+
 class Emby(commands.Cog):
 
     async def purge_winners(self, ctx):
@@ -192,7 +196,6 @@ class Emby(commands.Cog):
             pass
         return None
 
-    @tasks.loop(seconds=settings.SUB_CHECK_TIME * (3600 * 24))
     async def check_subs(self):
         print("Checking Emby subs...")
         exemptRoles = []
@@ -205,7 +208,6 @@ class Emby(commands.Cog):
                 remove_nonsub(member.id)
         print("Emby Subs check completed.")
 
-    @tasks.loop(seconds=settings.TRIAL_CHECK_FREQUENCY * 60)
     async def check_trials(self):
         print("Checking Emby trials...")
         trials = db.getTrials()
@@ -223,6 +225,18 @@ class Emby(commands.Cog):
                 print(e)
                 print("Discord user {} not found.".format(str(u[0])))
         print("Emby Trials check completed.")
+
+    @tasks.loop(hours=24)
+    async def backup_database_timer(self):
+        await backup_database()
+
+    @tasks.loop(hours=settings.SUB_CHECK_TIME * 24)
+    async def check_subs_timer(self):
+        await self.check_subs()
+
+    @tasks.loop(minutes=settings.TRIAL_CHECK_FREQUENCY)
+    async def check_trials_timer(self):
+        await self.check_trials()
 
     @commands.group(aliases=["Emby", "em", "JF"], pass_context=True)
     async def emby(self, ctx: commands.Context):
@@ -293,6 +307,36 @@ class Emby(commands.Cog):
         await ctx.send("Purging winners...")
         await self.purge_winners(ctx)
 
+    @emby.command(name="subcheck")
+    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    async def emby_subs(self, ctx: commands.Context):
+        """
+        Find and removed lapsed subscribers
+        This is automatically done once a week
+        """
+        await self.check_subs()
+        await ctx.send("Sub check complete.")
+
+    @emby_subs.error
+    async def emby_subs_error(self, ctx, error):
+        print(error)
+        await ctx.send("Something went wrong.")
+
+    @emby.command(name="trialcheck")
+    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    async def emby_trial_check(self, ctx: commands.Context):
+        """
+        Find and remove lapsed trials
+        This is automatically done at the interval set in Settings
+        """
+        await self.check_trials()
+        await ctx.send("Trial check complete.")
+
+    @emby_trial_check.error
+    async def emby_trial_check_error(self, ctx, error):
+        print(error)
+        await ctx.send("Something went wrong.")
+
     @emby.command(name="cleandb", aliases=['clean', 'scrub', 'syncdb'], pass_context=True)
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
     async def emby_cleandb(self, ctx: commands.Context):
@@ -319,6 +363,21 @@ class Emby(commands.Cog):
 
     @emby_cleandb.error
     async def emby_cleandb_error(self, ctx, error):
+        print(error)
+        await ctx.send("Something went wrong.")
+
+    @emby.command(name="backupdb")
+    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    async def emby_backupdb(self, ctx: commands.Context):
+        """
+        Backup the database to Dropbox.
+        This is automatically done every 24 hours.
+        """
+        await backup_database()
+        await ctx.send("Backup complete.")
+
+    @emby_backupdb.error
+    async def emby_backupdb_error(self, ctx, error):
         print(error)
         await ctx.send("Something went wrong.")
 
@@ -612,3 +671,7 @@ class Emby(commands.Cog):
         self.bot = bot
         em.authenticate()
         print("Emby Manager ready to go.")
+
+
+def setup(bot):
+    bot.add_cog(Emby(bot))
