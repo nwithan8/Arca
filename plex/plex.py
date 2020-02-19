@@ -423,29 +423,38 @@ class Plex(commands.Cog):
                     if cur + 1 < count:
                         cur += 1
                         listing = recently_added['response']['data']['recently_added'][cur]
-                        url = settings.TAUTULLI_URL[0] + "/api/v2?apikey=" + settings.TAUTULLI_API_KEY[0] + "&cmd=pms_image_proxy&img=" + \
-                              listing['thumb']
+                        url = '{base}/api/v2?apikey={key}&cmd=pms_image_proxy&img={thumb}'.format(
+                            base=settings.TAUTULLI_URL[0], key=settings.TAUTULLI_API_KEY[0], thumb=listing['thumb'])
                         e.set_image(url=url)
-                        e.description = "(" + str(cur + 1) + "/" + str(count) + ") " + str(
-                            listing['grandparent_title'] if listing['grandparent_title'] != "" else (
-                                listing['parent_title'] if listing['parent_title'] != "" else listing[
-                                    'full_title'])) + " - [Watch Now](https://app.plex.tv/desktop#!/server/" + settings.PLEX_SERVER_ID + "/details?key=%2Flibrary%2Fmetadata%2F" + str(
-                            recently_added['response']['data']['recently_added'][cur]['rating_key']) + ")"
+                        print(listing['rating_key'])
+                        e.description = "({loc}/{count}) {title} - [Watch Now](https://app.plex.tv/desktop#!/server/{id}//details?key=%2Flibrary%2Fmetadata%2F{key})".format(
+                            loc=str(cur + 1),
+                            count=str(count),
+                            title=(listing['grandparent_title'] if listing['grandparent_title'] else (
+                                listing['parent_title'] if listing['parent_title'] else listing[
+                                    'full_title'])),
+                            id=settings.PLEX_SERVER_ID,
+                            key=listing['rating_key']
+                        )
                         await ra_embed.edit(embed=e)
                         await ra_embed.clear_reactions()
                 else:
                     if cur - 1 >= 0:
                         cur -= 1
                         listing = recently_added['response']['data']['recently_added'][cur]
-                        url = settings.TAUTULLI_URL[0] + "/api/v2?apikey=" + settings.TAUTULLI_API_KEY[
-                            0] + "&cmd=pms_image_proxy&img=" + \
-                              listing['thumb']
+                        url = '{base}/api/v2?apikey={key}&cmd=pms_image_proxy&img={thumb}'.format(
+                            base=settings.TAUTULLI_URL[0], key=settings.TAUTULLI_API_KEY[0], thumb=listing['thumb'])
                         e.set_image(url=url)
-                        e.description = "(" + str(cur + 1) + "/" + str(count) + ") " + str(
-                            listing['grandparent_title'] if listing['grandparent_title'] != "" else (
-                                listing['parent_title'] if listing['parent_title'] != "" else listing[
-                                    'full_title'])) + " - [Watch Now](https://app.plex.tv/desktop#!/server/" + settings.PLEX_SERVER_ID + "/details?key=%2Flibrary%2Fmetadata%2F" + str(
-                            recently_added['response']['data']['recently_added'][cur]['rating_key']) + ")"
+                        print(listing['rating_key'])
+                        e.description = "({loc}/{count}) {title} - [Watch Now](https://app.plex.tv/desktop#!/server/{id}//details?key=%2Flibrary%2Fmetadata%2F{key})".format(
+                            loc=str(cur + 1),
+                            count=str(count),
+                            title=(listing['grandparent_title'] if listing['grandparent_title'] else (
+                                listing['parent_title'] if listing['parent_title'] else listing[
+                                    'full_title'])),
+                            id=settings.PLEX_SERVER_ID,
+                            key=listing['rating_key']
+                        )
                         await ra_embed.edit(embed=e)
                         await ra_embed.clear_reactions()
 
