@@ -390,7 +390,6 @@ class Plex(commands.Cog):
         listing = recently_added['response']['data']['recently_added'][cur]
         url = '{base}/api/v2?apikey={key}&cmd=pms_image_proxy&img={thumb}'.format(base=settings.TAUTULLI_URL[0], key=settings.TAUTULLI_API_KEY[0], thumb=listing['thumb'])
         e.set_image(url=url)
-        print(listing['rating_key'])
         e.description = "({loc}/{count}) {title} - [Watch Now](https://app.plex.tv/desktop#!/server/{id}//details?key=%2Flibrary%2Fmetadata%2F{key})".format(
             loc=str(cur + 1),
             count=str(count),
@@ -426,7 +425,6 @@ class Plex(commands.Cog):
                         url = '{base}/api/v2?apikey={key}&cmd=pms_image_proxy&img={thumb}'.format(
                             base=settings.TAUTULLI_URL[0], key=settings.TAUTULLI_API_KEY[0], thumb=listing['thumb'])
                         e.set_image(url=url)
-                        print(listing['rating_key'])
                         e.description = "({loc}/{count}) {title} - [Watch Now](https://app.plex.tv/desktop#!/server/{id}//details?key=%2Flibrary%2Fmetadata%2F{key})".format(
                             loc=str(cur + 1),
                             count=str(count),
@@ -445,7 +443,6 @@ class Plex(commands.Cog):
                         url = '{base}/api/v2?apikey={key}&cmd=pms_image_proxy&img={thumb}'.format(
                             base=settings.TAUTULLI_URL[0], key=settings.TAUTULLI_API_KEY[0], thumb=listing['thumb'])
                         e.set_image(url=url)
-                        print(listing['rating_key'])
                         e.description = "({loc}/{count}) {title} - [Watch Now](https://app.plex.tv/desktop#!/server/{id}//details?key=%2Flibrary%2Fmetadata%2F{key})".format(
                             loc=str(cur + 1),
                             count=str(count),
