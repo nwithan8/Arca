@@ -301,7 +301,7 @@ class Plex(commands.Cog):
                 count = count + 1
             await ctx.send(embed=embed)
         else:
-            ctx.send("Please try again. Use 'movies','shows','artists' or 'users'")
+            await ctx.send("Please try again. Use 'movies','shows','artists' or 'users'")
 
     @plex_top.error
     async def plex_top_error(self, ctx, error):
@@ -387,15 +387,18 @@ class Plex(commands.Cog):
         count = 5
         cur = 0
         recently_added = px.t_request("get_recently_added", "count=" + str(count))
-        url = settings.TAUTULLI_URL[0] + "/api/v2?apikey=" + settings.TAUTULLI_API_KEY[0] + "&cmd=pms_image_proxy&img=" + \
-              recently_added['response']['data']['recently_added'][cur]['thumb']
-        e.set_image(url=url)
         listing = recently_added['response']['data']['recently_added'][cur]
-        e.description = "(" + str(cur + 1) + "/" + str(count) + ") " + str(
-            listing['grandparent_title'] if listing['grandparent_title'] != "" else (
-                listing['parent_title'] if listing['parent_title'] != "" else listing[
-                    'full_title'])) + " - [Watch Now](https://app.plex.tv/desktop#!/server/" + settings.PLEX_SERVER_ID + "/details?key=%2Flibrary%2Fmetadata%2F" + str(
-            recently_added['response']['data']['recently_added'][cur]['rating_key']) + ")"
+        url = '{base}/api/v2?apikey={key}&cmd=pms_image_proxy&img={thumb}'.format(base=settings.TAUTULLI_URL[0], key=settings.TAUTULLI_API_KEY[0], thumb=listing['thumb'])
+        e.set_image(url=url)
+        print(listing['rating_key'])
+        e.description = "({loc}/{count}) {title} - [Watch Now](https://app.plex.tv/desktop#!/server/{id}//details?key=%2Flibrary%2Fmetadata%2F{key})".format(
+            loc=str(cur + 1),
+            count=str(count),
+            title=(listing['grandparent_title'] if listing['grandparent_title'] else (listing['parent_title'] if listing['parent_title'] else listing[
+                    'full_title'])),
+            id=settings.PLEX_SERVER_ID,
+            key=listing['rating_key']
+        )
         ra_embed = await ctx.send(embed=e)
         nav = True
         while nav:
@@ -417,12 +420,12 @@ class Plex(commands.Cog):
                 px.t_request("delete_image_cache", None)
             else:
                 if reaction.emoji == u"\u27A1":
-                    if (cur + 1 < count):
-                        cur = cur + 1
-                        url = settings.TAUTULLI_URL[0] + "/api/v2?apikey=" + settings.TAUTULLI_API_KEY[0] + "&cmd=pms_image_proxy&img=" + \
-                              recently_added['response']['data']['recently_added'][cur]['thumb']
-                        e.set_image(url=url)
+                    if cur + 1 < count:
+                        cur += 1
                         listing = recently_added['response']['data']['recently_added'][cur]
+                        url = settings.TAUTULLI_URL[0] + "/api/v2?apikey=" + settings.TAUTULLI_API_KEY[0] + "&cmd=pms_image_proxy&img=" + \
+                              listing['thumb']
+                        e.set_image(url=url)
                         e.description = "(" + str(cur + 1) + "/" + str(count) + ") " + str(
                             listing['grandparent_title'] if listing['grandparent_title'] != "" else (
                                 listing['parent_title'] if listing['parent_title'] != "" else listing[
@@ -432,11 +435,12 @@ class Plex(commands.Cog):
                         await ra_embed.clear_reactions()
                 else:
                     if cur - 1 >= 0:
-                        cur = cur - 1
-                        url = settings.TAUTULLI_URL[0] + "/api/v2?apikey=" + settings.TAUTULLI_API_KEY[0] + "&cmd=pms_image_proxy&img=" + \
-                              recently_added['response']['data']['recently_added'][cur]['thumb']
-                        e.set_image(url=url)
+                        cur -= 1
                         listing = recently_added['response']['data']['recently_added'][cur]
+                        url = settings.TAUTULLI_URL[0] + "/api/v2?apikey=" + settings.TAUTULLI_API_KEY[
+                            0] + "&cmd=pms_image_proxy&img=" + \
+                              listing['thumb']
+                        e.set_image(url=url)
                         e.description = "(" + str(cur + 1) + "/" + str(count) + ") " + str(
                             listing['grandparent_title'] if listing['grandparent_title'] != "" else (
                                 listing['parent_title'] if listing['parent_title'] != "" else listing[
