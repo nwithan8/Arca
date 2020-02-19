@@ -484,6 +484,11 @@ class Plex(commands.Cog):
                                         value=str(results), inline=False)
         await ctx.send(embed=embed)
 
+    @plex_search.error
+    async def plex_search_error(self, ctx, error):
+        print(error)
+        await ctx.send("Please include a search term")
+
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
         if reaction.emoji == '✅':
