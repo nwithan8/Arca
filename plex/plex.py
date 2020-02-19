@@ -471,15 +471,20 @@ class Plex(commands.Cog):
                         if searchTerm.lower() in str(r['title']).lower():
                             if r['title'] in results_list or k == 'collection':
                                 results_list.append(r['title'] + " - " + r['library_name'])
-                                results = results + "[" + r['title'] + " - " + r[
-                                    'library_name'] + "](https://app.plex.tv/desktop#!/server/" + settings.PLEX_SERVER_ID + "/details?key=%2Flibrary%2Fmetadata%2F" + str(
-                                    r['rating_key']) + ")" + "\n"
+                                results += "[{title} - {lib}]((https://app.plex.tv/desktop#!/server/{id}//details?key=%2Flibrary%2Fmetadata%2F{key})\n".format(
+                                    title = r['title'],
+                                    lib=r['library_name'],
+                                    id=settings.PLEX_SERVER_ID,
+                                    key=r['rating_key']
+                                )
                             else:
                                 results_list.append(r['title'])
-                                results = results + "[" + r[
-                                    'title'] + "](https://app.plex.tv/desktop#!/server/" + settings.PLEX_SERVER_ID + "/details?key=%2Flibrary%2Fmetadata%2F" + str(
-                                    r['rating_key']) + ")" + "\n"
-                    if results != "":
+                                results += "[{title}](https://app.plex.tv/desktop#!/server/{id}/details?key=%2Flibrary%2Fmetadata%2F{key})\n".format(
+                                    title=r['title'],
+                                    id=settings.PLEX_SERVER_ID,
+                                    key=r['rating_key']
+                                )
+                    if results:
                         embed.add_field(name=k.capitalize() + ("s" if len(results_list) > 1 else ""),
                                         value=str(results), inline=False)
         await ctx.send(embed=embed)
@@ -487,7 +492,7 @@ class Plex(commands.Cog):
     @plex_search.error
     async def plex_search_error(self, ctx, error):
         print(error)
-        await ctx.send("Please include a search term")
+        await ctx.send("Please include a search term.")
 
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
