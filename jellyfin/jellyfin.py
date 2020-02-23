@@ -28,15 +28,15 @@ def password(length):
 def add_password(uid):
     p = password(length=10)
     r = jf.resetPassword(uid)
-    if str(r.status_code).startswith('2'):
+    if r:
         r = jf.setUserPassword(uid, "", p)
-        if str(r.status_code).startswith('2'):
+        if r:
             return p
     return None
 
 
 def update_policy(uid, policy=None):
-    if str(jf.updatePolicy(uid, policy).status_code).startswith('2'):
+    if jf.updatePolicy(uid, policy):
         return True
     return False
 
@@ -86,7 +86,7 @@ def add_to_jellyfin(username, discordId, note):
     try:
         p = None
         r = jf.makeUser(username)
-        if str(r.status_code).startswith('2'):
+        if r:
             uid = json.loads(r.text)['Id']
             p = add_password(uid)
             policyEnforced = False
@@ -117,7 +117,8 @@ def remove_from_jellyfin(id):
         if not jellyfinId:
             return 700  # user not found
         r = jf.deleteUser(jellyfinId)
-        if not str(r.status_code).startswith('2'):
+        if not r:
+            print(r.content.decode("utf-8"))
             return 600  # user not deleted
         db.remove_user_from_db(id)
         return 200  # user removed successfully
