@@ -70,8 +70,14 @@ def makeUser(username):
 
 
 def deleteUser(userId):
-    url = '/Users/{}'.format(str(userId))
-    return delete(url, None)
+    payload = {
+        "IsDisabled": "true",
+    }
+    # Doesn't delete user, instead makes de-active.
+    url = '/Users/{}/Policy'.format(userId)
+    return post(url, None, payload=payload)
+    # url = '/Users/{}'.format(str(userId))
+    # return delete(url, None)
 
 
 def resetPassword(userId):
