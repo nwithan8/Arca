@@ -93,7 +93,7 @@ async def add_to_emby(username, discordId, note, useEmbyConnect=False):
             if not p:
                 print("Password update for {} failed. Moving on...".format(username))
             if useEmbyConnect:
-                await em.addConnectUser(connect_username=username, user_id=uid)
+                em.addConnectUser(connect_username=username, user_id=uid)
             success = db.add_user_to_db(discordId, username, uid, note)
             if success:
                 if update_policy(uid, settings.EMBY_USER_POLICY):
@@ -404,8 +404,7 @@ class Emby(commands.Cog):
         """
         Add a Discord user to Emby
         """
-        # s, u, p = add_to_emby(username, user.id, 's', useEmbyConnect=(True if useEmbyConnect else False))
-        s, u, p = await add_to_emby(username, user.id, 's', useEmbyConnect=False)
+        s, u, p = await add_to_emby(username, user.id, 's', useEmbyConnect=(True if useEmbyConnect else False))
         if s:
             await sendAddMessage(user, username, (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
             await ctx.send(
@@ -467,7 +466,7 @@ class Emby(commands.Cog):
         """
         Start a trial of Emby
         """
-        s, u, p = add_to_emby(EmbyUsername, user.id, 't')
+        s, u, p = add_to_emby(EmbyUsername, user.id, 't', useEmbyConnect=False)
         if s:
             await sendAddMessage(user, EmbyUsername, (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
         else:
@@ -622,7 +621,7 @@ class Emby(commands.Cog):
             for row in reader:
                 emby_username = row['Discord_Tag'].split("#")[0]  # Emby username will be Discord username
                 user = discord.utils.get(ctx.message.guild.members, name=emby_username)
-                s, u, p = add_to_emby(emby_username, user.id, 's')  # Users added as 'Subscribers'
+                s, u, p = add_to_emby(emby_username, user.id, 's', useEmbyConnect=False)  # Users added as 'Subscribers'
                 if s:
                     await sendAddMessage(user, emby_username,
                                          (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
@@ -645,7 +644,7 @@ class Emby(commands.Cog):
             if message.channel.id == settings.WINNER_CHANNEL and discord.utils.get(message.guild.roles,
                                                                                    name=settings.TEMP_WINNER_ROLE_NAME) in message.author.roles:
                 username = message.content.strip()  # Only include username, nothing else
-                s, u, p = add_to_emby(username, message.author.id, 'w')
+                s, u, p = add_to_emby(username, message.author.id, 'w', useEmbyConnect=False)
                 if s:
                     await sendAddMessage(message.author, username,
                                          (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))

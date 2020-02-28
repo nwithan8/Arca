@@ -54,20 +54,14 @@ def post(cmd, params, payload):
 
 def postWithToken(hdr, method, data=None):
     hdr = {'accept': 'application/json', 'Content-Type': 'application/json', **hdr}
-    print(hdr)
-    print('{}{}'.format(settings.EMBY_URL, method))
     return requests.post('{}{}'.format(settings.EMBY_URL, method), headers=hdr, data=json.dumps(data))
 
 
 async def postWithTokenWait(hdr, method, data=None):
     hdr = {'accept': 'application/json', 'Content-Type': 'application/json', **hdr}
-    print(hdr)
-    print('{}{}'.format(settings.EMBY_URL, method))
     res = await req_async.post('{}{}'.format(settings.EMBY_URL, method), headers=hdr, data=json.dumps(data), timeout=10, stream=True)
     while str(res.status_code).startswith('5'):
-        print(res.status_code)
         time.sleep(1)
-    print(res.status_code)
     return res
     # return requests.post('{}{}'.format(settings.EMBY_URL, method), headers=hdr, data=json.dumps(data))
 
@@ -86,13 +80,10 @@ def makeUser(username):
     return post(url, None, payload=data)
 
 
-async def addConnectUser(connect_username, user_id):
-    url = '/Users/{}/Connect/Link?connectUsername={}'.format(user_id, connect_username)
-    res = postWithToken(hdr=token_header, method=url)
-    time.sleep(1)
-    print(res)
-    print(res.text)
-    return res
+def addConnectUser(connect_username, user_id):
+    url = '/Users/{}/Connect/Link'.format(user_id)
+    data = {'ConnectUsername': connect_username}
+    return postWithToken(hdr=token_header, method=url, data=data)
 
 
 def deleteUser(userId):
@@ -143,7 +134,6 @@ def getUsers():
 
 def updateRating(itemId, upvote):
     url = '/Users/{}/Items/{}/Rating?{}'.format(str(admin_id), str(itemId), urlencode({'Likes': upvote}))
-
     return postWithToken(hdr=token_header, method=url)
 
 
