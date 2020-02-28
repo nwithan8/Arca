@@ -3,6 +3,7 @@ GitPython
 urllib3
 discord
 requests
+requests_cache
 imdbpie
 asyncio
 bs4
