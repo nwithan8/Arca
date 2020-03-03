@@ -6,7 +6,7 @@ import sys, traceback, os
 import helper.cog_handler as cog_handler
 
 PREFIX = "*"
-USE_REMOTE_CONFIG = True
+USE_REMOTE_CONFIG = False
 # True: Load cogs from a remote "cogs.txt" file in Dropbox (will need to know folder.__init__ of each)
 # False: Load cogs from the ext list below.
 
@@ -15,24 +15,24 @@ bot = commands.Bot(command_prefix=PREFIX)
 formatter = commands.HelpCommand(show_check_failure=False)
 
 exts = [
-    # "espn.espn",
-    # "plex.plex",
-    # "plex.plex_manager",
-    # "plex.plex_namanger_nodb",
+    # "sports.espn.espn",
+    # "media_server.plex.plex",
+    # "media_server.plex.plex_manager",
+    # "media_server.plex.plex_namanger_nodb",
     # "core.manager",
-    # "jellyfin.jellyfin",
-    # "emby.emby",
+    # "media_server.jellyfin.jellyfin",
+    # "media_server.emby.emby",
     # "news.news",
     # "MARTA.marta",
-    # "booksonic.booksonic",
-    # "roles.roles",
-    # "yahoofantasy.yahoofantasy",
+    # "media_server.booksonic.booksonic",
+    # "discord.roles.roles",
+    # "sports.yahoofantasy.yahoofantasy",
     # "smart_home.sengled_lights.sengled",
     # "smart_home.google_home.google_home",
     # "smart_home.wink.wink",
-    "general.coronavirus",
-    "general.speedtest",
-    "general.__init__"
+    # "general.coronavirus",
+    # "general.speedtest",
+    # "general.__init__"
 ]
 
 if USE_REMOTE_CONFIG:

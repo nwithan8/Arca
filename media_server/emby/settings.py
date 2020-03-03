@@ -1,10 +1,10 @@
 import os
 
 # Emby settings
-EMBY_URL = ''
-EMBY_API_KEY = ''
-EMBY_ADMIN_USERNAME = ''
-EMBY_ADMIN_PASSWORD = ''
+EMBY_URL = 'http://192.168.1.27:8098'
+EMBY_API_KEY = '7d2285368c484761af7a437f3285467d'
+EMBY_ADMIN_USERNAME = 'nate'
+EMBY_ADMIN_PASSWORD = 'raspberry'
 EMBY_SERVER_NICKNAME = ''
 EMBY_USER_POLICY = {
     "IsAdministrator": "false",
@@ -41,7 +41,7 @@ EmbyDiscord.users
 3|ExpirationStamp|INT(11)|0||0
 4|Note|VARCHAR(5)|0||0
 '''
-USE_DROPBOX = True  # Store database in Dropbox, download and upload dynamically
+USE_DROPBOX = False  # Store database in Dropbox, download and upload dynamically
 
 # Discord settings
 DISCORD_SERVER_ID = ''

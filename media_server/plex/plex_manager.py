@@ -13,8 +13,8 @@ from plexapi.server import PlexServer
 import plexapi
 from helper.db_commands import DB
 from discord.ext import commands
-import plex.settings as settings
-import plex.plex_api as px
+from media_server.plex import settings as settings
+from media_server.plex import plex_api as px
 import helper.discord_helper as discord_helper
 
 plex = px.plex

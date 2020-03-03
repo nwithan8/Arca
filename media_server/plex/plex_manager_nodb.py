@@ -9,8 +9,8 @@ import asyncio
 from plexapi.server import PlexServer
 import plexapi
 from discord.ext import commands
-import plex.settings as settings
-import plex.plex_api as px
+from media_server.plex import settings as settings
+from media_server.plex import plex_api as px
 
 plex = px.plex
 

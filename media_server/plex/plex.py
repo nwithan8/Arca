@@ -11,8 +11,8 @@ from decimal import *
 import asyncio
 import plex.plex_api as px
 from helper.db_commands import DB
-import plex.settings as settings
-import plex.plex_recs as pr
+from media_server.plex import settings as settings
+from media_server.plex import plex_recs as pr
 
 db = DB(SERVER_TYPE='Plex', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=None, MULTI_PLEX=None, USE_DROPBOX=settings.USE_DROPBOX)
 

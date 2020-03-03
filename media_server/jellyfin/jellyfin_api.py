@@ -2,7 +2,7 @@ import requests
 import socket
 import json
 from urllib.parse import urlencode
-import jellyfin.settings as settings
+from media_server.jellyfin import settings as settings
 
 token_header = None
 admin_id = None

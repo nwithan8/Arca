@@ -1,5 +1,5 @@
 """
-Interact with a Emby Media Server, manage users
+Interact with a Jellyfin Media Server, manage users
 Copyright (C) 2019 Nathan Harris
 """
 
@@ -10,13 +10,13 @@ import random
 import string
 import csv
 from datetime import datetime
-import emby.settings as settings
-import emby.emby_api as em
+from media_server.jellyfin import settings as settings
+from media_server.jellyfin import jellyfin_api as jf
 from helper.db_commands import DB
 from helper.pastebin import hastebin, privatebin
 import helper.discord_helper as discord_helper
 
-db = DB(SERVER_TYPE='Emby', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600), USE_DROPBOX=settings.USE_DROPBOX)
+db = DB(SERVER_TYPE='Jellyfin', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600), USE_DROPBOX=settings.USE_DROPBOX)
 
 
 def password(length):
@@ -28,23 +28,23 @@ def password(length):
 
 def add_password(uid):
     p = password(length=10)
-    r = em.resetPassword(uid)
-    if str(r.status_code).startswith('2'):
-        r = em.setUserPassword(uid, "", p)
-        if str(r.status_code).startswith('2'):
+    r = jf.resetPassword(uid)
+    if r:
+        r = jf.setUserPassword(uid, "", p)
+        if r:
             return p
     return None
 
 
 def update_policy(uid, policy=None):
-    if str(em.updatePolicy(uid, policy).status_code).startswith('2'):
+    if jf.updatePolicy(uid, policy):
         return True
     return False
 
 
 async def sendAddMessage(user, username, pwd=None):
-    text = "Hostname: {}\nUsername: {}\n{}\n".format(str(settings.EMBY_URL), str(username), (
-        "Password: " + pwd if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
+    text = "Hostname: {}\nUsername: {}\n{}\n".format(str(settings.JELLYFIN_URL), str(username), (
+                    "Password: " + pwd if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
     if settings.USE_PASTEBIN:
         if settings.USE_PASTEBIN == 'privatebin':
             data, error = privatebin(
@@ -65,39 +65,37 @@ async def sendAddMessage(user, username, pwd=None):
             print("Error uploading to pastebin: {}".format(error))
     await user.create_dm()
     await user.dm_channel.send("You have been added to {}!\n{}".format(
-        str(settings.EMBY_SERVER_NICKNAME), text))
+        str(settings.JELLYFIN_SERVER_NICKNAME), text))
 
 
-def get_emby_users():
+def get_jellyfin_users():
     """
     Return dictionary {'user_name': 'user_id'}
     """
     users = {}
-    for u in em.getUsers():
+    for u in jf.getUsers():
         users[u['name']] = u['id']
     return users
 
 
-async def add_to_emby(username, discordId, note, useEmbyConnect=False):
+def add_to_jellyfin(username, discordId, note):
     """
-    Add a Discord user to Emby
+    Add a Discord user to Jellyfin
 
     :returns ('policyMade': True/False, 'userId': str(id)/str(failure reason), 'password': str/None)
     """
     try:
         p = None
-        r = em.makeUser(username)
-        if str(r.status_code).startswith('2'):
+        r = jf.makeUser(username)
+        if r:
             uid = json.loads(r.text)['Id']
             p = add_password(uid)
             policyEnforced = False
             if not p:
                 print("Password update for {} failed. Moving on...".format(username))
-            if useEmbyConnect:
-                em.addConnectUser(connect_username=username, user_id=uid)
             success = db.add_user_to_db(discordId, username, uid, note)
             if success:
-                if update_policy(uid, settings.EMBY_USER_POLICY):
+                if update_policy(uid, settings.JELLYFIN_USER_POLICY):
                     policyEnforced = True
             return policyEnforced, uid, p
         return False, r.content.decode("utf-8"), p
@@ -106,9 +104,9 @@ async def add_to_emby(username, discordId, note, useEmbyConnect=False):
         return False, None, None
 
 
-def remove_from_emby(id):
+def remove_from_jellyfin(id):
     """
-    Remove a Discord user from Emby
+    Remove a Discord user from Jellyfin
     Returns:
     200 - user found and removed successfully
     600 - user found, but not removed
@@ -116,11 +114,12 @@ def remove_from_emby(id):
     500 - unknown error
     """
     try:
-        embyId = db.find_user_in_db("Emby", id)
-        if not embyId:
+        jellyfinId = db.find_user_in_db("Jellyfin", id)
+        if not jellyfinId:
             return 700  # user not found
-        r = em.deleteUser(embyId)
-        if not str(r.status_code).startswith('2'):
+        r = jf.deleteUser(jellyfinId)
+        if not r:
+            print(r.content.decode("utf-8"))
             return 600  # user not deleted
         db.remove_user_from_db(id)
         return 200  # user removed successfully
@@ -131,14 +130,14 @@ def remove_from_emby(id):
 
 def remove_nonsub(memberID):
     if memberID not in settings.EXEMPT_SUBS:
-        remove_from_emby(memberID)
+        remove_from_jellyfin(memberID)
 
 
 async def backup_database():
-    db.backup('backup/EmbyDiscord.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
+    db.backup('backup/JellyfinDiscord.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
 
 
-class Emby(commands.Cog):
+class Jellyfin(commands.Cog):
 
     async def purge_winners(self, ctx):
         try:
@@ -157,7 +156,7 @@ class Emby(commands.Cog):
                                              "DateCreated >= date(julianday(date('now'))-14)".format(str(u)),
                         "ReplaceUserId": "false"}
                     # returns time watched in last 14 days, in seconds
-                    watchtime = em.statsCustomQuery(query)['results'][0][0]
+                    watchtime = jf.statsCustomQuery(query)['results'][0][0]
                     if not watchtime:
                         watchtime = 0
                     watchtime = int(watchtime)
@@ -179,18 +178,17 @@ class Emby(commands.Cog):
             print(e)
             await ctx.send("Something went wrong. Please try again later.")
 
-    async def remove_winner(self, embyId):
+    async def remove_winner(self, jellyfinId):
         try:
-            id = db.find_user_in_db("Discord", embyId)
+            id = db.find_user_in_db("Discord", jellyfinId)
             if id is not None:
-                code = remove_from_emby(embyId)
+                code = remove_from_jellyfin(jellyfinId)
                 if code.startswith('2'):
                     user = self.bot.get_user(int(id))
                     await user.create_dm()
                     await user.dm_channel.send(
-                        "You have been removed from {} due to inactivity.".format(str(settings.EMBY_SERVER_NICKNAME)))
-                    await user.remove_roles(discord.utils.get(self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).roles,
-                                                              name=settings.WINNER_ROLE_NAME),
+                        "You have been removed from {} due to inactivity.".format(str(settings.JELLYFIN_SERVER_NICKNAME)))
+                    await user.remove_roles(discord.utils.get(self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).roles, name=settings.WINNER_ROLE_NAME),
                                             reason="Inactive winner")
                     return "<@{}>, ".format(id)
         except Exception as e:
@@ -198,20 +196,18 @@ class Emby(commands.Cog):
         return None
 
     async def check_subs(self):
-        print("Checking Emby subs...")
+        print("Checking Jellyfin subs...")
         for member in discord_helper.get_users_without_roles(bot=self.bot, roleNames=settings.SUB_ROLES, guildID=settings.DISCORD_SERVER_ID):
             remove_nonsub(member.id)
-        print("Emby subs check complete.")
-
+        print("Jellyfin subs check complete.")
 
     async def check_trials(self):
-        print("Checking Emby trials...")
+        print("Checking Jellyfin trials...")
         trials = db.getTrials()
-        trial_role = discord.utils.get(self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).roles,
-                                       name=settings.TRIAL_ROLE_NAME)
+        trial_role = discord.utils.get(self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).roles, name=settings.TRIAL_ROLE_NAME)
         for u in trials:
             print("Ending trial for {}".format(str(u[0])))
-            remove_from_emby(int(u[0]))
+            remove_from_jellyfin(int(u[0]))
             try:
                 user = self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).get_member(int(u[0]))
                 await user.create_dm()
@@ -220,7 +216,7 @@ class Emby(commands.Cog):
             except Exception as e:
                 print(e)
                 print("Discord user {} not found.".format(str(u[0])))
-        print("Emby Trials check completed.")
+        print("Jellyfin Trials check completed.")
 
     @tasks.loop(hours=24)
     async def backup_database_timer(self):
@@ -234,58 +230,57 @@ class Emby(commands.Cog):
     async def check_trials_timer(self):
         await self.check_trials()
 
-    @commands.group(aliases=["Emby", "em", "JF"], pass_context=True)
-    async def emby(self, ctx: commands.Context):
+    @commands.group(aliases=["Jellyfin", "jf", "JF"], pass_context=True)
+    async def jellyfin(self, ctx: commands.Context):
         """
-        Emby Media Server commands
+        Jellyfin Media Server commands
         """
         if ctx.invoked_subcommand is None:
             await ctx.send("What subcommand?")
 
-    @emby.command(name="access", pass_context=True)
+    @jellyfin.command(name="access", pass_context=True)
     # Anyone can use this command
-    async def emby_access(self, ctx: commands.Context, EmbyUsername: str = None):
+    async def jellyfin_access(self, ctx: commands.Context, JellyfinUsername: str = None):
         """
-        Check if you or another user has access to the Emby server
+        Check if you or another user has access to the Jellyfin server
         """
-        if EmbyUsername is None:
-            name, note = db.find_username_in_db("Emby", ctx.message.author.id)
+        if JellyfinUsername is None:
+            name, note = db.find_username_in_db("Jellyfin", ctx.message.author.id)
         else:
-            name = EmbyUsername
-        if name in get_emby_users().keys():
+            name = JellyfinUsername
+        if name in get_jellyfin_users().keys():
             await ctx.send(
-                '{} access to {}'.format(("You have" if EmbyUsername is None else name + " has"),
-                                         settings.EMBY_SERVER_NICKNAME))
+                '{} access to {}'.format(("You have" if JellyfinUsername is None else name + " has"), settings.JELLYFIN_SERVER_NICKNAME))
         else:
-            await ctx.send('{} not have access to {}'.format(("You do" if EmbyUsername is None else name + " does"),
-                                                             settings.EMBY_SERVER_NICKNAME))
+            await ctx.send('{} not have access to {}'.format(("You do" if JellyfinUsername is None else name + " does"),
+                                                             settings.JELLYFIN_SERVER_NICKNAME))
 
-    @emby_access.error
-    async def emby_access_error(self, ctx, error):
+    @jellyfin_access.error
+    async def jellyfin_access_error(self, ctx, error):
         print(error)
         await ctx.send("Sorry, something went wrong.")
 
-    @emby.command(name="status", aliases=['ping', 'up', 'online'], pass_context=True)
+    @jellyfin.command(name="status", aliases=['ping', 'up', 'online'], pass_context=True)
     # Anyone can use this command
-    async def emby_status(self, ctx: commands.Context):
+    async def jellyfin_status(self, ctx: commands.Context):
         """
-        Check if the Emby server is online
+        Check if the Jellyfin server is online
         """
-        if em.getStatus() != 200:
-            await ctx.send(settings.EMBY_SERVER_NICKNAME + " is having connection issues right now.")
+        if jf.getStatus() != 200:
+            await ctx.send(settings.JELLYFIN_SERVER_NICKNAME + " is having connection issues right now.")
         else:
-            await ctx.send(settings.EMBY_SERVER_NICKNAME + " is up and running.")
+            await ctx.send(settings.JELLYFIN_SERVER_NICKNAME + " is up and running.")
 
-    @emby_status.error
-    async def emby_status_error(self, ctx, error):
+    @jellyfin_status.error
+    async def jellyfin_status_error(self, ctx, error):
         print(error)
         await ctx.send("Sorry, I couldn't test the connection.")
 
-    @emby.command(name="winners", pass_context=True)
+    @jellyfin.command(name="winners", pass_context=True)
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
-    async def emby_winners(self, ctx: commands.Context):
+    async def jellyfin_winners(self, ctx: commands.Context):
         """
-        List winners' Emby usernames
+        List winners' Jellyfin usernames
         """
         try:
             winners = db.getWinners()
@@ -294,18 +289,18 @@ class Emby(commands.Cog):
         except Exception as e:
             await ctx.send("Error pulling winners from database.")
 
-    @emby.command(name="purge", pass_context=True)
+    @jellyfin.command(name="purge", pass_context=True)
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
-    async def emby_purge(self, ctx: commands.Context):
+    async def jellyfin_purge(self, ctx: commands.Context):
         """
         Remove inactive winners
         """
         await ctx.send("Purging winners...")
         await self.purge_winners(ctx)
 
-    @emby.command(name="subcheck")
+    @jellyfin.command(name="subcheck")
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
-    async def emby_subs(self, ctx: commands.Context):
+    async def jellyfin_subs(self, ctx: commands.Context):
         """
         Find and removed lapsed subscribers
         This is automatically done once a week
@@ -313,14 +308,14 @@ class Emby(commands.Cog):
         await self.check_subs()
         await ctx.send("Sub check complete.")
 
-    @emby_subs.error
-    async def emby_subs_error(self, ctx, error):
+    @jellyfin_subs.error
+    async def jellyfin_subs_error(self, ctx, error):
         print(error)
         await ctx.send("Something went wrong.")
 
-    @emby.command(name="trialcheck")
+    @jellyfin.command(name="trialcheck")
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
-    async def emby_trial_check(self, ctx: commands.Context):
+    async def jellyfin_trial_check(self, ctx: commands.Context):
         """
         Find and remove lapsed trials
         This is automatically done at the interval set in Settings
@@ -328,26 +323,26 @@ class Emby(commands.Cog):
         await self.check_trials()
         await ctx.send("Trial check complete.")
 
-    @emby_trial_check.error
-    async def emby_trial_check_error(self, ctx, error):
+    @jellyfin_trial_check.error
+    async def jellyfin_trial_check_error(self, ctx, error):
         print(error)
         await ctx.send("Something went wrong.")
 
-    @emby.command(name="cleandb", aliases=['clean', 'scrub', 'syncdb'], pass_context=True)
+    @jellyfin.command(name="cleandb", aliases=['clean', 'scrub', 'syncdb'], pass_context=True)
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
-    async def emby_cleandb(self, ctx: commands.Context):
+    async def jellyfin_cleandb(self, ctx: commands.Context):
         """
         Remove old users from database
-        If you delete a user from Emby directly,
+        If you delete a user from Jellyfin directly,
         run this to remove the user's entry in the
-        Emby user database.
+        Jellyfin user database.
         """
-        existingUsers = get_emby_users()
+        existingUsers = get_jellyfin_users()
         dbEntries = db.get_all_entries_in_db()
         if dbEntries:
             deletedUsers = ""
             for entry in dbEntries:
-                if entry[1] not in existingUsers.keys():  # entry[1] is EmbyUsername
+                if entry[1] not in existingUsers.keys():  # entry[1] is JellyfinUsername
                     deletedUsers += entry[1] + ", "
                     db.remove_user_from_db(entry[0])  # entry[0] is DiscordID
             if deletedUsers:
@@ -357,14 +352,14 @@ class Emby(commands.Cog):
         else:
             await ctx.send("An error occurred when grabbing users from the database.")
 
-    @emby_cleandb.error
-    async def emby_cleandb_error(self, ctx, error):
+    @jellyfin_cleandb.error
+    async def jellyfin_cleandb_error(self, ctx, error):
         print(error)
         await ctx.send("Something went wrong.")
 
-    @emby.command(name="backupdb")
+    @jellyfin.command(name="backupdb")
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
-    async def emby_backupdb(self, ctx: commands.Context):
+    async def jellyfin_backupdb(self, ctx: commands.Context):
         """
         Backup the database to Dropbox.
         This is automatically done every 24 hours.
@@ -372,35 +367,35 @@ class Emby(commands.Cog):
         await backup_database()
         await ctx.send("Backup complete.")
 
-    @emby_backupdb.error
-    async def emby_backupdb_error(self, ctx, error):
+    @jellyfin_backupdb.error
+    async def jellyfin_backupdb_error(self, ctx, error):
         print(error)
         await ctx.send("Something went wrong.")
 
-    @emby.command(name="count", aliases=["subs", "number"], pass_context=True)
+    @jellyfin.command(name="count", aliases=["subs", "number"], pass_context=True)
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
-    async def emby_count(self, ctx: commands.Context):
+    async def jellyfin_count(self, ctx: commands.Context):
         """
-        Get the number of enabled Emby users
+        Get the number of enabled Jellyfin users
         """
-        count = len(get_emby_users())
+        count = len(get_jellyfin_users())
         if count > 0:
-            await ctx.send(str(settings.EMBY_SERVER_NICKNAME) + " has " + str(count) + " users.")
+            await ctx.send(str(settings.JELLYFIN_SERVER_NICKNAME) + " has " + str(count) + " users.")
         else:
             await ctx.send("An error occurred.")
 
-    @emby_count.error
-    async def emby_count_error(self, ctx, error):
+    @jellyfin_count.error
+    async def jellyfin_count_error(self, ctx, error):
         print(error)
         await ctx.send("Something went wrong. Please try again later.")
 
-    @emby.command(name="add", aliases=["new", "join"], pass_context=True)
+    @jellyfin.command(name="add", aliases=["new", "join"], pass_context=True)
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
-    async def emby_add(self, ctx: commands.Context, user: discord.Member, username: str, useEmbyConnect: str = False):
+    async def jellyfin_add(self, ctx: commands.Context, user: discord.Member, username: str):
         """
-        Add a Discord user to Emby
+        Add a Discord user to Jellyfin
         """
-        s, u, p = await add_to_emby(username, user.id, 's', useEmbyConnect=(True if useEmbyConnect else False))
+        s, u, p = add_to_jellyfin(username, user.id, 's')
         if s:
             await sendAddMessage(user, username, (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
             await ctx.send(
@@ -408,42 +403,20 @@ class Emby(commands.Cog):
         else:
             await ctx.send("An error occurred while adding {}".format(user.mention))
 
-    @emby_add.error
-    async def emby_add_error(self, ctx, error):
+    @jellyfin_add.error
+    async def jellyfin_add_error(self, ctx, error):
         print(error)
-        await ctx.send("Please mention the Discord user to add to Emby, as well as their Emby username.")
+        await ctx.send("Please mention the Discord user to add to Jellyfin, as well as their Jellyfin username.")
 
-    @emby.command(name="connect", pass_context=True)
+    @jellyfin.command(name="remove", aliases=["delete", "rem"], pass_context=True)
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
-    async def emby_connect(self, ctx: commands.Context, user: discord.Member, embyConnectUsername: str):
+    async def jellyfin_remove(self, ctx: commands.Context, user: discord.Member):
         """
-        Connect a local Emby user to an Emby Connect user
+        Delete a Discord user from Jellyfin
         """
-        user_id = db.find_user_in_db("Emby", user.id)
-        if user_id:
-            res = await em.addConnectUser(embyConnectUsername, user_id)
-            if str(res.status_code).startswith('2'):
-                await ctx.send("The local account for {} has been successfully linked to {}".format(user.mention,
-                                                                                                    embyConnectUsername))
-            else:
-                await ctx.send("Linking failed.")
-        else:
-            await ctx.send("I couldn't find that user")
-
-    @emby_connect.error
-    async def emby_connect_error(self, ctx, error):
-        print(error)
-        await ctx.send("Please mention the Discord user and their Emby Connect username to link the accounts.")
-
-    @emby.command(name="remove", aliases=["delete", "rem"], pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
-    async def emby_remove(self, ctx: commands.Context, user: discord.Member):
-        """
-        Delete a Discord user from Emby
-        """
-        s = remove_from_emby(user.id)
+        s = remove_from_jellyfin(user.id)
         if s == 200:
-            await ctx.send("You've been removed from {}, {}.".format(settings.EMBY_SERVER_NICKNAME, user.mention))
+            await ctx.send("You've been removed from {}, {}.".format(settings.JELLYFIN_SERVER_NICKNAME, user.mention))
         elif s == 600:
             await ctx.send("{} could not be removed.".format(user.mention))
         elif s == 700:
@@ -451,49 +424,49 @@ class Emby(commands.Cog):
         else:
             await ctx.send("An error occurred while removing {}".format(user.mention))
 
-    @emby_remove.error
-    async def emby_remove_error(self, ctx, error):
+    @jellyfin_remove.error
+    async def jellyfin_remove_error(self, ctx, error):
         print(error)
-        await ctx.send("Please mention the Discord user to remove from Emby.")
+        await ctx.send("Please mention the Discord user to remove from Jellyfin.")
 
-    @emby.command(name="trial", pass_context=True)
+    @jellyfin.command(name="trial", pass_context=True)
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
-    async def emby_trial(self, ctx: commands.Context, user: discord.Member, EmbyUsername: str):
+    async def jellyfin_trial(self, ctx: commands.Context, user: discord.Member, JellyfinUsername: str):
         """
-        Start a trial of Emby
+        Start a trial of Jellyfin
         """
-        s, u, p = add_to_emby(EmbyUsername, user.id, 't', useEmbyConnect=False)
+        s, u, p = add_to_jellyfin(JellyfinUsername, user.id, 't')
         if s:
-            await sendAddMessage(user, EmbyUsername, (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
+            await sendAddMessage(user, JellyfinUsername, (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
         else:
             await ctx.send("An error occurred while starting a trial for {}".format(user.mention))
 
-    @emby_trial.error
-    async def emby_trial_error(self, ctx, error):
+    @jellyfin_trial.error
+    async def jellyfin_trial_error(self, ctx, error):
         print(error)
-        await ctx.send("Please mention the Discord user to add to Emby, as well as their Emby username.")
+        await ctx.send("Please mention the Discord user to add to Jellyfin, as well as their Jellyfin username.")
 
-    @emby.command(name="import", pass_context=True)
+    @jellyfin.command(name="import", pass_context=True)
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
-    async def emby_import(self, ctx: commands.Context, user: discord.Member, EmbyUsername: str, subType: str,
-                          serverNumber: int = None):
+    async def jellyfin_import(self, ctx: commands.Context, user: discord.Member, JellyfinUsername: str, subType: str,
+                              serverNumber: int = None):
         """
-        Add existing Emby users to the database.
+        Add existing Jellyfin users to the database.
         user - tag a Discord user
-        EmbyUsername - Emby username of the Discord user
+        JellyfinUsername - Jellyfin username of the Discord user
         subType - custom note for tracking subscriber type; MUST be less than 5 letters.
         Default in database: 's' for Subscriber, 'w' for Winner, 't' for Trial.
         NOTE: subType 't' will make a new 24-hour timestamp for the user.
         """
-        users = get_emby_users()
-        if EmbyUsername not in users.keys():
-            await ctx.send("Not an existing Emby user.")
+        users = get_jellyfin_users()
+        if JellyfinUsername not in users.keys():
+            await ctx.send("Not an existing Jellyfin user.")
         else:
-            embyId = users[EmbyUsername]
+            jellyfinId = users[JellyfinUsername]
             if len(subType) > 4:
                 await ctx.send("subType must be less than 5 characters long.")
             else:
-                new_entry = db.add_user_to_db(user.id, EmbyUsername, embyId, subType)
+                new_entry = db.add_user_to_db(user.id, JellyfinUsername, jellyfinId, subType)
                 if new_entry:
                     if subType == 't':
                         await ctx.send("Trial user was added/new timestamp issued.")
@@ -502,66 +475,66 @@ class Emby(commands.Cog):
                 else:
                     await ctx.send("User already exists in the database.")
 
-    @emby_import.error
-    async def emby_import_error(self, ctx, error):
+    @jellyfin_import.error
+    async def jellyfin_import_error(self, ctx, error):
         print(error)
         await ctx.send(
-            "Please mention the Discord user to add to the database, including their Emby username and sub type.")
+            "Please mention the Discord user to add to the database, including their Jellyfin username and sub type.")
 
-    @emby.group(name="find", aliases=["id"], pass_context=True)
+    @jellyfin.group(name="find", aliases=["id"], pass_context=True)
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
-    async def emby_find(self, ctx: commands.Context):
+    async def jellyfin_find(self, ctx: commands.Context):
         """
-        Find Discord or Emby user
+        Find Discord or Jellyfin user
         """
         if ctx.invoked_subcommand is None:
             await ctx.send("What subcommand?")
 
-    @emby_find.command(name="emby", aliases=["e"])
-    async def emby_find_emby(self, ctx: commands.Context, user: discord.Member):
+    @jellyfin_find.command(name="jellyfin", aliases=["j"])
+    async def jellyfin_find_jellyfin(self, ctx: commands.Context, user: discord.Member):
         """
-        Find Discord member's Emby username
+        Find Discord member's Jellyfin username
         """
-        name, note = db.find_username_in_db("Emby", user.id)
+        name, note = db.find_username_in_db("Jellyfin", user.id)
         if name:
-            await ctx.send('{} is Emby user: {}{}'.format(user.mention, name,
-                                                          (" [Trial]" if note == 't' else " [Subscriber]")))
+            await ctx.send('{} is Jellyfin user: {}{}'.format(user.mention, name,
+                                                              (" [Trial]" if note == 't' else " [Subscriber]")))
         else:
             await ctx.send("User not found.")
 
-    @emby_find.command(name="discord", aliases=["d"])
-    async def emby_find_discord(self, ctx: commands.Context, EmbyUsername: str):
+    @jellyfin_find.command(name="discord", aliases=["d"])
+    async def jellyfin_find_discord(self, ctx: commands.Context, JellyfinUsername: str):
         """
-        Find Emby user's Discord name
+        Find Jellyfin user's Discord name
         """
-        id, note = db.find_username_in_db("Discord", EmbyUsername)
+        id, note = db.find_username_in_db("Discord", JellyfinUsername)
         if id:
-            await ctx.send('{} is Discord user: {}'.format(EmbyUsername, self.bot.get_user(int(id)).mention))
+            await ctx.send('{} is Discord user: {}'.format(JellyfinUsername, self.bot.get_user(int(id)).mention))
         else:
             await ctx.send("User not found.")
 
-    @emby_find.error
-    async def emby_find_error(self, ctx, error):
+    @jellyfin_find.error
+    async def jellyfin_find_error(self, ctx, error):
         await ctx.send("An error occurred while looking for that user.")
         print(error)
 
-    @emby.group(name="info")
+    @jellyfin.group(name="info")
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
-    async def emby_info(self, ctx: commands.Context):
+    async def jellyfin_info(self, ctx: commands.Context):
         """
         Get database entry for a user
         """
         if ctx.invoked_subcommand is None:
             await ctx.send("What subcommand?")
 
-    @emby_info.command(name="emby", aliases=["j"])
-    async def emby_info_emby(self, ctx, EmbyUsername: str):
+    @jellyfin_info.command(name="jellyfin", aliases=["j"])
+    async def jellyfin_info_jellyfin(self, ctx, JellyfinUsername: str):
         """
-        Get database entry for Emby username
+        Get database entry for Jellyfin username
         """
-        embed = discord.Embed(title=("Info for {}".format(str(EmbyUsername))))
+        embed = discord.Embed(title=("Info for {}".format(str(JellyfinUsername))))
         n = db.describe_table("users")
-        d = db.find_entry_in_db("EmbyUsername", EmbyUsername)
+        d = db.find_entry_in_db("JellyfinUsername", JellyfinUsername)
         if d:
             for i in range(0, len(n)):
                 val = str(d[i])
@@ -575,8 +548,8 @@ class Emby(commands.Cog):
         else:
             await ctx.send("That user is not in the database.")
 
-    @emby_info.command(name="discord", aliases=["d"])
-    async def emby_info_discord(self, ctx, user: discord.Member):
+    @jellyfin_info.command(name="discord", aliases=["d"])
+    async def jellyfin_info_discord(self, ctx, user: discord.Member):
         """
         Get database entry for Discord user
         """
@@ -597,16 +570,16 @@ class Emby(commands.Cog):
         else:
             await ctx.send("That user is not in the database.")
 
-    @emby_info.error
-    async def emby_info_error(self, ctx, error):
+    @jellyfin_info.error
+    async def jellyfin_info_error(self, ctx, error):
         print(error)
         await ctx.send("User not found.")
 
-    @emby.command(name="migrate", pass_context=True)
-    async def emby_migrate(self, ctx: commands.Context):
+    @jellyfin.command(name="migrate", pass_context=True)
+    async def jellyfin_migrate(self, ctx: commands.Context):
         """
-        Migrate Plex users to Emby (using a CSV file)
-        File format: Discord_Tag | Plex_Username | Emby_Username
+        Migrate Plex users to Jellyfin (using a CSV file)
+        File format: Discord_Tag | Plex_Username | Jellyfin_Username
         """
         users = {}
         count = 0
@@ -615,19 +588,18 @@ class Emby(commands.Cog):
             reader = csv.DictReader(f)
             writer = csv.writer(f)
             for row in reader:
-                emby_username = row['Discord_Tag'].split("#")[0]  # Emby username will be Discord username
-                user = discord.utils.get(ctx.message.guild.members, name=emby_username)
-                s, u, p = add_to_emby(emby_username, user.id, 's', useEmbyConnect=False)  # Users added as 'Subscribers'
+                jellyfin_username = row['Discord_Tag'].split("#")[0]  # Jellyfin username will be Discord username
+                user = discord.utils.get(ctx.message.guild.members, name=jellyfin_username)
+                s, u, p = add_to_jellyfin(jellyfin_username, user.id, 's')  # Users added as 'Subscribers'
                 if s:
-                    await sendAddMessage(user, emby_username,
-                                         (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
-                    data = [str(row['Discord_Tag']), str(row['Plex_Username']), str(emby_username)]
+                    await sendAddMessage(user, jellyfin_username, (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
+                    data = [str(row['Discord_Tag']), str(row['Plex_Username']), str(jellyfin_username)]
                     writer.writerow(data)
                     count += 1
                 else:
-                    failed.append(emby_username)
+                    failed.append(jellyfin_username)
             f.close()
-        await ctx.send("{} users added to Emby.{}".format(str(count), (
+        await ctx.send("{} users added to Jellyfin.{}".format(str(count), (
             "" if len(failed) == 0 else "The following users were not added successfully: " + "\n".join(failed))))
 
     @commands.Cog.listener()
@@ -638,12 +610,11 @@ class Emby(commands.Cog):
                 for u in message.mentions:
                     await u.add_roles(tempWinner, reason="Winner - access winner invite channel")
             if message.channel.id == settings.WINNER_CHANNEL and discord.utils.get(message.guild.roles,
-                                                                                   name=settings.TEMP_WINNER_ROLE_NAME) in message.author.roles:
+                                                                          name=settings.TEMP_WINNER_ROLE_NAME) in message.author.roles:
                 username = message.content.strip()  # Only include username, nothing else
-                s, u, p = add_to_emby(username, message.author.id, 'w', useEmbyConnect=False)
+                s, u, p = add_to_jellyfin(username, message.author.id, 'w')
                 if s:
-                    await sendAddMessage(message.author, username,
-                                         (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
+                    await sendAddMessage(message.author, username, (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
                     await message.channel.send(
                         "You've been added, {}! Please check your direct messages for login information.".format(
                             message.author.mention))
@@ -658,15 +629,14 @@ class Emby(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        #self.check_trials_timer.start()
-        #self.check_subs_timer.start()
-        pass
+        self.check_trials_timer.start()
+        self.check_subs_timer.start()
 
     def __init__(self, bot):
         self.bot = bot
-        em.authenticate()
-        print("Emby Manager ready to go.")
+        jf.authenticate()
+        print("Jellyfin Manager ready to go.")
 
 
 def setup(bot):
-    bot.add_cog(Emby(bot))
+    bot.add_cog(Jellyfin(bot))

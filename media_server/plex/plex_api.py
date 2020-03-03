@@ -4,7 +4,7 @@ import os
 import re
 import json
 import requests
-import plex.settings as settings
+from media_server.plex import settings as settings
 from os.path import exists
 import xml.etree.ElementTree as ET
 from helper.encryption import Encryption

@@ -4,8 +4,8 @@ import json
 from imdbpie import Imdb, ImdbFacade
 import random
 from progress.bar import Bar
-import plex.plex_api as px
-import plex.settings as settings
+from media_server.plex import plex_api as px
+from media_server.plex import settings as settings
 from urllib.parse import quote
 
 imdbf = ImdbFacade()
