@@ -35,7 +35,7 @@ OMBI_URL = os.environ.get('OMBI_URL')
 OMBI_API_KEY = os.environ.get('OMBI_KEY')
 
 # Discord-to-Plex database (SQLite3)
-SQLITE_FILE = 'plex/PlexDiscord.db.priv'  # File path + name + extension (i.e."/root/nwithan8-cogs/plex_manager/PlexDiscord.db"
+SQLITE_FILE = 'media_server/plex/PlexDiscord.db.priv'  # File path + name + extension (i.e."/root/nwithan8-cogs/plex_manager/PlexDiscord.db"
 '''
 0|DiscordID|VARCHAR(100)|1||0
 1|PlexUsername|VARCHAR(100)|1||0
@@ -78,7 +78,7 @@ WINNER_CHANNEL = 0  # Channel ID
 GIVEAWAY_BOT_ID = 0  # User ID for the Giveaway Bot that announces contest winners
 
 # Credentials settings
-CREDENTIALS_FOLDER = 'plex/credentials'
+CREDENTIALS_FOLDER = 'media_server/plex/credentials'
 
 # Plex Recs settings
 # ex. 'oneWordLowercaseNicknameForGroup': [libraryNumber, libraryNumber]
