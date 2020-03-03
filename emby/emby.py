@@ -14,6 +14,7 @@ import emby.settings as settings
 import emby.emby_api as em
 from helper.db_commands import DB
 from helper.pastebin import hastebin, privatebin
+import helper.discord_helper as discord_helper
 
 db = DB(SERVER_TYPE='Emby', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600), USE_DROPBOX=settings.USE_DROPBOX)
 
@@ -198,15 +199,10 @@ class Emby(commands.Cog):
 
     async def check_subs(self):
         print("Checking Emby subs...")
-        exemptRoles = []
-        allRoles = self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).roles
-        for r in allRoles:
-            if r.name in settings.SUB_ROLES:
-                exemptRoles.append(r)
-        for member in self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).members:
-            if not any(x in member.roles for x in exemptRoles):
-                remove_nonsub(member.id)
-        print("Emby Subs check completed.")
+        for member in discord_helper.get_users_without_roles(bot=self.bot, roleNames=settings.SUB_ROLES, guildID=settings.DISCORD_SERVER_ID):
+            remove_nonsub(member.id)
+        print("Emby subs check complete.")
+
 
     async def check_trials(self):
         print("Checking Emby trials...")
