@@ -13,6 +13,7 @@ import plex.plex_api as px
 from helper.db_commands import DB
 from media_server.plex import settings as settings
 from media_server.plex import plex_recs as pr
+from helper.helper_functions import filesize
 
 db = DB(SERVER_TYPE='Plex', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=None, MULTI_PLEX=None, USE_DROPBOX=settings.USE_DROPBOX)
 
@@ -247,7 +248,7 @@ class Plex(commands.Cog):
                                'data']['total_file_size']
                     embed.add_field(name=str(l['count']) + " artists, " + str(l['parent_count']) + " albums, " + str(
                         l['child_count']) + " songs", value=str(l['section_name']), inline=False)
-        embed.add_field(name='\u200b', value="Total: " + px.filesize(size))
+        embed.add_field(name='\u200b', value="Total: " + filesize(size))
         await ctx.send(embed=embed)
 
     @plex.command(name="top", aliases=["pop"], pass_context=True)
