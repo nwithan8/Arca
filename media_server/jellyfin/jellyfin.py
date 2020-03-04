@@ -93,7 +93,7 @@ def add_to_jellyfin(username, discordId, note):
             policyEnforced = False
             if not p:
                 print("Password update for {} failed. Moving on...".format(username))
-            success = db.add_user_to_db(discordId, username, uid, note)
+            success = db.add_user_to_db(discordId=discordId, username=username, note=note, uid=uid)
             if success:
                 if update_policy(uid, settings.JELLYFIN_USER_POLICY):
                     policyEnforced = True
@@ -114,7 +114,7 @@ def remove_from_jellyfin(id):
     500 - unknown error
     """
     try:
-        jellyfinId = db.find_user_in_db("Jellyfin", id)
+        jellyfinId = db.find_user_in_db(ServerOrDiscord="Jellyfin", data=id)
         if not jellyfinId:
             return 700  # user not found
         r = jf.deleteUser(jellyfinId)
@@ -130,6 +130,7 @@ def remove_from_jellyfin(id):
 
 def remove_nonsub(memberID):
     if memberID not in settings.EXEMPT_SUBS:
+        print("Ending sub for {}".format(memberID))
         remove_from_jellyfin(memberID)
 
 
@@ -180,7 +181,7 @@ class Jellyfin(commands.Cog):
 
     async def remove_winner(self, jellyfinId):
         try:
-            id = db.find_user_in_db("Discord", jellyfinId)
+            id = db.find_user_in_db(ServerOrDiscord="Discord", data=jellyfinId)
             if id is not None:
                 code = remove_from_jellyfin(jellyfinId)
                 if code.startswith('2'):
@@ -245,7 +246,7 @@ class Jellyfin(commands.Cog):
         Check if you or another user has access to the Jellyfin server
         """
         if JellyfinUsername is None:
-            name, note = db.find_username_in_db("Jellyfin", ctx.message.author.id)
+            name, note = db.find_username_in_db(ServerOrDiscord="Jellyfin", data=ctx.message.author.id)
         else:
             name = JellyfinUsername
         if name in get_jellyfin_users().keys():
@@ -466,7 +467,7 @@ class Jellyfin(commands.Cog):
             if len(subType) > 4:
                 await ctx.send("subType must be less than 5 characters long.")
             else:
-                new_entry = db.add_user_to_db(user.id, JellyfinUsername, jellyfinId, subType)
+                new_entry = db.add_user_to_db(discordId=user.id, username=JellyfinUsername, note=subType, uid=jellyfinId)
                 if new_entry:
                     if subType == 't':
                         await ctx.send("Trial user was added/new timestamp issued.")
@@ -495,7 +496,7 @@ class Jellyfin(commands.Cog):
         """
         Find Discord member's Jellyfin username
         """
-        name, note = db.find_username_in_db("Jellyfin", user.id)
+        name, note = db.find_username_in_db(ServerOrDiscord="Jellyfin", data=user.id)
         if name:
             await ctx.send('{} is Jellyfin user: {}{}'.format(user.mention, name,
                                                               (" [Trial]" if note == 't' else " [Subscriber]")))
@@ -507,7 +508,7 @@ class Jellyfin(commands.Cog):
         """
         Find Jellyfin user's Discord name
         """
-        id, note = db.find_username_in_db("Discord", JellyfinUsername)
+        id, note = db.find_username_in_db(ServerOrDiscord="Discord", data=JellyfinUsername)
         if id:
             await ctx.send('{} is Discord user: {}'.format(JellyfinUsername, self.bot.get_user(int(id)).mention))
         else:

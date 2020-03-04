@@ -96,7 +96,7 @@ async def add_to_emby(username, discordId, note, useEmbyConnect=False):
                 print("Password update for {} failed. Moving on...".format(username))
             if useEmbyConnect:
                 em.addConnectUser(connect_username=username, user_id=uid)
-            success = db.add_user_to_db(discordId, username, uid, note)
+            success = db.add_user_to_db(discordId=discordId, username=username, note=note, uid=uid)
             if success:
                 if update_policy(uid, settings.EMBY_USER_POLICY):
                     policyEnforced = True
@@ -117,7 +117,7 @@ def remove_from_emby(id):
     500 - unknown error
     """
     try:
-        embyId = db.find_user_in_db("Emby", id)
+        embyId = db.find_user_in_db(ServerOrDiscord="Emby", data=id)
         if not embyId:
             return 700  # user not found
         r = em.deleteUser(embyId)
@@ -182,7 +182,7 @@ class Emby(commands.Cog):
 
     async def remove_winner(self, embyId):
         try:
-            id = db.find_user_in_db("Discord", embyId)
+            id = db.find_user_in_db(ServerOrDiscord="Discord", data=embyId)
             if id is not None:
                 code = remove_from_emby(embyId)
                 if code.startswith('2'):
@@ -250,7 +250,7 @@ class Emby(commands.Cog):
         Check if you or another user has access to the Emby server
         """
         if EmbyUsername is None:
-            name, note = db.find_username_in_db("Emby", ctx.message.author.id)
+            name, note = db.find_username_in_db(ServerOrDiscord="Emby", data=ctx.message.author.id)
         else:
             name = EmbyUsername
         if name in get_emby_users().keys():
@@ -420,7 +420,7 @@ class Emby(commands.Cog):
         """
         Connect a local Emby user to an Emby Connect user
         """
-        user_id = db.find_user_in_db("Emby", user.id)
+        user_id = db.find_user_in_db(ServerOrDiscord="Emby", data=user.id)
         if user_id:
             res = await em.addConnectUser(embyConnectUsername, user_id)
             if str(res.status_code).startswith('2'):
@@ -494,7 +494,7 @@ class Emby(commands.Cog):
             if len(subType) > 4:
                 await ctx.send("subType must be less than 5 characters long.")
             else:
-                new_entry = db.add_user_to_db(user.id, EmbyUsername, embyId, subType)
+                new_entry = db.add_user_to_db(discordId=user.id, username=EmbyUsername, note=subType, uid=embyId)
                 if new_entry:
                     if subType == 't':
                         await ctx.send("Trial user was added/new timestamp issued.")
@@ -523,7 +523,7 @@ class Emby(commands.Cog):
         """
         Find Discord member's Emby username
         """
-        name, note = db.find_username_in_db("Emby", user.id)
+        name, note = db.find_username_in_db(ServerOrDiscord="Emby", data=user.id)
         if name:
             await ctx.send('{} is Emby user: {}{}'.format(user.mention, name,
                                                           (" [Trial]" if note == 't' else " [Subscriber]")))
@@ -535,7 +535,7 @@ class Emby(commands.Cog):
         """
         Find Emby user's Discord name
         """
-        id, note = db.find_username_in_db("Discord", EmbyUsername)
+        id, note = db.find_username_in_db(ServerOrDiscord="Discord", data=EmbyUsername)
         if id:
             await ctx.send('{} is Discord user: {}'.format(EmbyUsername, self.bot.get_user(int(id)).mention))
         else:

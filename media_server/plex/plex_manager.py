@@ -38,7 +38,7 @@ async def add_to_plex(plexname, discordId, note, serverNumber=None):
     if serverNumber is not None:
         tempPlex = PlexServer(settings.PLEX_SERVER_URL[serverNumber], settings.PLEX_SERVER_TOKEN[serverNumber])
     try:
-        if db.add_user_to_db(discordId, plexname, note, serverNumber):
+        if db.add_user_to_db(discordId=discordId, username=plexname, note=note, serverNumber=serverNumber):
             tempPlex.myPlexAccount().inviteFriend(user=plexname, server=tempPlex, sections=None, allowSync=False,
                                                   allowCameraUpload=False, allowChannels=False, filterMovies=None,
                                                   filterTelevision=None, filterMusic=None)
@@ -59,7 +59,7 @@ def delete_from_plex(id):
     tempPlex = plex;
     serverNumber = 0
     try:
-        results = db.find_user_in_db("Plex", id)
+        results = db.find_user_in_db(ServerOrDiscord="Plex", data=id)
         plexname = results[0]
         note = results[1]
         if settings.MULTI_PLEX:
@@ -141,7 +141,7 @@ class PlexManager(commands.Cog):
             await ctx.send("Something went wrong. Please try again later.")
 
     async def remove_winner(self, username):
-        id = db.find_user_in_db("Discord", username)[0]
+        id = db.find_user_in_db(ServerOrDiscord="Discord", data=username)[0]
         if id is not None:
             try:
                 success, num = delete_from_plex(id)
@@ -212,12 +212,12 @@ class PlexManager(commands.Cog):
                 print('Users currently using Plex: {}'.format(active_users))
                 # Remove old users first
                 for user in users_with_role:
-                    plexUsername = db.find_user_in_db('Plex', str(user.id))[0]
+                    plexUsername = db.find_user_in_db(ServerOrDiscord='Plex', data=str(user.id))[0]
                     if not plexUsername or plexUsername not in active_users:
                         await user.remove_roles(watching_role, reason="Not watching Plex.")
                 # Now add new users
                 for username in active_users:
-                    discordID = db.find_user_in_db('Discord', username)[0]
+                    discordID = db.find_user_in_db(ServerOrDiscord='Discord', data=username)[0]
                     if discordID:
                         await guild.get_member(int(discordID)).add_roles(watching_role, reason="Is watching Plex.")
 
@@ -238,7 +238,7 @@ class PlexManager(commands.Cog):
         hasAccess = False
         serverNumber = 0
         if PlexUsername is None:
-            name = db.find_user_in_db("Plex", ctx.message.author.id)[0]
+            name = db.find_user_in_db(ServerOrDiscord="Plex", data=ctx.message.author.id)[0]
         else:
             name = PlexUsername
         if name is not None:
@@ -584,7 +584,7 @@ class PlexManager(commands.Cog):
         elif serverNumber is not None and serverNumber > len(settings.PLEX_SERVER_URL):
             await ctx.send("That server number does not exist.")
         else:
-            new_entry = db.add_user_to_db(user.id, PlexUsername, subType, serverNumber)
+            new_entry = db.add_user_to_db(discordId=user.id, username=PlexUsername, note=subType, serverNumber=serverNumber)
             if new_entry:
                 if subType == 't':
                     await ctx.send("Trial user was added/new timestamp issued.")
@@ -613,7 +613,7 @@ class PlexManager(commands.Cog):
         """
         Find Discord member's Plex username
         """
-        results = db.find_user_in_db("Plex", user.id)
+        results = db.find_user_in_db(ServerOrDiscord="Plex", data=user.id)
         name = results[0]
         note = results[1]
         num = None
@@ -631,7 +631,7 @@ class PlexManager(commands.Cog):
         """
         Find Plex user's Discord name
         """
-        id = db.find_user_in_db("Discord", PlexUsername)[0]
+        id = db.find_user_in_db(ServerOrDiscord="Discord", data=PlexUsername)[0]
         if id is not None:
             await ctx.send(PlexUsername + " is Discord user: " + self.bot.get_user(int(id)).mention)
         else:
@@ -735,8 +735,8 @@ class PlexManager(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        #self.check_trials_timer.start()
-        #self.check_subs_timer.start()
+        self.check_trials_timer.start()
+        self.check_subs_timer.start()
         self.check_playing.start()
 
     def __init__(self, bot):

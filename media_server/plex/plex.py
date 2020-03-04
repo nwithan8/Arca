@@ -498,7 +498,7 @@ class Plex(commands.Cog):
     @commands.Cog.listener()
     async def on_reaction_add(self, reaction, user):
         if reaction.emoji == '✅':
-            username = db.find_user_in_db('Plex', user.id)[0]
+            username = db.find_user_in_db(ServerOrDiscord='Plex', data=user.id)[0]
             if username:
                 url = px.urlInMessage(reaction.message)
                 if url:
