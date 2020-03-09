@@ -3,7 +3,6 @@
 import discord
 from discord.ext import commands
 import sys, traceback, os
-import helper.cog_handler as cog_handler
 
 PREFIX = "*"
 USE_REMOTE_CONFIG = False
@@ -19,6 +18,7 @@ exts = [
     # "media_server.plex.plex",
     # "media_server.plex.plex_manager",
     # "media_server.plex.plex_namanger_nodb",
+    "media_server.olaris.olaris",
     # "core.manager",
     # "media_server.jellyfin.jellyfin",
     # "media_server.emby.emby",
@@ -33,9 +33,12 @@ exts = [
     # "general.coronavirus",
     # "general.speedtest",
     # "general.__init__"
+     "media_server.rclone.rclone"
 ]
 
 if USE_REMOTE_CONFIG:
+    import helper.cog_handler as cog_handler
+    # You can only use cog_handler if you fill out the DROPBOX_API_KEY environmental variable
     exts = cog_handler.load_remote_config("cogs.txt")
 for ext in exts:
     bot.load_extension(ext)
