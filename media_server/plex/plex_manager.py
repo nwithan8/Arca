@@ -20,7 +20,7 @@ import helper.discord_helper as discord_helper
 plex = px.plex
 
 db = DB(SERVER_TYPE='Plex', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600),
-        MULTI_PLEX=settings.MULTI_PLEX, USE_DROPBOX=settings.USE_DROPBOX)
+        BLACKLIST_FILE='../blacklist.db', MULTI_PLEX=settings.MULTI_PLEX, USE_DROPBOX=settings.USE_DROPBOX)
 
 
 def trial_message(startOrStop, serverNumber=None):
@@ -34,6 +34,11 @@ def trial_message(startOrStop, serverNumber=None):
 
 
 async def add_to_plex(plexname, discordId, note, serverNumber=None):
+    if settings.ENABLE_BLACKLIST:
+        if db.check_blacklist(plexname):
+            return ['blacklist', 'username']
+        if db.check_blacklist(discordId):
+            return ['blacklist', 'id']
     tempPlex = plex
     if serverNumber is not None:
         tempPlex = PlexServer(settings.PLEX_SERVER_URL[serverNumber], settings.PLEX_SERVER_TOKEN[serverNumber])
@@ -46,13 +51,13 @@ async def add_to_plex(plexname, discordId, note, serverNumber=None):
             px.add_to_tautulli(serverNumber)
             if note != 't':  # Trial members do not have access to Ombi
                 px.add_to_ombi()
-            return True
+            return [True, None]
         else:
             print("{} could not be added to the database.".format(plexname))
-            return False
+            return [False, None]
     except Exception as e:
         print(e)
-        return False
+        return [False, None]
 
 
 def delete_from_plex(id):
@@ -85,7 +90,9 @@ def remove_nonsub(memberID):
 
 
 async def backup_database():
-    db.backup('backup/PlexDiscord.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
+    db.backup(file=settings.SQLITE_FILE,
+              rename='backup/PlexDiscord.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
+    db.backup(file='../blacklist.db', rename='backup/blacklist.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
 
 
 class PlexManager(commands.Cog):
@@ -162,7 +169,8 @@ class PlexManager(commands.Cog):
 
     async def check_subs(self):
         print("Checking Plex subs...")
-        for member in discord_helper.get_users_without_roles(bot=self.bot, roleNames=settings.SUB_ROLES, guildID=settings.DISCORD_SERVER_ID):
+        for member in discord_helper.get_users_without_roles(bot=self.bot, roleNames=settings.SUB_ROLES,
+                                                             guildID=settings.DISCORD_SERVER_ID):
             remove_nonsub(member.id)
         print("Plex subs check complete.")
 
@@ -459,13 +467,15 @@ class PlexManager(commands.Cog):
                                      name=settings.WINNER_ROLE_NAME) in user.roles:
                     note = 'w'
                 added = await add_to_plex(PlexUsername, user.id, note, serverNumber)
-                if added:
+                if added[0] and not added[1]:
                     role = discord.utils.get(ctx.message.guild.roles, name=settings.AFTER_APPROVED_ROLE_NAME)
                     await user.add_roles(role, reason="Access membership channels")
                     await ctx.send(
                         user.mention + " You've been invited, " + PlexUsername + ". Welcome to " +
                         settings.PLEX_SERVER_NAME[
                             serverNumber] + "!")
+                elif added[1]:
+                    await ctx.send("That {} is blacklisted.".format(added[1]))
                 else:
                     await ctx.send(user.name + " could not be added to that server.")
             except plexapi.exceptions.BadRequest:
@@ -479,12 +489,14 @@ class PlexManager(commands.Cog):
                                      name=settings.WINNER_ROLE_NAME) in user.roles:
                     note = 'w'
                 added = await add_to_plex(PlexUsername, user.id, note, serverNumber)
-                if added:
+                if added[0] and not added[1]:
                     role = discord.utils.get(ctx.message.guild.roles, name=settings.AFTER_APPROVED_ROLE_NAME)
                     await user.add_roles(role, reason="Access membership channels")
                     await ctx.send(
                         user.mention + " You've been invited, " + PlexUsername + ". Welcome to " +
                         settings.PLEX_SERVER_NAME[0] + "!")
+                elif added[1]:
+                    await ctx.send("That {} is blacklisted.".format(added[1]))
                 else:
                     await ctx.send(user.name + " could not be added to Plex.")
             except plexapi.exceptions.BadRequest:
@@ -533,13 +545,15 @@ class PlexManager(commands.Cog):
                 serverNumber] + '. Please wait about 30 seconds...')
             try:
                 added = await add_to_plex(PlexUsername, user.id, 't', serverNumber)
-                if added:
+                if added[0] and not added[1]:
                     role = discord.utils.get(ctx.message.guild.roles, name=settings.TRIAL_ROLE_NAME)
                     await user.add_roles(role, reason="Trial started.")
                     await user.create_dm()
                     await user.dm_channel.send(trial_message('start', serverNumber))
                     await ctx.send(
                         user.mention + ", your trial has begun. Please check your Direct Messages for details.")
+                elif added[1]:
+                    await ctx.send("That {} is blacklisted.".format(added[1]))
                 else:
                     await ctx.send(user.name + " could not be added to that server.")
             except plexapi.exceptions.BadRequest:
@@ -550,13 +564,15 @@ class PlexManager(commands.Cog):
                     0] + ' trial for ' + PlexUsername + '. Please wait about 30 seconds...')
             try:
                 added = await add_to_plex(PlexUsername, user.id, 't')
-                if added:
+                if added[0] and not added[1]:
                     role = discord.utils.get(ctx.message.guild.roles, name=settings.TRIAL_ROLE_NAME)
                     await user.add_roles(role, reason="Trial started.")
                     await user.create_dm()
                     await user.dm_channel.send(trial_message('start'))
                     await ctx.send(
                         user.mention + ", your trial has begun. Please check your Direct Messages for details.")
+                elif added[1]:
+                    await ctx.send("That {} is blacklisted.".format(added[1]))
                 else:
                     await ctx.send(user.name + " could not be added to Plex.")
             except plexapi.exceptions.BadRequest:
@@ -584,7 +600,8 @@ class PlexManager(commands.Cog):
         elif serverNumber is not None and serverNumber > len(settings.PLEX_SERVER_URL):
             await ctx.send("That server number does not exist.")
         else:
-            new_entry = db.add_user_to_db(discordId=user.id, username=PlexUsername, note=subType, serverNumber=serverNumber)
+            new_entry = db.add_user_to_db(discordId=user.id, username=PlexUsername, note=subType,
+                                          serverNumber=serverNumber)
             if new_entry:
                 if subType == 't':
                     await ctx.send("Trial user was added/new timestamp issued.")
@@ -657,8 +674,8 @@ class PlexManager(commands.Cog):
         Get database entry for Plex username
         """
         embed = discord.Embed(title=("Info for " + str(PlexUsername)))
-        n = db.describe_table("users")
-        d = db.find_entry_in_db("PlexUsername", PlexUsername)
+        n = db.describe_table(file=settings.SQLITE_FILE, table="users")
+        d = db.find_entry_in_db(fieldType="PlexUsername", data=PlexUsername)
         if d:
             for i in range(0, len(n)):
                 val = str(d[i])
@@ -681,8 +698,8 @@ class PlexManager(commands.Cog):
         Get database entry for Discord user
         """
         embed = discord.Embed(title=("Info for " + user.name))
-        n = db.describe_table("users")
-        d = db.find_entry_in_db("DiscordID", user.id)
+        n = db.describe_table(file=settings.SQLITE_FILE, table="users")
+        d = db.find_entry_in_db(fieldType="DiscordID", data=user.id)
         if d:
             for i in range(0, len(n)):
                 name = str(n[i][1])

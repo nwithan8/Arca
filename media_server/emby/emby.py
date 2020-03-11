@@ -17,7 +17,7 @@ from helper.pastebin import hastebin, privatebin
 import helper.discord_helper as discord_helper
 
 db = DB(SERVER_TYPE='Emby', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600),
-        USE_DROPBOX=settings.USE_DROPBOX)
+        BLACKLIST_FILE='../blacklist.db', USE_DROPBOX=settings.USE_DROPBOX)
 
 
 def password(length):
@@ -87,6 +87,11 @@ async def add_to_emby(username, discordId, note, useEmbyConnect=False):
     """
     try:
         p = None
+        if settings.ENABLE_BLACKLIST:
+            if db.check_blacklist(username):
+                return False, 'blacklist', 'username'
+            if db.check_blacklist(discordId):
+                return False, 'blacklist', 'id'
         r = em.makeUser(username)
         if str(r.status_code).startswith('2'):
             uid = json.loads(r.text)['Id']
@@ -136,7 +141,8 @@ def remove_nonsub(memberID):
 
 
 async def backup_database():
-    db.backup('backup/EmbyDiscord.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
+    db.backup(file=settings.SQLITE_FILE, rename='backup/EmbyDiscord.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
+    db.backup(file='../blacklist.db', rename='backup/blacklist.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
 
 
 class Emby(commands.Cog):
@@ -407,7 +413,12 @@ class Emby(commands.Cog):
             await ctx.send(
                 "You've been added, {}! Please check your direct messages for login information.".format(user.mention))
         else:
-            await ctx.send("An error occurred while adding {}".format(user.mention))
+            if "exist" in u:
+                await ctx.send(u)
+            elif "blacklist" in u:
+                await ctx.send("That {} is blacklisted.".format(p))
+            else:
+                await ctx.send("An error occurred while adding {}".format(user.mention))
 
     @emby_add.error
     async def emby_add_error(self, ctx, error):
@@ -467,7 +478,12 @@ class Emby(commands.Cog):
         if s:
             await sendAddMessage(user, EmbyUsername, (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
         else:
-            await ctx.send("An error occurred while starting a trial for {}".format(user.mention))
+            if "exist" in u:
+                await ctx.send(u)
+            elif "blacklist" in u:
+                await ctx.send("That {} is blacklisted.".format(p))
+            else:
+                await ctx.send("An error occurred while starting a trial for {}".format(user.mention))
 
     @emby_trial.error
     async def emby_trial_error(self, ctx, error):
@@ -561,8 +577,8 @@ class Emby(commands.Cog):
         Get database entry for Emby username
         """
         embed = discord.Embed(title=("Info for {}".format(str(EmbyUsername))))
-        n = db.describe_table("users")
-        d = db.find_entry_in_db("EmbyUsername", EmbyUsername)
+        n = db.describe_table(file=settings.SQLITE_FILE, table="users")
+        d = db.find_entry_in_db(fieldType="EmbyUsername", data=EmbyUsername)
         if d:
             for i in range(0, len(n)):
                 val = str(d[i])
@@ -582,8 +598,8 @@ class Emby(commands.Cog):
         Get database entry for Discord user
         """
         embed = discord.Embed(title=("Info for {}".format(user.name)))
-        n = db.describe_table("users")
-        d = db.find_entry_in_db("DiscordID", user.id)
+        n = db.describe_table(file=settings.SQLITE_FILE, table="users")
+        d = db.find_entry_in_db(fieldType="DiscordID", data=user.id)
         if d:
             for i in range(0, len(n)):
                 name = str(n[i][1])
@@ -652,8 +668,10 @@ class Emby(commands.Cog):
                         discord.utils.get(message.guild.roles, name=settings.TEMP_WINNER_ROLE_NAME),
                         reason="Winner was processed successfully.")
                 else:
-                    if "exist" in s:
-                        await message.channel.send(s)
+                    if "exist" in u:
+                        await message.channel.send(u)
+                    elif "blacklist" in u:
+                        await message.channel.send("That {} is blacklisted.".format(p))
                     else:
                         await message.channel.send("An error occurred while adding {}".format(message.author.mention))
 

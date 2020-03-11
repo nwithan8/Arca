@@ -41,6 +41,7 @@ EmbyDiscord.users
 3|ExpirationStamp|INT(11)|0||0
 4|Note|VARCHAR(5)|0||0
 '''
+ENABLE_BLACKLIST = True
 USE_DROPBOX = True  # Store database in Dropbox, download and upload dynamically
 
 # Discord settings

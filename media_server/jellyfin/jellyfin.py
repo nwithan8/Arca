@@ -16,7 +16,8 @@ from helper.db_commands import DB
 from helper.pastebin import hastebin, privatebin
 import helper.discord_helper as discord_helper
 
-db = DB(SERVER_TYPE='Jellyfin', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600), USE_DROPBOX=settings.USE_DROPBOX)
+db = DB(SERVER_TYPE='Jellyfin', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600),
+        BLACKLIST_FILE='../blacklist.db', USE_DROPBOX=settings.USE_DROPBOX)
 
 
 def password(length):
@@ -86,6 +87,11 @@ def add_to_jellyfin(username, discordId, note):
     """
     try:
         p = None
+        if settings.ENABLE_BLACKLIST:
+            if db.check_blacklist(username):
+                return False, 'blacklist', 'username'
+            if db.check_blacklist(discordId):
+                return False, 'blacklist', 'id'
         r = jf.makeUser(username)
         if r:
             uid = json.loads(r.text)['Id']
@@ -135,7 +141,8 @@ def remove_nonsub(memberID):
 
 
 async def backup_database():
-    db.backup('backup/JellyfinDiscord.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
+    db.backup(file=settings.SQLITE_FILE, rename='backup/JellyfinDiscord.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
+    db.backup(file='../blacklist.db', rename='backup/blacklist.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
 
 
 class Jellyfin(commands.Cog):
@@ -402,7 +409,12 @@ class Jellyfin(commands.Cog):
             await ctx.send(
                 "You've been added, {}! Please check your direct messages for login information.".format(user.mention))
         else:
-            await ctx.send("An error occurred while adding {}".format(user.mention))
+            if "exist" in u:
+                await ctx.send(u)
+            elif "blacklist" in u:
+                await ctx.send("That {} is blacklisted.".format(p))
+            else:
+                await ctx.send("An error occurred while adding {}".format(user.mention))
 
     @jellyfin_add.error
     async def jellyfin_add_error(self, ctx, error):
@@ -440,7 +452,12 @@ class Jellyfin(commands.Cog):
         if s:
             await sendAddMessage(user, JellyfinUsername, (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
         else:
-            await ctx.send("An error occurred while starting a trial for {}".format(user.mention))
+            if "exist" in u:
+                await ctx.send(u)
+            elif "blacklist" in u:
+                await ctx.send("That {} is blacklisted.".format(p))
+            else:
+                await ctx.send("An error occurred while starting a trial for {}".format(user.mention))
 
     @jellyfin_trial.error
     async def jellyfin_trial_error(self, ctx, error):
@@ -534,8 +551,8 @@ class Jellyfin(commands.Cog):
         Get database entry for Jellyfin username
         """
         embed = discord.Embed(title=("Info for {}".format(str(JellyfinUsername))))
-        n = db.describe_table("users")
-        d = db.find_entry_in_db("JellyfinUsername", JellyfinUsername)
+        n = db.describe_table(file=settings.SQLITE_FILE, table="users")
+        d = db.find_entry_in_db(fieldType="JellyfinUsername", data=JellyfinUsername)
         if d:
             for i in range(0, len(n)):
                 val = str(d[i])
@@ -555,8 +572,8 @@ class Jellyfin(commands.Cog):
         Get database entry for Discord user
         """
         embed = discord.Embed(title=("Info for {}".format(user.name)))
-        n = db.describe_table("users")
-        d = db.find_entry_in_db("DiscordID", user.id)
+        n = db.describe_table(file=settings.SQLITE_FILE, table="users")
+        d = db.find_entry_in_db(fieldType="DiscordID", data=user.id)
         if d:
             for i in range(0, len(n)):
                 name = str(n[i][1])
@@ -623,8 +640,10 @@ class Jellyfin(commands.Cog):
                         discord.utils.get(message.guild.roles, name=settings.TEMP_WINNER_ROLE_NAME),
                         reason="Winner was processed successfully.")
                 else:
-                    if "exist" in s:
-                        await message.channel.send(s)
+                    if "exist" in u:
+                        await message.channel.send(u)
+                    elif "blacklist" in u:
+                        await message.channel.send("That {} is blacklisted.".format(p))
                     else:
                         await message.channel.send("An error occurred while adding {}".format(message.author.mention))
 

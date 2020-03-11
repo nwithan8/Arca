@@ -5,43 +5,84 @@ import helper.dropbox_handler as dbx
 
 
 class DB:
-    def __init__(self, SERVER_TYPE, SQLITE_FILE, TRIAL_LENGTH, MULTI_PLEX=None, USE_DROPBOX=False):
+    def __init__(self, SERVER_TYPE, SQLITE_FILE, TRIAL_LENGTH, MULTI_PLEX=None, BLACKLIST_FILE=None, USE_DROPBOX=False):
         self.PLATFORM = SERVER_TYPE
         self.SQLITE_FILE = SQLITE_FILE
+        self.BLACKLIST_FILE = BLACKLIST_FILE
         self.TRIAL_LENGTH = TRIAL_LENGTH
         self.MULTI_PLEX = MULTI_PLEX
         self.USE_DROPBOX = USE_DROPBOX
 
-    def download(self):
-        if self.USE_DROPBOX:
-            return dbx.download_file(self.SQLITE_FILE)
+    def download(self, file):
+        if self.USE_DROPBOX and file:
+            return dbx.download_file(file)
         return False
 
-    def upload(self):
-        if self.USE_DROPBOX:
-            return dbx.upload_file(self.SQLITE_FILE)
+    def upload(self, file):
+        if self.USE_DROPBOX and file:
+            return dbx.upload_file(file)
         return False
 
-    def backup(self, name):
-        if self.USE_DROPBOX:
-            return dbx.upload_file(filePath=self.SQLITE_FILE, rename=name)
+    def backup(self, file, rename=False):
+        if self.USE_DROPBOX and file:
+            return dbx.upload_file(filePath=file, rename=rename)
         return False
 
-    def describe_table(self, table):
-        self.download()
-        conn = sqlite3.connect(self.SQLITE_FILE)
+    def describe_table(self, file, table):
+        self.download(file)
+        conn = sqlite3.connect(file)
         cur = conn.cursor()
         cur.execute("PRAGMA table_info([{}])".format(str(table)))
         result = cur.fetchall()
         cur.close()
         conn.close()
-        self.upload()
+        self.upload(file)
         if result:
             return result
         return None
 
+    def check_blacklist(self, name_or_id):
+        self.download(self.BLACKLIST_FILE)
+        conn = sqlite3.connect(self.BLACKLIST_FILE)
+        cur = conn.cursor()
+        query = "SELECT * FROM blacklist WHERE id_or_username = '{}'".format(str(name_or_id))
+        cur.execute(query)
+        result = cur.fetchone()
+        cur.close()
+        conn.close()
+        self.upload(self.BLACKLIST_FILE)
+        if result:
+            return True
+        return False
+
+    def add_to_blacklist(self, name_or_id):
+        self.download(self.BLACKLIST_FILE)
+        result = False
+        conn = sqlite3.connect(self.BLACKLIST_FILE)
+        cur = conn.cursor()
+        query = "INSERT INTO blacklist (id_or_username) VALUES ('{}')".format(str(name_or_id))
+        cur.execute(query)
+        if int(cur.rowcount) > 0:
+            result = True
+        conn.commit()
+        cur.close()
+        conn.close()
+        self.upload(self.BLACKLIST_FILE)
+        return result
+
+    def remove_from_blacklist(self, name_or_id):
+        self.download(self.BLACKLIST_FILE)
+        conn = sqlite3.connect(self.BLACKLIST_FILE)
+        cur = conn.cursor()
+        query = "DELETE FROM blacklist WHERE id_or_username = '{}'".format(str(name_or_id))
+        cur.execute(query)
+        conn.commit()
+        cur.close()
+        conn.close()
+        self.upload(self.BLACKLIST_FILE)
+
     def add_user_to_db(self, discordId, username, note, uid=None, serverNumber=None):
-        self.download()
+        self.download(self.SQLITE_FILE)
         result = False
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
@@ -82,8 +123,8 @@ class DB:
         else:
             if self.PLATFORM == 'Plex':
                 # Regular for Plex
-                query = "INSERT OR IGNORE INTO users (DiscordID, PlexUsername{serverNumOpt}, Note) VALUES ('{" \
-                        "discordId}','{plexUsername}'{serverNum}, '{note}')".format(
+                query = "INSERT OR IGNORE INTO users (DiscordID, PlexUsername{serverNumOpt}, Note) VALUES ('" \
+                        "{discordId}','{plexUsername}'{serverNum}, '{note}')".format(
                     serverNumOpt=(", ServerNum" if serverNumber is not None else ""),
                     discordId=str(discordId),
                     plexUsername=username,
@@ -91,8 +132,8 @@ class DB:
                     note=note)
             else:
                 # Regular for Jellyfin/Emby
-                query = "INSERT OR IGNORE INTO users (DiscordID, {platform}Username, {platform}ID, Note) VALUES ('{" \
-                        "discordId}', '{username}', '{uid}', '{note}')".format(
+                query = "INSERT OR IGNORE INTO users (DiscordID, {platform}Username, {platform}ID, Note) VALUES ('" \
+                        "{discordId}', '{username}', '{uid}', '{note}')".format(
                     platform=self.PLATFORM,
                     discordId=discordId,
                     username=username,
@@ -104,24 +145,24 @@ class DB:
         conn.commit()
         cur.close()
         conn.close()
-        self.upload()
+        self.upload(self.SQLITE_FILE)
         return result
 
     def remove_user_from_db(self, id):
-        self.download()
+        self.download(self.SQLITE_FILE)
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
         cur.execute(str("DELETE FROM users WHERE DiscordID = '{}'".format(str(id))))
         conn.commit()
         cur.close()
         conn.close()
-        self.upload()
+        self.upload(self.SQLITE_FILE)
 
     def find_user_in_db(self, ServerOrDiscord, data):
         """
         Get DiscordID ('Discord')/PlexUsername ('Plex') (PlexOrDiscord) of PlexUsername/DiscordID (data)
         """
-        self.download()
+        self.download(self.SQLITE_FILE)
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
         if self.PLATFORM == 'Plex':
@@ -141,7 +182,7 @@ class DB:
         results = cur.fetchone()
         cur.close()
         conn.close()
-        self.upload()
+        self.upload(self.SQLITE_FILE)
         if results:
             return results if self.PLATFORM == 'Plex' else results[0]
             # returns [name, note], [name, note, number] or [id]
@@ -158,7 +199,7 @@ class DB:
         """
         Returns {Jellyfin/Emby}Username/DiscordID, Note
         """
-        self.download()
+        self.download(self.SQLITE_FILE)
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
         query = "SELECT {}, Note FROM users WHERE {} = '{}'".format(
@@ -169,24 +210,24 @@ class DB:
         result = cur.fetchone()
         cur.close()
         conn.close()
-        self.upload()
+        self.upload(self.SQLITE_FILE)
         if result:
             return result[0], result[1]
         return None, None
 
-    def find_entry_in_db(self, type, data):
+    def find_entry_in_db(self, fieldType, data):
         """
         Returns whole entry
         """
-        self.download()
+        self.download(self.SQLITE_FILE)
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
-        query = "SELECT * FROM users WHERE {} = '{}'".format(type, str(data))
+        query = "SELECT * FROM users WHERE {} = '{}'".format(fieldType, str(data))
         cur.execute(query)
         result = cur.fetchone()
         cur.close()
         conn.close()
-        self.upload()
+        self.upload(self.SQLITE_FILE)
         if result:
             return result
         return None
@@ -195,7 +236,7 @@ class DB:
         """
         Returns all database entries
         """
-        self.download()
+        self.download(self.SQLITE_FILE)
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
         query = "SELECT * FROM users"
@@ -203,7 +244,7 @@ class DB:
         result = cur.fetchall()
         cur.close()
         conn.close()
-        self.upload()
+        self.upload(self.SQLITE_FILE)
         if result:
             return result
         return None
@@ -212,7 +253,7 @@ class DB:
         """
         Get all users with 'w' note
         """
-        self.download()
+        self.download(self.SQLITE_FILE)
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
         cur.execute("SELECT {} FROM users WHERE Note = 'w'".format(
@@ -220,11 +261,11 @@ class DB:
         results = cur.fetchall()
         cur.close()
         conn.close()
-        self.upload()
+        self.upload(self.SQLITE_FILE)
         return results
 
     def getTrials(self):
-        self.download()
+        self.download(self.SQLITE_FILE)
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
         query = "SELECT DiscordID FROM users WHERE ExpirationStamp<={} AND Note = 't'".format(str(int(time.time())))
@@ -232,5 +273,5 @@ class DB:
         results = cur.fetchall()
         cur.close()
         conn.close()
-        self.upload()
+        self.upload(self.SQLITE_FILE)
         return results
