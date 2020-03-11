@@ -270,26 +270,30 @@ class Jellyfin(commands.Cog):
 
     @jellyfin.command(name="blacklist", aliases=['block'], pass_context=True)
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
-    async def jellyfin_blacklist(self, ctx: commands.Context, AddOrRemove: str, DiscordUserOrJellyfinUsername):
+    async def jellyfin_blacklist(self, ctx: commands.Context, AddOrRemove: str, DiscordUserOrJellyfinUsername=None):
         """
         Blacklist a Jellyfin username or Discord ID
         """
-        if isinstance(DiscordUserOrJellyfinUsername, (discord.Member, discord.User)):
-            id = DiscordUserOrJellyfinUsername.id
-        else:
-            id = DiscordUserOrJellyfinUsername
+        if DiscordUserOrJellyfinUsername:
+            if isinstance(DiscordUserOrJellyfinUsername, (discord.Member, discord.User)):
+                id = DiscordUserOrJellyfinUsername.id
+            else:
+                id = DiscordUserOrJellyfinUsername
         if AddOrRemove.lower() == 'add':
             success = db.add_to_blacklist(name_or_id=id)
             if success:
                 await ctx.send("User added to blacklist.")
             else:
-                await ctx.send("Something went wrong while adding that user to the blacklist.")
+                await ctx.send("Something went wrong while adding user to the blacklist.")
         elif AddOrRemove.lower() == 'remove':
             success = db.remove_from_blacklist(name_or_id=id)
             if success:
                 await ctx.send("User removed from blacklist.")
             else:
-                await ctx.send("Something went wrong while removing that user from the blacklist.")
+                await ctx.send("Something went wrong while removing user from the blacklist.")
+        elif AddOrRemove.lower() == 'list':
+            blacklist_entries = db.get_all_blacklist()
+            await ctx.send('\n'.join([e[0] for e in blacklist_entries]))
         else:
             await ctx.send("Invalid blacklist action.")
 

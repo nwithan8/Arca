@@ -41,45 +41,71 @@ class DB:
             return result
         return None
 
-    def check_blacklist(self, name_or_id):
+    def check_blacklist(self, name_or_id=None):
+        if not name_or_id:
+            return None
+        else:
+            self.download(self.BLACKLIST_FILE)
+            conn = sqlite3.connect(self.BLACKLIST_FILE)
+            cur = conn.cursor()
+            query = "SELECT * FROM blacklist WHERE id_or_username = '{}'".format(str(name_or_id))
+            cur.execute(query)
+            result = cur.fetchone()
+            cur.close()
+            conn.close()
+            self.upload(self.BLACKLIST_FILE)
+            if result:
+                return True
+            return False
+
+    def add_to_blacklist(self, name_or_id=None):
+        if not name_or_id:
+            return None
+        else:
+            self.download(self.BLACKLIST_FILE)
+            result = False
+            conn = sqlite3.connect(self.BLACKLIST_FILE)
+            cur = conn.cursor()
+            query = "INSERT INTO blacklist (id_or_username) VALUES ('{}')".format(str(name_or_id))
+            cur.execute(query)
+            if int(cur.rowcount) > 0:
+                result = True
+            conn.commit()
+            cur.close()
+            conn.close()
+            self.upload(self.BLACKLIST_FILE)
+            return result
+
+    def remove_from_blacklist(self, name_or_id=None):
+        if not name_or_id:
+            return None
+        else:
+            self.download(self.BLACKLIST_FILE)
+            conn = sqlite3.connect(self.BLACKLIST_FILE)
+            cur = conn.cursor()
+            query = "DELETE FROM blacklist WHERE id_or_username = '{}'".format(str(name_or_id))
+            cur.execute(query)
+            conn.commit()
+            cur.close()
+            conn.close()
+            self.upload(self.BLACKLIST_FILE)
+
+    def get_all_blacklist(self):
+        """
+        Returns all blacklist entries
+        """
         self.download(self.BLACKLIST_FILE)
         conn = sqlite3.connect(self.BLACKLIST_FILE)
         cur = conn.cursor()
-        query = "SELECT * FROM blacklist WHERE id_or_username = '{}'".format(str(name_or_id))
+        query = "SELECT * FROM blacklist"
         cur.execute(query)
-        result = cur.fetchone()
+        result = cur.fetchall()
         cur.close()
         conn.close()
         self.upload(self.BLACKLIST_FILE)
         if result:
-            return True
-        return False
-
-    def add_to_blacklist(self, name_or_id):
-        self.download(self.BLACKLIST_FILE)
-        result = False
-        conn = sqlite3.connect(self.BLACKLIST_FILE)
-        cur = conn.cursor()
-        query = "INSERT INTO blacklist (id_or_username) VALUES ('{}')".format(str(name_or_id))
-        cur.execute(query)
-        if int(cur.rowcount) > 0:
-            result = True
-        conn.commit()
-        cur.close()
-        conn.close()
-        self.upload(self.BLACKLIST_FILE)
-        return result
-
-    def remove_from_blacklist(self, name_or_id):
-        self.download(self.BLACKLIST_FILE)
-        conn = sqlite3.connect(self.BLACKLIST_FILE)
-        cur = conn.cursor()
-        query = "DELETE FROM blacklist WHERE id_or_username = '{}'".format(str(name_or_id))
-        cur.execute(query)
-        conn.commit()
-        cur.close()
-        conn.close()
-        self.upload(self.BLACKLIST_FILE)
+            return result
+        return None
 
     def add_user_to_db(self, discordId, username, note, uid=None, serverNumber=None):
         self.download(self.SQLITE_FILE)
