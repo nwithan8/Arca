@@ -4,7 +4,7 @@ import time
 import socket
 import json
 from urllib.parse import urlencode
-import emby.settings as settings
+from media_server.emby import settings as settings
 
 token_header = None
 admin_id = None
@@ -59,7 +59,8 @@ def postWithToken(hdr, method, data=None):
 
 async def postWithTokenWait(hdr, method, data=None):
     hdr = {'accept': 'application/json', 'Content-Type': 'application/json', **hdr}
-    res = await req_async.post('{}{}'.format(settings.EMBY_URL, method), headers=hdr, data=json.dumps(data), timeout=10, stream=True)
+    res = await req_async.post('{}{}'.format(settings.EMBY_URL, method), headers=hdr, data=json.dumps(data), timeout=10,
+                               stream=True)
     while str(res.status_code).startswith('5'):
         time.sleep(1)
     return res

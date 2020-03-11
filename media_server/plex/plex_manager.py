@@ -285,6 +285,36 @@ class PlexManager(commands.Cog):
         print(error)
         await ctx.send("Sorry, something went wrong.")
 
+    @pm.command(name="blacklist", aliases=['block'], pass_context=True)
+    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    async def pm_blacklist(self, ctx: commands.Context, AddOrRemove: str, DiscordUserOrPlexUsername):
+        """
+        Blacklist a Plex username or Discord ID
+        """
+        if isinstance(DiscordUserOrPlexUsername, (discord.Member, discord.User)):
+            id = DiscordUserOrPlexUsername.id
+        else:
+            id = DiscordUserOrPlexUsername
+        if AddOrRemove.lower() == 'add':
+            success = db.add_to_blacklist(name_or_id=id)
+            if success:
+                await ctx.send("User added to blacklist.")
+            else:
+                await ctx.send("Something went wrong while adding that user to the blacklist.")
+        elif AddOrRemove.lower() == 'remove':
+            success = db.remove_from_blacklist(name_or_id=id)
+            if success:
+                await ctx.send("User removed from blacklist.")
+            else:
+                await ctx.send("Something went wrong while removing that user from the blacklist.")
+        else:
+            await ctx.send("Invalid blacklist action.")
+
+    @pm_blacklist.error
+    async def pm_blacklist_error(self, ctx, error):
+        print(error)
+        await ctx.send("Sorry, something went wrong.")
+
     @pm.command(name="status", aliases=['ping', 'up', 'online'], pass_context=True)
     # Anyone can use this command
     async def pm_status(self, ctx: commands.Context):

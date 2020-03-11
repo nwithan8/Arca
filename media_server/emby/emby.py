@@ -141,7 +141,8 @@ def remove_nonsub(memberID):
 
 
 async def backup_database():
-    db.backup(file=settings.SQLITE_FILE, rename='backup/EmbyDiscord.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
+    db.backup(file=settings.SQLITE_FILE,
+              rename='backup/EmbyDiscord.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
     db.backup(file='../blacklist.db', rename='backup/blacklist.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
 
 
@@ -269,6 +270,36 @@ class Emby(commands.Cog):
 
     @emby_access.error
     async def emby_access_error(self, ctx, error):
+        print(error)
+        await ctx.send("Sorry, something went wrong.")
+
+    @emby.command(name="blacklist", aliases=['block'], pass_context=True)
+    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    async def emby_blacklist(self, ctx: commands.Context, AddOrRemove: str, DiscordUserOrEmbyUsername):
+        """
+        Blacklist a Emby username or Discord ID
+        """
+        if isinstance(DiscordUserOrEmbyUsername, (discord.Member, discord.User)):
+            id = DiscordUserOrEmbyUsername.id
+        else:
+            id = DiscordUserOrEmbyUsername
+        if AddOrRemove.lower() == 'add':
+            success = db.add_to_blacklist(name_or_id=id)
+            if success:
+                await ctx.send("User added to blacklist.")
+            else:
+                await ctx.send("Something went wrong while adding that user to the blacklist.")
+        elif AddOrRemove.lower() == 'remove':
+            success = db.remove_from_blacklist(name_or_id=id)
+            if success:
+                await ctx.send("User removed from blacklist.")
+            else:
+                await ctx.send("Something went wrong while removing that user from the blacklist.")
+        else:
+            await ctx.send("Invalid blacklist action.")
+
+    @emby_blacklist.error
+    async def emby_blacklist_error(self, ctx, error):
         print(error)
         await ctx.send("Sorry, something went wrong.")
 
