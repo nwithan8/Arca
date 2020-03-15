@@ -3,7 +3,8 @@ import os
 import ntpath
 
 DB_KEY = os.environ.get('DROPBOX_API_KEY')
-dbx = dropbox.Dropbox(DB_KEY)
+if DB_KEY:
+    dbx = dropbox.Dropbox(DB_KEY)
 
 
 def download_file(filePath, toWhere=None):

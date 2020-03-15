@@ -146,7 +146,7 @@ async def backup_database():
     db.backup(file='../blacklist.db', rename='backup/blacklist.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
 
 
-class Emby(commands.Cog):
+class EmbyManager(commands.Cog):
 
     async def purge_winners(self, ctx):
         try:
@@ -242,7 +242,7 @@ class Emby(commands.Cog):
     async def check_trials_timer(self):
         await self.check_trials()
 
-    @commands.group(aliases=["Emby", "em", "JF"], pass_context=True)
+    @commands.group(name="EM", aliases=["em", "EmbyMan", "embyman", "EmbyManager", "embymanager"], pass_context=True)
     async def emby(self, ctx: commands.Context):
         """
         Emby Media Server commands
@@ -723,4 +723,4 @@ class Emby(commands.Cog):
 
 
 def setup(bot):
-    bot.add_cog(Emby(bot))
+    bot.add_cog(EmbyManager(bot))

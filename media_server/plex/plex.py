@@ -9,7 +9,7 @@ from collections import defaultdict
 import datetime
 from decimal import *
 import asyncio
-import plex.plex_api as px
+import media_server.plex.plex_api as px
 from helper.db_commands import DB
 from media_server.plex import settings as settings
 from media_server.plex import plex_recs as pr
@@ -38,7 +38,7 @@ def selectIcon(state):
     return str(switcher.get(state, ""))
 
 
-class Plex(commands.Cog):
+class PlexStats(commands.Cog):
 
     @tasks.loop(minutes=60.0)  # update library every hour
     async def makeLibraries(self):
@@ -48,7 +48,7 @@ class Plex(commands.Cog):
         print("Libraries updated.")
         print("Plex ready.")
 
-    @commands.group(aliases=["Plex"], pass_context=True)
+    @commands.group(name="plex", aliases=["Plex"], pass_context=True)
     async def plex(self, ctx: commands.Context):
         """
         Plex Media Server commands

@@ -145,7 +145,7 @@ async def backup_database():
     db.backup(file='../blacklist.db', rename='backup/blacklist.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
 
 
-class Jellyfin(commands.Cog):
+class JellyfinManager(commands.Cog):
 
     async def purge_winners(self, ctx):
         try:
@@ -238,7 +238,7 @@ class Jellyfin(commands.Cog):
     async def check_trials_timer(self):
         await self.check_trials()
 
-    @commands.group(aliases=["Jellyfin", "jf", "JF"], pass_context=True)
+    @commands.group(name="JF", aliases=["jf", "JellyMan", "jellyman", "JellyfinMan", "jellyfinman", "JellyfinManager", "jellyfinmanager"], pass_context=True)
     async def jellyfin(self, ctx: commands.Context):
         """
         Jellyfin Media Server commands
@@ -693,4 +693,4 @@ class Jellyfin(commands.Cog):
 
 
 def setup(bot):
-    bot.add_cog(Jellyfin(bot))
+    bot.add_cog(JellyfinManager(bot))
