@@ -18,26 +18,26 @@ bot = commands.Bot(command_prefix=PREFIX)
 formatter = commands.HelpCommand(show_check_failure=False)
 
 exts = [
-    # "sports.espn.espn",
     # "media_server.plex.plex",
     # "media_server.plex.plex_manager",
     # "media_server.plex.plex_namanger_nodb",
-    # "media_server.olaris.olaris",
-    # "core.manager",
+    # "media_server.olaris.olaris_manager",
     # "media_server.jellyfin.jellyfin_manager",
     # "media_server.emby.emby_manager",
+    # "media_server.booksonic.booksonic",
+    # "media_server.rclone.rclone",
     # "news.news",
     # "MARTA.marta",
-    # "media_server.booksonic.booksonic",
     # "discord.roles.roles",
+    # "core.manager",
+    # "sports.espn.espn",
     # "sports.yahoofantasy.yahoofantasy",
     # "smart_home.sengled_lights.sengled",
     # "smart_home.google_home.google_home",
     # "smart_home.wink.wink",
     # "general.coronavirus",
     # "general.speedtest",
-    # "general.__init__"
-    # "media_server.rclone.rclone"
+    # "discord_cogs.__init__",
 ]
 if USE_REMOTE_CONFIG:
     USE_DROPBOX = True
