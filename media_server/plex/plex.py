@@ -38,7 +38,7 @@ def selectIcon(state):
     return str(switcher.get(state, ""))
 
 
-class PlexStats(commands.Cog):
+class Plex(commands.Cog):
 
     @tasks.loop(minutes=60.0)  # update library every hour
     async def makeLibraries(self):
