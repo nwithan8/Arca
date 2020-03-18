@@ -212,7 +212,7 @@ class EmbyManager(commands.Cog):
                                                              guildID=settings.DISCORD_SERVER_ID):
             s = remove_nonsub(member.id)
             if s == 700:
-                print("{} was not a past subscriber".format(member))
+                print("{} was not a past Emby subscriber".format(member))
             elif s != 200:
                 print("Couldn't remove {} from Emby".format(member))
         print("Emby subs check complete.")

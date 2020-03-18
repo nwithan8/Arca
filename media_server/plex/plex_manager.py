@@ -196,7 +196,7 @@ class PlexManager(commands.Cog):
                                                              guildID=settings.DISCORD_SERVER_ID):
             code, num = remove_nonsub(member.id)
             if code == 700:
-                print("{} was not a past subscriber".format(member))
+                print("{} was not a past Plex subscriber".format(member))
             elif code != 200:
                 print("Couldn't remove {} from Plex".format(member))
         print("Plex subs check complete.")
