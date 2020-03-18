@@ -199,6 +199,7 @@ class PlexManager(commands.Cog):
     async def backup_database_timer(self):
         await backup_database()
 
+    @tasks.loop(hours=settings.SUB_CHECK_TIME * 24)
     async def check_subs_timer(self):
         await self.check_subs()
 
@@ -217,7 +218,7 @@ class PlexManager(commands.Cog):
                 guild = self.bot.get_guild(guild.id)  # Yes, this is unfortunately necessary
                 users_with_role = [member for member in guild.members if (watching_role in member.roles)]
                 active_users = [session['username'] for session in activity['response']['data']['sessions']]
-                print('Users currently using Plex: {}'.format(active_users))
+                # print('Users currently using Plex: {}'.format(active_users))
                 # Remove old users first
                 for user in users_with_role:
                     plexUsername = db.find_user_in_db(ServerOrDiscord='Plex', data=str(user.id))[0]
@@ -225,9 +226,9 @@ class PlexManager(commands.Cog):
                         await user.remove_roles(watching_role, reason="Not watching Plex.")
                 # Now add new users
                 for username in active_users:
-                    discordID = db.find_user_in_db(ServerOrDiscord='Discord', data=username)[0]
+                    discordID = db.find_user_in_db(ServerOrDiscord='Discord', data=username)
                     if discordID:
-                        await guild.get_member(int(discordID)).add_roles(watching_role, reason="Is watching Plex.")
+                        await guild.get_member(int(discordID[0])).add_roles(watching_role, reason="Is watching Plex.")
 
     @commands.group(name="pm", aliases=["PM", "PlexMan", "plexman", "PlexManager", "plexmanager"], pass_context=True)
     async def pm(self, ctx: commands.Context):
