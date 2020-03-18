@@ -229,7 +229,7 @@ class PlexManager(commands.Cog):
                     if discordID:
                         await guild.get_member(int(discordID)).add_roles(watching_role, reason="Is watching Plex.")
 
-    @commands.group(name="pm", aliases=["PM", "PlexMan", "plexman"], pass_context=True)
+    @commands.group(name="pm", aliases=["PM", "PlexMan", "plexman", "PlexManager", "plexmanager"], pass_context=True)
     async def pm(self, ctx: commands.Context):
         """
         Plex admin commands

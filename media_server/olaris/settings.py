@@ -1,0 +1,5 @@
+OLARIS_URL = ''
+JWT = ''
+
+ADMIN_USERNAME = ''
+ADMIN_PASSWORD = ''

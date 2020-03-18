@@ -1,6 +1,6 @@
 """
-Parse Plex Media Server statistics via Tautulli's API
-Copyright (C) 2019 Nathan Harris
+Interact with Yahoo Fantasy Sports
+Copyright (C) 2020 Nathan Harris
 """
 
 import discord
@@ -78,6 +78,88 @@ async def stat_check(league, stat, ctx):
     return None
 
 
+async def check_auth(discordUser, ctx):
+    if not os.path.exists(creds_folder + str(discordUser.id) + "_oauth2.json"):
+        await ctx.send(
+            "Sorry, I am not connected to your Yahoo Fantasy account. Please say the 'fantasy setup' command to "
+            "link me to your account.")
+        return False
+    else:
+        print("file exists")
+        file = creds_folder + str(discordUser.id) + "_oauth2.json"
+        print(file)
+        oauth = OAuth2(None, None, from_file=file)
+        if not oauth.token_is_valid():
+            oauth.refresh_access_token()
+        return oauth
+
+
+async def get_league(league, year, ctx):
+    """
+    :param league: str
+    :param year: int
+    :param ctx: commands.Context
+    :return: League
+    """
+    auth = await check_auth(ctx.message.author, ctx)
+    league = league_check(league.lower())
+    if auth and league:
+        game = yfa.Game(auth, league)
+        ids = game.league_ids(year=year)
+        if ids:
+            league_id = ids[-1]
+            return game.to_league(league_id)
+        else:
+            await ctx.send("It seems you don't play Fantasy for the " + league.upper())
+    elif auth:
+        await ctx.send("That is an incorrect league.")
+    return None
+
+
+async def get_user_team(league, year, ctx):
+    """
+    :param league: str
+    :param year: int
+    :param ctx: commands.Context
+    :return: Team
+    """
+    auth = await check_auth(ctx.message.author, ctx)
+    l = await get_league(league, year, ctx)
+    if auth and l:
+        return l.to_team(l.team_key())
+    return None
+
+
+async def get_specific_team(league, year, team_name, ctx):
+    """
+    :param league: str
+    :param year: int
+    :param team_name: str
+    :param ctx: commands.Context
+    :return: Team
+    """
+    l = await get_league(league, year, ctx)
+    if l:
+        for t in l.teams():
+            if t['name'].lower() == team_name.lower():
+                return l.to_team(t['team_key'])
+        await ctx.send("I could not find that team.")
+    return None
+
+
+async def get_all_teams(league, year, ctx):
+    """
+    :param league: str
+    :param year: int
+    :param ctx: commands.Context
+    :return: {name: id, ...}
+    """
+    l = await get_league(league, year, ctx)
+    if l:
+        return l.teams()
+    return None
+
+
 class YahooFantasy(commands.Cog):
     """
     DM Channel work
@@ -100,11 +182,14 @@ class YahooFantasy(commands.Cog):
 
     async def authenticate(self, discordUser):
         yahoo = OAuth2Session(client_id, redirect_uri='oob')
-        auth_url = "https://api.login.yahoo.com/oauth2/request_auth?client_id=" + client_id + '&redirect_uri=oob&response_type=code&scope=openid&nonce=' + str(
-            random.randint(0, 999999));
+        auth_url = "https://api.login.yahoo.com/oauth2/request_auth?client_id=" + client_id + '&redirect_uri=oob' \
+                                                                                              '&response_type=code&scope=openid&nonce=' + str(
+            random.randint(0, 999999))
 
         auth_token = await self.interact(
-            "Please visit this link to authorize access to your Yahoo Fantasy account:\n" + auth_url + "\n\nPaste the final code here:",
+            "Please visit this link to authorize access to your Yahoo Fantasy account:\n" + auth_url + "\n\nPaste the "
+                                                                                                       "final code "
+                                                                                                       "here:",
             discordUser, needResponse=True)
 
         if auth_token:
@@ -133,86 +218,13 @@ class YahooFantasy(commands.Cog):
             f.close()
 
             await self.interact(
-                "I am now connected to your Yahoo Fantasy account. I will automatically use your account when providing answers.",
+                "I am now connected to your Yahoo Fantasy account. I will automatically use your account when "
+                "providing answers.",
                 discordUser, needResponse=False)
 
     """
     Regular channel work
     """
-
-    async def check_auth(self, discordUser, ctx):
-        if not os.path.exists(creds_folder + str(discordUser.id) + "_oauth2.json"):
-            await ctx.send(
-                "Sorry, I am not connected to your Yahoo Fantasy account. Please say the 'fantasy setup' command to link me to your account.")
-            return False
-        else:
-            print("file exists")
-            file = creds_folder + str(discordUser.id) + "_oauth2.json"
-            print(file)
-            oauth = OAuth2(None, None, from_file=file)
-            if not oauth.token_is_valid():
-                oauth.refresh_access_token()
-            return oauth
-
-    async def get_league(self, league, year, ctx):
-        """
-        :param league: str
-        :param year: int
-        :param ctx: commands.Context
-        :return: League
-        """
-        auth = await self.check_auth(ctx.message.author, ctx)
-        league = league_check(league.lower())
-        if auth and league:
-            game = yfa.Game(auth, league)
-            ids = game.league_ids(year=year)
-            if ids:
-                league_id = ids[-1]
-                return game.to_league(league_id)
-            else:
-                await ctx.send("It seems you don't play Fantasy for the " + league.upper())
-        elif auth:
-            await ctx.send("That is an incorrect league.")
-            return False
-
-    async def get_user_team(self, league, year, ctx):
-        """
-        :param league: str
-        :param year: int
-        :param ctx: commands.Context
-        :return: Team
-        """
-        auth = await self.check_auth(ctx.message.author, ctx)
-        l = await self.get_league(league, year, ctx)
-        if auth and l:
-            return l.to_team(l.team_key())
-
-    async def get_specific_team(self, league, year, team_name, ctx):
-        """
-        :param league: str
-        :param year: int
-        :param team_name: str
-        :param ctx: commands.Context
-        :return: Team
-        """
-        l = await self.get_league(league, year, ctx)
-        if l:
-            for t in l.teams():
-                if t['name'].lower() == team_name.lower():
-                    return l.to_team(t['team_key'])
-            await ctx.send("I could not find that team.")
-            return False
-
-    async def get_all_teams(self, league, year, ctx):
-        """
-        :param league: str
-        :param year: int
-        :param ctx: commands.Context
-        :return: {name: id, ...}
-        """
-        l = await self.get_league(league, year, ctx)
-        if l:
-            return l.teams()
 
     @commands.group(aliases=["Fantasy"], pass_context=True)
     async def fantasy(self, ctx: commands.Context):
@@ -241,7 +253,7 @@ class YahooFantasy(commands.Cog):
         List the teams in your league for a specific year
         Defaults to current year
         """
-        teams = await self.get_all_teams(league, year, ctx)
+        teams = await get_all_teams(league, year, ctx)
         team_list = "```"
         for t in teams:
             team_list = team_list + t['name'] + "\n"
@@ -258,7 +270,7 @@ class YahooFantasy(commands.Cog):
         Compare two players' statistics
         Put the player's names in quotes
         """
-        l = await self.get_league(league, None, ctx)
+        l = await get_league(league, None, ctx)
         if l:
             stat_categories = l.stat_categories()
             stat_name_ids = {}
@@ -310,7 +322,7 @@ class YahooFantasy(commands.Cog):
         """
         List the top free agents for a specific position
         """
-        l = await self.get_league(league, None, ctx)
+        l = await get_league(league, None, ctx)
         if l:
             stat = await stat_check(l, stat, ctx)
             if stat:
@@ -357,10 +369,10 @@ class YahooFantasy(commands.Cog):
         Get your team roster for a specific week
         Defaults to current week
         """
-        team = await self.get_user_team(league, None, ctx)
+        team = await get_user_team(league, None, ctx)
         if team:
             roster = team.roster(week=week)
-            embed = discord.Embed(title="Roster for " + ("current week" if week == None else "Week " + str(week)))
+            embed = discord.Embed(title="Roster for " + ("current week" if week is None else "Week " + str(week)))
             count = 1
             for p in roster:
                 if count < 24:
@@ -370,8 +382,9 @@ class YahooFantasy(commands.Cog):
                 else:
                     ctx.send(embed=embed)
                     embed = discord.Embed(
-                        title="Roster for " + ("current week" if week == None else "Week " + str(week)) + " (Page " + (
-                                    count / 24) + ")")
+                        title="Roster for " + (
+                            "current week" if week is None else "Week " + str(week)) + " (Page " + str(
+                            count / 24) + ")")
             await ctx.send(embed=embed)
 
     @fantasy_roster.error

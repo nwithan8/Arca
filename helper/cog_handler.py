@@ -27,7 +27,6 @@ class CogHandler(commands.Cog):
         """
         Load a cog (folder.file)
         """
-        print(cog)
         try:
             self.bot.load_extension(cog)
             await ctx.send("{} has been enabled.".format(cog))
@@ -36,7 +35,6 @@ class CogHandler(commands.Cog):
         except ExtensionNotFound:
             try:
                 cog = '{}.py'.format(cog.replace(".", "/"))
-                print(cog)
                 if USE_DROPBOX:
                     dropbox.download_file(cog)
                 self.bot.load_extension(cog)
