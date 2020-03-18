@@ -61,31 +61,52 @@ async def add_to_plex(plexname, discordId, note, serverNumber=None):
 
 
 def delete_from_plex(id):
-    tempPlex = plex;
+    """
+    Remove a Discord user from Plex
+    Returns:
+    200 - user found and removed successfully
+    400 - user found in database, but not found on Plex
+    600 - user found, but not removed
+    700 - user not found in database
+    500 - unknown error
+    """
+    tempPlex = plex
     serverNumber = 0
     try:
         results = db.find_user_in_db(ServerOrDiscord="Plex", data=id)
+        if not results:
+            return 700, serverNumber  # user not found
         plexname = results[0]
         note = results[1]
         if settings.MULTI_PLEX:
             serverNumber = results[2]
             tempPlex = PlexServer(settings.PLEX_SERVER_URL[serverNumber], settings.PLEX_SERVER_TOKEN[serverNumber])
-        if plexname is not None:
-            tempPlex.myPlexAccount().removeFriend(user=plexname)
-            if note != 't':
-                px.delete_from_ombi(plexname)  # Error if trying to remove trial user that doesn't exist in Ombi?
-            px.delete_from_tautulli(plexname, serverNumber)
-            db.remove_user_from_db(id)
-            return True, serverNumber
+        if not plexname:
+            return 700, serverNumber  # user not found
         else:
-            return False, serverNumber
+            try:
+                tempPlex.myPlexAccount().removeFriend(user=plexname)
+                if note != 't':
+                    px.delete_from_ombi(plexname)  # Error if trying to remove trial user that doesn't exist in Ombi?
+                px.delete_from_tautulli(plexname, serverNumber)
+                db.remove_user_from_db(id)
+                return 200, serverNumber
+            except plexapi.exceptions.NotFound:
+                return 500, serverNumber  # user not found on Plex
+            except Exception as e:
+                print(e)
+                return 400, serverNumber  # user not removed completely
     except plexapi.exceptions.NotFound:
         # print("Not found")
-        return False, serverNumber
+        return 400, serverNumber  # user not found on Plex
+    except Exception as e:
+        print(e)
+        return 500, serverNumber  # unknown error
 
 
 def remove_nonsub(memberID):
     if memberID not in settings.EXEMPT_SUBS:
+        print("Ending sub for {}".format(memberID))
         return delete_from_plex(memberID)
 
 
@@ -151,8 +172,8 @@ class PlexManager(commands.Cog):
         id = db.find_user_in_db(ServerOrDiscord="Discord", data=username)[0]
         if id is not None:
             try:
-                success, num = delete_from_plex(id)
-                if success:
+                code, num = delete_from_plex(id)
+                if code == 200:
                     user = self.bot.get_user(int(id))
                     await user.create_dm()
                     await user.dm_channel.send(
@@ -162,6 +183,8 @@ class PlexManager(commands.Cog):
                                             reason="Inactive winner")
                     db.remove_user_from_db(id)
                     return "<@" + id + ">, "
+                else:
+                    return None
             except plexapi.exceptions.BadRequest:
                 return None
         else:
@@ -171,8 +194,10 @@ class PlexManager(commands.Cog):
         print("Checking Plex subs...")
         for member in discord_helper.get_users_without_roles(bot=self.bot, roleNames=settings.SUB_ROLES,
                                                              guildID=settings.DISCORD_SERVER_ID):
-            success, num = remove_nonsub(member.id)
-            if not success:
+            code, num = remove_nonsub(member.id)
+            if code == 700:
+                print("{} was not a past subscriber".format(member))
+            elif code != 200:
                 print("Couldn't remove {} from Plex".format(member))
         print("Plex subs check complete.")
 
@@ -183,8 +208,8 @@ class PlexManager(commands.Cog):
                                        name=settings.TRIAL_ROLE_NAME)
         for u in trials:
             print("Ending trial for " + str(u[0]))
-            success, num = delete_from_plex(int(u[0]))
-            if success:
+            code, num = delete_from_plex(int(u[0]))
+            if code == 200:
                 try:
                     user = self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).get_member(int(u[0]))
                     await user.create_dm()
@@ -550,8 +575,8 @@ class PlexManager(commands.Cog):
         """
         Remove a Discord user from Plex
         """
-        deleted, num = delete_from_plex(user.id)
-        if deleted:
+        code, num = delete_from_plex(user.id)
+        if code == 200:
             role = discord.utils.get(ctx.message.guild.roles, name=settings.AFTER_APPROVED_ROLE_NAME)
             await user.remove_roles(role, reason="Removed from Plex")
             await ctx.send("You've been removed from " + (
