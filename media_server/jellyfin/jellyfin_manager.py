@@ -137,7 +137,7 @@ def remove_from_jellyfin(id):
 def remove_nonsub(memberID):
     if memberID not in settings.EXEMPT_SUBS:
         print("Ending sub for {}".format(memberID))
-        remove_from_jellyfin(memberID)
+        return remove_from_jellyfin(memberID)
 
 
 async def backup_database():
@@ -190,8 +190,8 @@ class JellyfinManager(commands.Cog):
         try:
             id = db.find_user_in_db(ServerOrDiscord="Discord", data=jellyfinId)
             if id is not None:
-                code = remove_from_jellyfin(jellyfinId)
-                if code.startswith('2'):
+                s = remove_from_jellyfin(jellyfinId)
+                if s == 200:
                     user = self.bot.get_user(int(id))
                     await user.create_dm()
                     await user.dm_channel.send(
@@ -206,7 +206,9 @@ class JellyfinManager(commands.Cog):
     async def check_subs(self):
         print("Checking Jellyfin subs...")
         for member in discord_helper.get_users_without_roles(bot=self.bot, roleNames=settings.SUB_ROLES, guildID=settings.DISCORD_SERVER_ID):
-            remove_nonsub(member.id)
+            s = remove_nonsub(member.id)
+            if s != 200:
+                print("Couldn't remove {}".format(member))
         print("Jellyfin subs check complete.")
 
     async def check_trials(self):
@@ -215,12 +217,13 @@ class JellyfinManager(commands.Cog):
         trial_role = discord.utils.get(self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).roles, name=settings.TRIAL_ROLE_NAME)
         for u in trials:
             print("Ending trial for {}".format(str(u[0])))
-            remove_from_jellyfin(int(u[0]))
             try:
-                user = self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).get_member(int(u[0]))
-                await user.create_dm()
-                await user.dm_channel.send(settings.TRIAL_END_NOTIFICATION)
-                await user.remove_roles(trial_role, reason="Trial has ended.")
+                s = remove_from_jellyfin(int(u[0]))
+                if s == 200:
+                    user = self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).get_member(int(u[0]))
+                    await user.create_dm()
+                    await user.dm_channel.send(settings.TRIAL_END_NOTIFICATION)
+                    await user.remove_roles(trial_role, reason="Trial has ended.")
             except Exception as e:
                 print(e)
                 print("Discord user {} not found.".format(str(u[0])))
