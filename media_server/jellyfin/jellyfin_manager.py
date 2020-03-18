@@ -208,7 +208,7 @@ class JellyfinManager(commands.Cog):
         for member in discord_helper.get_users_without_roles(bot=self.bot, roleNames=settings.SUB_ROLES, guildID=settings.DISCORD_SERVER_ID):
             s = remove_nonsub(member.id)
             if s != 200:
-                print("Couldn't remove {}".format(member))
+                print("Couldn't remove {} from Jellyfin".format(member))
         print("Jellyfin subs check complete.")
 
     async def check_trials(self):

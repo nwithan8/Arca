@@ -212,7 +212,7 @@ class EmbyManager(commands.Cog):
                                                              guildID=settings.DISCORD_SERVER_ID):
             s = remove_nonsub(member.id)
             if s != 200:
-                print("Couldn't remove {}".format(member))
+                print("Couldn't remove {} from Emby".format(member))
         print("Emby subs check complete.")
 
     async def check_trials(self):

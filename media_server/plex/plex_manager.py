@@ -86,7 +86,7 @@ def delete_from_plex(id):
 
 def remove_nonsub(memberID):
     if memberID not in settings.EXEMPT_SUBS:
-        delete_from_plex(memberID)
+        return delete_from_plex(memberID)
 
 
 async def backup_database():
@@ -171,7 +171,9 @@ class PlexManager(commands.Cog):
         print("Checking Plex subs...")
         for member in discord_helper.get_users_without_roles(bot=self.bot, roleNames=settings.SUB_ROLES,
                                                              guildID=settings.DISCORD_SERVER_ID):
-            remove_nonsub(member.id)
+            success, num = remove_nonsub(member.id)
+            if not success:
+                print("Couldn't remove {} from Plex".format(member))
         print("Plex subs check complete.")
 
     async def check_trials(self):
