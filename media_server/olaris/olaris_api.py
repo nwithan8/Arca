@@ -52,7 +52,7 @@ class EpisodeFile:
         self.streams = [Stream(stream) for stream in data.get('streams')]
         self.totalDuration = data.get('totalDuration')
         self.fileSize = data.get('fileSize')
-        self.library = Library(data.get('library'))
+        # self.library = Library(data.get('library'))
 
 
 class Error:
@@ -125,7 +125,7 @@ class MovieFile:
         self.streams = [Stream(stream) for stream in data.get('streams')]
         self.totalDuration = data.get('totalDuration')
         self.fileSize = data.get('fileSize')
-        self.library = Library(data.get('library'))
+        # self.library = Library(data.get('library'))
 
 
 class PlayState:
@@ -180,7 +180,7 @@ class Series:
         self.overview = data.get('overview')
         self.firstAirDate = data.get('firstAirDate')
         self.status = data.get('status')
-        self.seasons = [Season(season) for season in data.get('Season')]
+        self.seasons = [Season(season) for season in data.get('season')]
         self.backdropPath = data.get('backdropPath')
         self.posterPath = data.get('posterPath')
         self.tmdbID = data.get('tmdbID')
@@ -346,6 +346,7 @@ def post_request(query, type='query'):
                 data = {'mutation': query}
             if type == 'subscription':
                 data = {'subscription': query}
+            print(data)
             response = requests.post(url='{base}/m/query?JWT={jwt}'.format(base=settings.OLARIS_URL, jwt=jwt),
                                      json=data)
             if response:
@@ -363,105 +364,104 @@ def get_libraries():
     """
     query = """{
         libraries {
-            id {}
-            kind {}
-            name {}
-            filePath {}
-            isRefreshing {}
-            backend {}
-            rcloneName {}
-            healthy {}
+            id
+            kind
+            name
+            filePath
+            isRefreshing
+            backend
+            rcloneName
+            healthy
             movies {
-                name {}
-                title {}
-                year {}
-                overview {}
-                imdbID {}
-                tmdbID {}
-                backdropPath {}
-                posterPath {}
-                uuid {}
+                name
+                title
+                year
+                overview
+                imdbID
+                tmdbID
+                backdropPath
+                posterPath
+                uuid
                 files {
-                    fileName {}
-                    filePath {}
-                    libraryId {}
-                    uuid {}
+                    fileName
+                    filePath
+                    libraryId
+                    uuid
                     streams {
-                        codecName {}
-                        codecMime {}
-                        profile {}
-                        bitRate {}
-                        streamType {}
-                        language {}
-                        title {}
-                        resolution {}
-                        totalDuration {}
-                        streamID {}
-                        streamURL {}
+                        codecName
+                        codecMime
+                        profile
+                        bitRate
+                        streamType
+                        language
+                        title
+                        resolution
+                        totalDuration
+                        streamID
+                        streamURL
                     }
-                    totalDuration {}
-                    fileSize {}
+                    totalDuration
+                    fileSize
                 }
                 playState {
-                    finished {}
-                    playtime {}
-                    uuid {}
+                    finished
+                    playtime
+                    uuid
                 }
-
             }
             episodes {
-                name {}
-                overview {}
-                stillPath {}
-                airDate {}
-                episodeNumber {}
-                tmdbID {}
-                uuid {}
+                name
+                overview
+                stillPath
+                airDate
+                episodeNumber
+                tmdbID
+                uuid
                 files {
-                    fileName {}
-                    filePath {}
-                    uuid {}
+                    fileName
+                    filePath
+                    uuid
                     streams {
-                        codecName {}
-                        codecMime {}
-                        profile {}
-                        bitRate {}
-                        streamType {}
-                        language {}
-                        title {}
-                        resolution {}
-                        totalDuration {}
-                        streamID {}
-                        streamURL {}
+                        codecName
+                        codecMime
+                        profile
+                        bitRate
+                        streamType
+                        language
+                        title
+                        resolution
+                        totalDuration
+                        streamID
+                        streamURL
                     }
-                    totalDuration {}
-                    fileSize {}
+                    totalDuration
+                    fileSize
                 }
                 playState {
-                    finished {}
-                    playtime {}
-                    uuid {}
+                    finished
+                    playtime
+                    uuid
                 }
-                season {
-                    name {}
-                    overview {}
-                    seasonNumber {}
-                    airDate {}
-                    posterPath {}
-                    tmdbID {}
-                    uuid {}
-                    unwatchedEpisodesCount {}
+                seasons {
+                    name
+                    overview
+                    seasonNumber
+                    airDate
+                    posterPath
+                    tmdbID
+                    uuid
+                    unwatchedEpisodesCount
                     series {
-                        name {}
-                        overview {}
-                        firstAirDate {}
-                        status {}
-                        backdropPath {}
-                        posterPath {}
-                        tmdbID {}
-                        type {}
-                        uuid {}
-                        unwatchedEpisodesCount {}
+                        name
+                        overview
+                        firstAirDate
+                        status
+                        backdropPath
+                        posterPath
+                        tmdbID
+                        type
+                        uuid
+                        unwatchedEpisodesCount
                     }
                 }
             }
@@ -469,8 +469,9 @@ def get_libraries():
     }"""
     data = post_request(query=query, type='query')
     print(data)
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on get_libraries")
     else:
         return [Library(library) for library in data['data']['libraries']]
@@ -480,49 +481,198 @@ def get_movies(uuid: str = None, offset: int = None, limit: int = None):
     """
     :return: [Movie]
     """
-    query = """"{
-  movies({uuid_filter} {offset_filter} {limit_filter}) {{}}
-  }""".format(uuid_filter=("uuid: {},".format(uuid) if uuid else ""),
-              offset_filter=("offset: {},".format(offset) if offset else ""),
-              limit_filter=("limit: {},".format(limit) if limit else "")
-              )
+    uuid_filter = ("uuid: {0},".format(uuid) if uuid else "")
+    offset_filter = ("offset: {0},".format(offset) if offset else "")
+    limit_filter = ("limit: {0},".format(limit) if limit else "")
+    query = """{
+        movies(""" + uuid_filter + offset_filter + limit_filter + """) {
+            name
+            title
+            year
+            overview
+            imdbID
+            tmdbID
+            backdropPath
+            posterPath
+            uuid
+            files {
+                fileName
+                filePath
+                libraryId
+                uuid
+                streams {
+                    codecName
+                    codecMime
+                    profile
+                    bitRate
+                    streamType
+                    language
+                    title
+                    resolution
+                    totalDuration
+                    streamID
+                    streamURL
+                }
+                totalDuration
+                fileSize
+            }
+            playState {
+                finished
+                playtime
+                uuid
+            }
+        }
+    }"""
     data = post_request(query=query, type='query')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on get_movies")
     else:
-        return [Movie(movie) for movie in data['data']]
+        return [Movie(movie) for movie in data['data']['movies']]
 
 
 def get_series(uuid: str = None, offset: int = None, limit: int = None):
     """
     :return: [Series]
     """
-    query = """{
-    series({uuid_filter} {offset_filter} {limit_filter}) {{}}
-    }""".format(uuid_filter=("uuid: {},".format(uuid) if uuid else ""),
-                offset_filter=("offset: {},".format(offset) if offset else ""),
-                limit_filter=("limit: {},".format(limit) if limit else "")
-                )
+    uuid_filter = ("uuid: {0},".format(uuid) if uuid else "")
+    offset_filter = ("offset: {0},".format(offset) if offset else "")
+    limit_filter = ("limit: {0},".format(limit) if limit else "")
+    query = """"{
+        series(""" + uuid_filter + offset_filter + limit_filter + """) {
+            name
+            overview
+            firstAirDate
+            status
+            backdropPath
+            posterPath
+            tmdbID
+            type
+            uuid
+            unwatchedEpisodesCount
+            seasons {
+                name
+                overview
+                seasonNumber
+                airDate
+                posterPath
+                tmdbID
+                uuid
+                unwatchedEpisodesCount
+                episodes {
+                    name
+                    overview
+                    stillPath
+                    airDate
+                    episodeNumber
+                    tmdbID
+                    uuid
+                    files {
+                        fileName
+                        filePath
+                        uuid
+                        streams {
+                            codecName
+                            codecMime
+                            profile
+                            bitRate
+                            streamType
+                            language
+                            title
+                            resolution
+                            totalDuration
+                            streamID
+                            streamURL
+                        }
+                        totalDuration
+                        fileSize
+                    }
+                    playState {
+                        finished
+                        playtime
+                        uuid
+                    }    
+                }
+            }    
+        }
+    }"""
     data = post_request(query=query, type='query')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on get_series")
     else:
-        return [Series(series) for series in data['data']]
+        return [Series(series) for series in data['data']['series']]
 
 
 def get_season(uuid: str = None):
     """
     :return: Season
     """
+    uuid_filter = ("uuid: {0},".format(uuid) if uuid else "")
     query = """{
-    season({uuid_filter}) {{}}
-    }""".format(uuid_filter=("uuid: {},".format(uuid) if uuid else "")
-                )
+        season(""" + uuid_filter + """) {
+            name
+            overview
+            seasonNumber
+            airDate
+            posterPath
+            tmdbID
+            uuid
+            unwatchedEpisodesCount
+            episodes {
+                name
+                overview
+                stillPath
+                airDate
+                episodeNumber
+                tmdbID
+                uuid
+                files {
+                    fileName
+                    filePath
+                    uuid
+                    streams {
+                        codecName
+                        codecMime
+                        profile
+                        bitRate
+                        streamType
+                        language
+                        title
+                        resolution
+                        totalDuration
+                        streamID
+                        streamURL
+                    }
+                    totalDuration
+                    fileSize
+                }
+                playState {
+                    finished
+                    playtime
+                    uuid
+                }
+            }
+            series {
+                name
+                overview
+                firstAirDate
+                status
+                backdropPath
+                posterPath
+                tmdbID
+                type
+                uuid
+                unwatchedEpisodesCount
+            }
+        }
+    }"""
     data = post_request(query=query, type='query')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on get_season")
     else:
         return Season(data['data'])
@@ -532,13 +682,69 @@ def get_episode(uuid: str = None):
     """
     :return: Episode
     """
+    uuid_filter = ("uuid: {0},".format(uuid) if uuid else "")
     query = """{
-    episode({uuid_filter}) {{}}
-    }""".format(uuid_filter=("uuid: {},".format(uuid) if uuid else "")
-                )
+        episode(""" + uuid_filter + """) {
+            name
+            overview
+            stillPath
+            airDate
+            episodeNumber
+            tmdbID
+            uuid
+            files {
+                fileName
+                filePath
+                uuid
+                streams {
+                    codecName
+                    codecMime
+                    profile
+                    bitRate
+                    streamType
+                    language
+                    title
+                    resolution
+                    totalDuration
+                    streamID
+                    streamURL
+                }
+                totalDuration
+                fileSize
+            }
+            playState {
+                finished
+                playtime
+                uuid
+            }
+            seasons {
+                name
+                overview
+                seasonNumber
+                airDate
+                posterPath
+                tmdbID
+                uuid
+                unwatchedEpisodesCount
+                series {
+                    name
+                    overview
+                    firstAirDate
+                    status
+                    backdropPath
+                    posterPath
+                    tmdbID
+                    type
+                    uuid
+                    unwatchedEpisodesCount
+                }
+            }
+        }
+    }"""
     data = post_request(query=query, type='query')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on get_episode")
     else:
         return Episode(data['data']['episodes'])
@@ -549,11 +755,16 @@ def get_users():
     :return: [User]
     """
     query = """{
-    users {id {} username {} admin{} }
+        users {
+            id
+            username
+            admin
+        }
     }"""
     data = post_request(query=query, type='query')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on get_users")
     else:
         return [User(user) for user in data['data']['users']]
@@ -564,14 +775,111 @@ def get_recently_added():
     :return: [MediaItem]
     """
     query = """{
-    recentlyAdded
+        recentlyAdded {
+            __typename
+            ... on Movie {
+                name
+                title
+                year
+                overview
+                imdbID
+                tmdbID
+                backdropPath
+                posterPath
+                uuid
+                files {
+                    fileName
+                    filePath
+                    libraryId
+                    uuid
+                    streams {
+                        codecName
+                        codecMime
+                        profile
+                        bitRate
+                        streamType
+                        language
+                        title
+                        resolution
+                        totalDuration
+                        streamID
+                        streamURL
+                    }
+                    totalDuration
+                    fileSize
+                }
+                playState {
+                    finished
+                    playtime
+                    uuid
+                }
+            }
+            ... on Episode {
+                name
+                overview
+                stillPath
+                airDate
+                episodeNumber
+                tmdbID
+                uuid
+                files {
+                    fileName
+                    filePath
+                    uuid
+                    streams {
+                        codecName
+                        codecMime
+                        profile
+                        bitRate
+                        streamType
+                        language
+                        title
+                        resolution
+                        totalDuration
+                        streamID
+                        streamURL
+                    }
+                    totalDuration
+                    fileSize
+                }
+                playState {
+                    finished
+                    playtime
+                    uuid
+                }
+                seasons {
+                    name
+                    overview
+                    seasonNumber
+                    airDate
+                    posterPath
+                    tmdbID
+                    uuid
+                    unwatchedEpisodesCount
+                    series {
+                        name
+                        overview
+                        firstAirDate
+                        status
+                        backdropPath
+                        posterPath
+                        tmdbID
+                        type
+                        uuid
+                        unwatchedEpisodesCount
+                    }
+                }
+            }
+        }
     }"""
     data = post_request(query=query, type='query')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on get_recently_added")
     else:
-        return [MediaItem(mediaItem) for mediaItem in data['data']]
+        print(data)
+        return [MediaItem(mediaItem) for mediaItem in data['data']['recentlyAdded']]
 
 
 def get_up_next():
@@ -579,11 +887,107 @@ def get_up_next():
     :return: [MediaItem]
     """
     query = """{
-    upNext
+        upNext {
+            __typename
+            ... on Movie {
+                name
+                title
+                year
+                overview
+                imdbID
+                tmdbID
+                backdropPath
+                posterPath
+                uuid
+                files {
+                    fileName
+                    filePath
+                    libraryId
+                    uuid
+                    streams {
+                        codecName
+                        codecMime
+                        profile
+                        bitRate
+                        streamType
+                        language
+                        title
+                        resolution
+                        totalDuration
+                        streamID
+                        streamURL
+                    }
+                    totalDuration
+                    fileSize
+                }
+                playState {
+                    finished
+                    playtime
+                    uuid
+                }
+            }
+            ... on Episode {
+                name
+                overview
+                stillPath
+                airDate
+                episodeNumber
+                tmdbID
+                uuid
+                files {
+                    fileName
+                    filePath
+                    uuid
+                    streams {
+                        codecName
+                        codecMime
+                        profile
+                        bitRate
+                        streamType
+                        language
+                        title
+                        resolution
+                        totalDuration
+                        streamID
+                        streamURL
+                    }
+                    totalDuration
+                    fileSize
+                }
+                playState {
+                    finished
+                    playtime
+                    uuid
+                }
+                seasons {
+                    name
+                    overview
+                    seasonNumber
+                    airDate
+                    posterPath
+                    tmdbID
+                    uuid
+                    unwatchedEpisodesCount
+                    series {
+                        name
+                        overview
+                        firstAirDate
+                        status
+                        backdropPath
+                        posterPath
+                        tmdbID
+                        type
+                        uuid
+                        unwatchedEpisodesCount
+                    }
+                }
+            }
+        }
     }"""
     data = post_request(query=query, type='query')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on get_up_next")
     else:
         return [MediaItem(mediaItem) for mediaItem in data['data']]
@@ -593,15 +997,112 @@ def search(name: str):
     """
     :return: [SearchItem]
     """
+    name_filter = ("name: \"{0}\",".format(name) if name else "")
     query = """{
-    search(name: {})
-    }""".format(name)
+        search(""" + name_filter + """) {
+            __typename
+            ... on Movie {
+                name
+                title
+                year
+                overview
+                imdbID
+                tmdbID
+                backdropPath
+                posterPath
+                uuid
+                files {
+                    fileName
+                    filePath
+                    libraryId
+                    uuid
+                    streams {
+                        codecName
+                        codecMime
+                        profile
+                        bitRate
+                        streamType
+                        language
+                        title
+                        resolution
+                        totalDuration
+                        streamID
+                        streamURL
+                    }
+                    totalDuration
+                    fileSize
+                }
+                playState {
+                    finished
+                    playtime
+                    uuid
+                } 
+            }
+            ... on Series {
+                name
+                overview
+                firstAirDate
+                status
+                backdropPath
+                posterPath
+                tmdbID
+                type
+                uuid
+                unwatchedEpisodesCount
+                seasons {
+                    name
+                    overview
+                    seasonNumber
+                    airDate
+                    posterPath
+                    tmdbID
+                    uuid
+                    unwatchedEpisodesCount
+                    episodes {
+                        name
+                        overview
+                        stillPath
+                        airDate
+                        episodeNumber
+                        tmdbID
+                        uuid
+                        files {
+                            fileName
+                            filePath
+                            uuid
+                            streams {
+                                codecName
+                                codecMime
+                                profile
+                                bitRate
+                                streamType
+                                language
+                                title
+                                resolution
+                                totalDuration
+                                streamID
+                                streamURL
+                            }
+                            totalDuration
+                            fileSize
+                        }
+                        playState {
+                            finished
+                            playtime
+                            uuid
+                        }    
+                    }
+                }
+            }        
+        }
+    }"""
     data = post_request(query=query, type='query')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on search")
     else:
-        return [SearchItem(searchItem) for searchItem in data['data']]
+        return [SearchItem(searchItem) for searchItem in data['data']['search']]
 
 
 def get_remotes():
@@ -612,8 +1113,9 @@ def get_remotes():
     remotes
     }"""
     data = post_request(query=query, type='query')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on get_remotes")
     else:
         return [Remote(remote) for remote in data['data']['remotes']]
@@ -624,95 +1126,166 @@ def get_invites():
     :return: [Invite]
     """
     query = """{
-    invites
+        invites {
+            code
+            user {
+                id
+                username
+                admin    
+            }
+        }
     }"""
     data = post_request(query=query, type='query')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on get_invites")
     else:
-        return [Invite(invite) for invite in data['data']]
+        return [Invite(invite) for invite in data['data']['invites']]
 
 
 def get_unidentified_movie_files(offset: int = None, limit: int = None):
     """
     :return: [MovieFile]
     """
+    offset_filter = ("offset: {0},".format(offset) if offset else "")
+    limit_filter = ("limit: {0},".format(limit) if limit else "")
     query = """{
-    unidentifiedMovieFiles({offset_filter} {limit_filter}) {{}}
-    }""".format(offset_filter=("offset: {},".format(offset) if offset else ""),
-                limit_filter=("limit: {},".format(limit) if limit else "")
-                )
+        unidentifiedMovieFiles(""" + offset_filter + limit_filter + """) {
+            fileName
+            filePath
+            libraryId
+            uuid
+            streams {
+                codecName
+                codecMime
+                profile
+                bitRate
+                streamType
+                language
+                title
+                resolution
+                totalDuration
+                streamID
+                streamURL
+                }
+            totalDuration
+            fileSize
+        }
+    }"""
     data = post_request(query=query, type='query')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on get_unidentified_movie_files")
     else:
-        return [MovieFile(movieFile) for movieFile in data['data']]
+        return [MovieFile(movieFile) for movieFile in data['data']['unidentifiedMovieFiles']]
 
 
 def get_unindentified_episode_files(offset: int = None, limit: int = None):
     """
     :return: [EpisodeFile]
     """
+    offset_filter = ("offset: {0},".format(offset) if offset else "")
+    limit_filter = ("limit: {0},".format(limit) if limit else "")
     query = """{
-    unidentifiedEpisodeFiles({offset_filter} {limit_filter}) {{}}
-    }""".format(offset_filter=("offset: {},".format(offset) if offset else ""),
-                limit_filter=("limit: {},".format(limit) if limit else "")
-                )
+        unidentifiedEpisodeFiles(""" + offset_filter + limit_filter + """) {
+            fileName
+            filePath
+            uuid
+            streams {
+                codecName
+                codecMime
+                profile
+                bitRate
+                streamType
+                language
+                title
+                resolution
+                totalDuration
+                streamID
+                streamURL
+            }
+            totalDuration
+            fileSize        
+        }
+    }"""
     data = post_request(query=query, type='query')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on get_unidentified_episode_files")
     else:
-        return [EpisodeFile(episodeFile) for episodeFile in data['data']]
+        return [EpisodeFile(episodeFile) for episodeFile in data['data']['unidentifiedEpisodeFiles']]
 
 
 def tmdb_movie_search(keywords: str):
     """
     :return: [TmdbMovieSearchItem]
     """
+    query_filter = ("query: \"{0}\",".format(keywords) if keywords else "")
     query = """{
-    tmdbSearchMovies({query}) {{}}
-    }""".format(query=("query: {},".format(keywords) if keywords else ""))
+        tmdbSearchMovies(""" + query_filter + """) {
+            title
+            releaseYear
+            overview
+            tmdbID
+            backdropPath
+            posterPath
+        }
+    }"""
     data = post_request(query=query, type='query')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on tmdb_movie_search")
     else:
-        return [TmdbMovieSearchItem(item) for item in data['data']]
+        return [TmdbMovieSearchItem(item) for item in data['data']['tmdbSearchMovies']]
 
 
 def tmdb_series_search(keywords: str):
     """
     :return: [TmdbSeriesSearchItem]
     """
+    query_filter = ("query: \"{0}\",".format(keywords) if keywords else "")
     query = """{
-    tmdbSearchSeries({query}) {{}}
-    }""".format(query=("query: {},".format(keywords) if keywords else ""))
+        tmdbSearchSeries(""" + query_filter + """) {
+            name
+            firstAirYear
+            tmdbID
+            backdropPath
+            posterPath
+        }
+    }"""
     data = post_request(query=query, type='query')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on tmdb_series_search")
     else:
-        return [TmdbSeriesSearchItem(item) for item in data['data']]
+        return [TmdbSeriesSearchItem(item) for item in data['data']['tmdbSearchSeries']]
 
 
 def create_library(name: str, filePath: str, kind: int, backend: int, rcloneName: str):
     """
     :return: LibraryResponse
     """
+    library_name = ("name: {0},".format(name) if name else "")
+    library_filePath = ("filePath: {0},".format(filePath) if filePath else "")
+    library_kind = ("kind: {0},".format(kind) if kind else "")
+    library_backend = ("backend: {0},".format(backend) if backend else "")
+    library_rcloneName = ("rcloneName: {0},".format(rcloneName) if rcloneName else "")
     query = """{
-        createLibrary({library_name} {library_filePath} {library_kind} {library_backend} {library_rcloneName}) {{}}
-        }""".format(library_name=("name: {},".format(name) if name else ""),
-                    library_filePath=("filePath: {},".format(filePath) if filePath else ""),
-                    library_kind=("kind: {},".format(kind) if kind else ""),
-                    library_backend=("backend: {},".format(backend) if backend else ""),
-                    library_rcloneName=("rcloneName: {},".format(rcloneName) if rcloneName else "")
-                    )
+        createLibrary(""" + library_name + library_filePath + library_kind + library_backend + library_rcloneName + """) {
+            library
+            error
+        }
+    }"""
     data = post_request(query=query, type='mutation')
-    if data.get('errors'):
-        print(data['errors'])
+    print(data)
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on create_library")
     else:
         return LibraryResponse(data['data'])
@@ -722,12 +1295,16 @@ def delete_library(id: int):
     """
     :return: LibraryResponse
     """
+    id_filter = ("id: {0},".format(id) if id else "")
     query = """{
-        deleteLibrary(id: {id) {{}}
-        }""".format(id=id)
+        deleteLibrary(""" + id_filter + """) {
+            
+        }
+    }"""
     data = post_request(query=query, type='mutation')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on delete_library")
     else:
         return LibraryResponse(data['data'])
@@ -739,10 +1316,11 @@ def create_user_invite():
     """
     query = """{
         createUserInvite
-        }"""
+    }"""
     data = post_request(query=query, type='mutation')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on create_user_invite")
     else:
         return UserInviteResponse(data['data'])
@@ -752,15 +1330,18 @@ def create_play_state(uuid: str, finished: bool, playtime: float):
     """
     :return: PlayStateResponse
     """
+    state_uuid = ("uuid: {0},".format(uuid) if uuid else "")
+    state_finished = ("finished: {0},".format(finished) if finished is not None else "")
+    state_playtime = ("playtime: {0},".format(playtime) if playtime else "")
     query = """{
-        createPlayState({state_uuid} {state_finished} {state_playtime}) {{}}
-        }""".format(state_uuid=("uuid: {},".format(uuid) if uuid else ""),
-                    state_finished=("finished: {},".format(finished) if finished is not None else ""),
-                    state_playtime=("playtime: {},".format(playtime) if playtime else "")
-                    )
+        createPlayState(""" + state_uuid + state_finished + state_playtime + """) {
+            
+        }
+    }"""
     data = post_request(query=query, type='mutation')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on create_play_state")
     else:
         return PlayStateResponse(data['data'])
@@ -770,13 +1351,16 @@ def create_streaming_ticket(uuid: str):
     """
     :return: CreateSTResponse
     """
+    ticket_uuid = ("uuid: {0},".format(uuid) if uuid else "")
     query = """{
-        createStreamingTicket({ticket_uuid}) {{}}
-        }""".format(ticket_uuid=("uuid: {},".format(uuid) if uuid else "")
-                    )
+        createStreamingTicket(""" + ticket_uuid + """) {
+            
+        }
+    }"""
     data = post_request(query=query, type='mutation')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on create_streaming_ticket")
     else:
         return CreateSTResponse(data['data'])
@@ -786,13 +1370,16 @@ def delete_user(id: int):
     """
     :return: UserResponse
     """
+    user_id = ("id: {0},".format(id) if id else "")
     query = """{
-        deleteUser({user_id}) {{}}
-        }""".format(user_id=("id: {},".format(id) if id else "")
-                    )
+        deleteUser(""" + user_id + """) {
+            
+        }
+    }"""
     data = post_request(query=query, type='mutation')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on delete_user")
     else:
         return UserResponse(data['data'])
@@ -802,10 +1389,12 @@ def update_streams(uuid: str):
     """
     :return: Boolean
     """
+    stream_uuid = ("uuid: {0},".format(uuid) if uuid else "")
     query = """{
-        updateStreams({stream_uuid}) {{}}
-        }""".format(stream_uuid=("uuid: {},".format(uuid) if uuid else "")
-                    )
+        updateStreams(""" + stream_uuid + """) {
+            
+        }
+    }"""
     return post_request(query=query, type='mutation')
 
 
@@ -813,11 +1402,13 @@ def refresh_agent_metadata(libraryID: int, uuid: str):
     """
     :return: Boolean
     """
+    library_id = ("libraryID: {0},".format(libraryID) if libraryID else "")
+    agent_uuid = ("uuid: {0},".format(uuid) if uuid else "")
     query = """{
-        refreshAgentMetadata({library_id} {agent_uuid}) {{}}
-        }""".format(library_id=("libraryID: {},".format(libraryID) if libraryID else ""),
-                    agent_uuid=("uuid: {},".format(uuid) if uuid else "")
-                    )
+        refreshAgentMetadata(""" + library_id + agent_uuid + """) {
+            
+        }
+    }"""
     return post_request(query=query, type='mutation')
 
 
@@ -827,7 +1418,7 @@ def rescan_libraries():
     """
     query = """{
         rescanLibraries
-        }"""
+    }"""
     return post_request(query=query, type='mutation')
 
 
@@ -836,13 +1427,16 @@ def update_movie_file_metadata(uuid: str, tmdbID: int):
     :return: UpdateMovieFileMetadataPayload
     """
     metadata_input = _create_movie_file_metadata_input(uuid, tmdbID)
+    metadata_input = ("input: {0},".format(metadata_input) if metadata_input else "")
     query = """{
-        updateMovieFileMetadata({metadata_input}) {{}}
-        }""".format(metadata_input=("input: {},".format(metadata_input) if metadata_input else "")
-                    )
+        updateMovieFileMetadata(""" + metadata_input + """) {
+            
+        }
+    }"""
     data = post_request(query=query, type='mutation')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on update_movie_file_metadata")
     else:
         return UpdateMovieFileMetadataPayload(data['data'])
@@ -853,30 +1447,26 @@ def update_episode_file_metadata(episode_uuid: str, series_uuid: str, tmdbID: in
     :return: UpdateEpisodeFileMetadataPayload
     """
     metadata_input = _create_episode_file_metadata_input(episode_uuid, series_uuid, tmdbID)
+    metadata_input = ("input: {0},".format(metadata_input) if metadata_input else "")
     query = """{
-        updateEpisodeFileMetadata({metadata_input}) {{}}
-        }""".format(metadata_input=("input: {},".format(metadata_input) if metadata_input else "")
-                    )
+        updateEpisodeFileMetadata(""" + metadata_input + """) {
+            
+        }
+    }"""
     data = post_request(query=query, type='mutation')
-    if data.get('errors'):
-        print(data['errors'])
+    if not data or data.get('errors'):
+        if data:
+            print(data['errors'])
         raise Exception("Error on update_episode_file_metadata")
     else:
         return UpdateEpisodeFileMetadataPayload(data['data'])
 
 
 def _create_movie_file_metadata_input(uuid: str, tmdbID: int):
-    return """UpdateMovieFileMetadataInput {
-        movieFileUUID: {movie_uuid}
-        tmdbID: {id}
-        }
-        """.format(movie_uuid=uuid, id=tmdbID)
+    input_filter = ('movieFileUUID: {0} tmdbID: {1}'.format(uuid, tmdbID))
+    return """{""" + input_filter + """}"""
 
 
 def _create_episode_file_metadata_input(episode_uuid: str, series_uuid: str, tmdbID: int):
-    return """UpdateMovieFileMetadataInput {
-        episodeFileUUID: {ep_uuid}
-        seriesUUID: {ser_uuid}
-        tmdbID: {id}
-        }
-        """.format(ep_uuid=episode_uuid, ser_uuid=series_uuid, id=tmdbID)
+    input_filter = ('episodeFileUUID: {0} seriesUUID: {1} tmdbID {2}'.format(episode_uuid, series_uuid, tmdbID))
+    return """{""" + input_filter + """}"""
