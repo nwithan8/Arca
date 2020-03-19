@@ -37,3 +37,17 @@ def get_users_without_roles(bot, roleNames=[], guild=None, guildID=None):
         if not any(x in member.roles for x in filtered_roles):
             filtered_members.append(member)
     return filtered_members
+
+
+def user_has_role(ctx, user, role_name):
+    """
+    Check if user has a role
+    :param ctx: commands.Context
+    :param user: User object
+    :param role_name: str
+    :return: True/False
+    """
+    role = discord.utils.get(ctx.message.guild.roles, name=role_name)
+    if role in user.roles:
+        return True
+    return False
