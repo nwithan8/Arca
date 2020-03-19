@@ -28,7 +28,7 @@ Cog Function
  
  Demo video: https://www.youtube.com/watch?v=6etsv5b0IRs
  
- Setup Tutorial: https://www.youtube.com/watch?v=G0iw7aRXB3M
+ Setup Tutorial: https://www.youtube.com/watch?v=G0iw7aRXB3M (Note: Setup video is outdated, ignore environmental variables)
  
  # Usage
  Default bot prefix is ```*```
