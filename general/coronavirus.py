@@ -30,29 +30,11 @@ def make_list(data):
     timestamp = int(str(data[0]['Last_Update'])[:-3])
     timestamp = datetime.fromtimestamp(timestamp).strftime('%B %d, %Y %H:%M')
     response = "Conavirus numbers (Updated {})\n\n".format(timestamp)
-    response += "%20s|%10s|%7s|%10s\n\n" % ("Country", "Confirmed", "Death", "Recovered")
+    response += "%40s|%10s|%7s|%10s\n\n" % ("Country", "Confirmed", "Death", "Recovered")
     for country in data:
-        response += "%20s|%10s|%7s|%10s\n" % (
+        response += "%40s|%10s|%7s|%10s\n" % (
         country['Country_Region'], str(country['Confirmed']), str(country['Deaths']), str(country['Recovered']))
-    return "```" + response + "```"
-    """
-    embed.add_field(name='\u200b', value="%20s|%10s|%7s|%10s" % (convert_to_length("Country", 20), convert_to_length("Confirmed", 10), convert_to_length("Deaths", 7), convert_to_length("Recovered", 10)),
-                    inline=False)
-    fc = 1
-    for country in data:
-        if fc > 25:
-            embeds.append(embed)
-            embed = discord.Embed()
-            fc = 0
-        print("%s|%s|%s|%s" % (
-            convert_to_length(country['Country_Region'], 20), convert_to_length(str(country['Confirmed']), 10), convert_to_length(str(country['Deaths']), 7), convert_to_length(str(country['Recovered']), 10)))
-        embed.add_field(name='\u200b', value="%20s|%10s|%7s|%10s" % (
-            convert_to_length(country['Country_Region'], 20), convert_to_length(str(country['Confirmed']), 10), convert_to_length(str(country['Deaths']), 7), convert_to_length(str(country['Recovered']), 10)),
-                        inline=False)
-        fc += 1
-    embeds.append(embed)
-    return embeds
-    """
+    return response
 
 
 class Coronavirus(commands.Cog):
@@ -64,7 +46,15 @@ class Coronavirus(commands.Cog):
         """
         data = get_data()
         if data:
-            await ctx.send(make_list(data))
+            list = make_list(data)
+            temp_list = ""
+            for line in list.splitlines():
+                if len(temp_list) < 1800:
+                    temp_list += "\n" + line
+                else:
+                    await ctx.send("```" + temp_list + "```")
+                    temp_list = ""
+            await ctx.send("```" + temp_list + "```")
         else:
             await ctx.send("Sorry, I couldn't grab the latest numbers")
 
