@@ -2,11 +2,15 @@ import discord
 from discord.ext import commands, tasks
 from discord.ext.commands import ExtensionAlreadyLoaded, ExtensionNotLoaded, ExtensionNotFound
 import os
+import re
+import git
 
 USE_DROPBOX = False
 USE_REMOTE_CONFIG = False
 if USE_DROPBOX:
     import helper.dropbox_handler as dropbox
+
+DOWNLOADED_REPOS_FOLDER = 'cog_repos'
 
 
 class CogHandler(commands.Cog):
@@ -117,6 +121,27 @@ class CogHandler(commands.Cog):
                 await ctx.send("Sorry, I couldn't upload that file.")
         else:
             await ctx.send("Dropbox use is not enabled.")
+
+    @commands.command(name="repo")
+    @commands.is_owner()
+    async def cogs_repo(self, ctx: commands.Context, url: str):
+        """
+        Add a cog repo (use .git links)
+        """
+        if not url.endswith(".git"):
+            await ctx.send("Please provide a .git URL")
+        else:
+            try:
+                folder_name = str(re.search('/(.[^/]*).git$', url).group(1))
+                os.mkdir('{}/{}'.format(DOWNLOADED_REPOS_FOLDER, folder_name))
+                repo = git.Repo.clone_from(url=url, to_path='{}/{}'.format(DOWNLOADED_REPOS_FOLDER, folder_name))
+                if repo:
+                    await ctx.send("Repository has been cloned. Cogs available in {}.{}".format(DOWNLOADED_REPOS_FOLDER, folder_name))
+                else:
+                    await ctx.send("Repository could not be cloned.")
+            except Exception as e:
+                print(e)
+                await ctx.send("Something went wrong.")
 
 
 def is_valid_cog(cog_path):
