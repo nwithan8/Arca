@@ -17,7 +17,7 @@ from helper.pastebin import hastebin, privatebin
 import helper.discord_helper as discord_helper
 
 db = DB(SERVER_TYPE='Emby', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600),
-        BLACKLIST_FILE='../blacklist.db', USE_DROPBOX=settings.USE_DROPBOX)
+        BLACKLIST_FILE=settings.BLACKLIST_FILE, USE_DROPBOX=settings.USE_DROPBOX)
 
 
 def password(length):
@@ -194,7 +194,7 @@ class EmbyManager(commands.Cog):
             if id is not None:
                 s = remove_from_emby(embyId)
                 if s == 200:
-                    user = self.bot.get_user(int(id))
+                    user = self.bot
                     await user.create_dm()
                     await user.dm_channel.send(
                         "You have been removed from {} due to inactivity.".format(str(settings.EMBY_SERVER_NICKNAME)))
@@ -227,7 +227,7 @@ class EmbyManager(commands.Cog):
             try:
                 s = remove_from_emby(int(u[0]))
                 if s == 200:
-                    user = self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).get_member(int(u[0]))
+                    user = self.bot.get_guild(int(settings.DISCORD_SERVER_ID))
                     await user.create_dm()
                     await user.dm_channel.send(settings.TRIAL_END_NOTIFICATION)
                     await user.remove_roles(trial_role, reason="Trial has ended.")
@@ -248,7 +248,7 @@ class EmbyManager(commands.Cog):
     async def check_trials_timer(self):
         await self.check_trials()
 
-    @commands.group(name="EM", aliases=["em", "EmbyMan", "embyman", "EmbyManager", "embymanager"], pass_context=True)
+    @commands.group(name="em", aliases=["EM", "EmbyMan", "embyman", "EmbyManager", "embymanager"], pass_context=True)
     async def emby(self, ctx: commands.Context):
         """
         Emby Media Server commands

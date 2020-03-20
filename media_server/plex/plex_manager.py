@@ -4,7 +4,7 @@ Copyright (C) 2019 Nathan Harris
 """
 
 import discord
-from discord.ext import commands, tasks
+from discord.ext import tasks
 import requests
 import asyncio
 import time
@@ -20,7 +20,7 @@ import helper.discord_helper as discord_helper
 plex = px.plex
 
 db = DB(SERVER_TYPE='Plex', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600),
-        BLACKLIST_FILE='../blacklist.db', MULTI_PLEX=settings.MULTI_PLEX, USE_DROPBOX=settings.USE_DROPBOX)
+        BLACKLIST_FILE=settings.BLACKLIST_FILE, MULTI_PLEX=settings.MULTI_PLEX, USE_DROPBOX=settings.USE_DROPBOX)
 
 
 def trial_message(startOrStop, serverNumber=None):
@@ -174,7 +174,7 @@ class PlexManager(commands.Cog):
             try:
                 code, num = delete_from_plex(id)
                 if code == 200:
-                    user = self.bot.get_user(int(id))
+                    user = self.bot
                     await user.create_dm()
                     await user.dm_channel.send(
                         "You have been removed from " + str(settings.PLEX_SERVER_NAME[num]) + " due to inactivity.")
@@ -211,7 +211,7 @@ class PlexManager(commands.Cog):
             code, num = delete_from_plex(int(u[0]))
             if code == 200:
                 try:
-                    user = self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).get_member(int(u[0]))
+                    user = self.bot.get_guild(int(settings.DISCORD_SERVER_ID))
                     await user.create_dm()
                     await user.dm_channel.send(trial_message('end', num))
                     await user.remove_roles(trial_role, reason="Trial has ended.")
@@ -255,7 +255,7 @@ class PlexManager(commands.Cog):
                 for username in active_users:
                     discordID = db.find_user_in_db(ServerOrDiscord='Discord', data=username)
                     if discordID:
-                        await guild.get_member(int(discordID[0])).add_roles(watching_role, reason="Is watching Plex.")
+                        await guild.add_roles(watching_role, reason="Is watching Plex.")
 
     @commands.group(name="pm", aliases=["PM", "PlexMan", "plexman", "PlexManager", "plexmanager"], pass_context=True)
     async def pm(self, ctx: commands.Context):

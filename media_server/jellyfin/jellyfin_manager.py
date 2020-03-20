@@ -17,7 +17,7 @@ from helper.pastebin import hastebin, privatebin
 import helper.discord_helper as discord_helper
 
 db = DB(SERVER_TYPE='Jellyfin', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600),
-        BLACKLIST_FILE='../blacklist.db', USE_DROPBOX=settings.USE_DROPBOX)
+        BLACKLIST_FILE=settings.BLACKLIST_FILE, USE_DROPBOX=settings.USE_DROPBOX)
 
 
 def password(length):
@@ -192,7 +192,7 @@ class JellyfinManager(commands.Cog):
             if id is not None:
                 s = remove_from_jellyfin(jellyfinId)
                 if s == 200:
-                    user = self.bot.get_user(int(id))
+                    user = self.bot
                     await user.create_dm()
                     await user.dm_channel.send(
                         "You have been removed from {} due to inactivity.".format(str(settings.JELLYFIN_SERVER_NICKNAME)))
@@ -222,7 +222,7 @@ class JellyfinManager(commands.Cog):
             try:
                 s = remove_from_jellyfin(int(u[0]))
                 if s == 200:
-                    user = self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).get_member(int(u[0]))
+                    user = self.bot.get_guild(int(settings.DISCORD_SERVER_ID))
                     await user.create_dm()
                     await user.dm_channel.send(settings.TRIAL_END_NOTIFICATION)
                     await user.remove_roles(trial_role, reason="Trial has ended.")
@@ -243,7 +243,7 @@ class JellyfinManager(commands.Cog):
     async def check_trials_timer(self):
         await self.check_trials()
 
-    @commands.group(name="JF", aliases=["jf", "JellyMan", "jellyman", "JellyfinMan", "jellyfinman", "JellyfinManager", "jellyfinmanager"], pass_context=True)
+    @commands.group(name="jf", aliases=["JF", "JellyMan", "jellyman", "JellyfinMan", "jellyfinman", "JellyfinManager", "jellyfinmanager"], pass_context=True)
     async def jellyfin(self, ctx: commands.Context):
         """
         Jellyfin Media Server commands

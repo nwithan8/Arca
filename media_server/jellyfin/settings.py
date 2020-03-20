@@ -42,6 +42,8 @@ JellyfinDiscord.users
 4|Note|VARCHAR(5)|0||0
 '''
 ENABLE_BLACKLIST = True
+BLACKLIST_FILE = 'media_server/blacklist.db'
+
 USE_DROPBOX = True  # Store database in Dropbox, download and upload dynamically
 
 # Discord settings
@@ -49,6 +51,8 @@ DISCORD_SERVER_ID = ''
 DISCORD_ADMIN_ID = ''  # Presumably you, or whoever is the administrator of the Discord server
 DISCORD_ADMIN_ROLE_NAME = "Admin"  # Only users with this role can call most administrative commands
 AFTER_APPROVED_ROLE_NAME = "Invited"  # Role given after someone is added to Jellyfin
+
+AUTO_CHECK_SUBS = False
 SUB_ROLES = ["Monthly Subscriber", "Yearly Subscriber", "Winner", "Bot"]  # Users with any of these roles is exempt from removal
 EXEMPT_SUBS = [DISCORD_ADMIN_ID]  # Discord IDs for users exempt from subscriber checks/deletion, separated by commas
 SUB_CHECK_TIME = 7  # days
