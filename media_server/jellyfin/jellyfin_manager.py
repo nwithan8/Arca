@@ -16,8 +16,7 @@ from helper.db_commands import DB
 from helper.pastebin import hastebin, privatebin
 import helper.discord_helper as discord_helper
 
-db = DB(SERVER_TYPE='Jellyfin', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600),
-        BLACKLIST_FILE=settings.BLACKLIST_FILE, USE_DROPBOX=settings.USE_DROPBOX)
+db = DB(SERVER_TYPE='jellyfin', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600), USE_DROPBOX=settings.USE_DROPBOX)
 
 
 def password(length):
@@ -141,8 +140,8 @@ def remove_nonsub(memberID):
 
 
 async def backup_database():
-    db.backup(file=settings.SQLITE_FILE, rename='backup/JellyfinDiscord.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
-    db.backup(file='../blacklist.db', rename='backup/blacklist.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
+    db.backup(file=settings.SQLITE_FILE,
+              rename='backup/discordConnector.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
 
 
 class JellyfinManager(commands.Cog):

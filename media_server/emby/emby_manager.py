@@ -16,8 +16,7 @@ from helper.db_commands import DB
 from helper.pastebin import hastebin, privatebin
 import helper.discord_helper as discord_helper
 
-db = DB(SERVER_TYPE='Emby', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600),
-        BLACKLIST_FILE=settings.BLACKLIST_FILE, USE_DROPBOX=settings.USE_DROPBOX)
+db = DB(SERVER_TYPE='emby', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600), USE_DROPBOX=settings.USE_DROPBOX)
 
 
 def password(length):
@@ -143,8 +142,7 @@ def remove_nonsub(memberID):
 
 async def backup_database():
     db.backup(file=settings.SQLITE_FILE,
-              rename='backup/EmbyDiscord.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
-    db.backup(file='../blacklist.db', rename='backup/blacklist.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
+              rename='backup/discordConnector.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
 
 
 class EmbyManager(commands.Cog):
@@ -618,7 +616,7 @@ class EmbyManager(commands.Cog):
         Get database entry for Emby username
         """
         embed = discord.Embed(title=("Info for {}".format(str(EmbyUsername))))
-        n = db.describe_table(file=settings.SQLITE_FILE, table="users")
+        n = db.describe_table(file=settings.SQLITE_FILE, table="emby")
         d = db.find_entry_in_db(fieldType="EmbyUsername", data=EmbyUsername)
         if d:
             for i in range(0, len(n)):
@@ -639,7 +637,7 @@ class EmbyManager(commands.Cog):
         Get database entry for Discord user
         """
         embed = discord.Embed(title=("Info for {}".format(user.name)))
-        n = db.describe_table(file=settings.SQLITE_FILE, table="users")
+        n = db.describe_table(file=settings.SQLITE_FILE, table="emby")
         d = db.find_entry_in_db(fieldType="DiscordID", data=user.id)
         if d:
             for i in range(0, len(n)):

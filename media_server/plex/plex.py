@@ -15,8 +15,7 @@ from media_server.plex import settings as settings
 from media_server.plex import plex_recs as pr
 from helper.helper_functions import filesize
 
-db = DB(SERVER_TYPE='Plex', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=None, MULTI_PLEX=None,
-        BLACKLIST_FILE='../blacklist.db', USE_DROPBOX=settings.USE_DROPBOX)
+db = DB(SERVER_TYPE='plex', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=None, MULTI_PLEX=None, USE_DROPBOX=settings.USE_DROPBOX)
 
 owner_players = []
 # Numbers 1-9
@@ -33,7 +32,7 @@ def selectIcon(state):
         "playing": ":arrow_forward:",
         "paused": ":pause_button:",
         "stopped": ":stop_button:",
-        "buffering": ":large_blue_circle:",
+        "buffering": ":blue_circle:",
     }
     return str(switcher.get(state, ""))
 
@@ -390,12 +389,15 @@ class Plex(commands.Cog):
         cur = 0
         recently_added = px.t_request("get_recently_added", "count=" + str(count))
         listing = recently_added['response']['data']['recently_added'][cur]
-        url = '{base}/api/v2?apikey={key}&cmd=pms_image_proxy&img={thumb}'.format(base=settings.TAUTULLI_URL[0], key=settings.TAUTULLI_API_KEY[0], thumb=listing['thumb'])
+        url = '{base}/api/v2?apikey={key}&cmd=pms_image_proxy&img={thumb}'.format(base=settings.TAUTULLI_URL[0],
+                                                                                  key=settings.TAUTULLI_API_KEY[0],
+                                                                                  thumb=listing['thumb'])
         e.set_image(url=url)
         e.description = "({loc}/{count}) {title} - [Watch Now](https://app.plex.tv/desktop#!/server/{id}//details?key=%2Flibrary%2Fmetadata%2F{key})".format(
             loc=str(cur + 1),
             count=str(count),
-            title=(listing['grandparent_title'] if listing['grandparent_title'] else (listing['parent_title'] if listing['parent_title'] else listing[
+            title=(listing['grandparent_title'] if listing['grandparent_title'] else (
+                listing['parent_title'] if listing['parent_title'] else listing[
                     'full_title'])),
             id=settings.PLEX_SERVER_ID,
             key=listing['rating_key']
@@ -474,7 +476,7 @@ class Plex(commands.Cog):
                             if r['title'] in results_list or k == 'collection':
                                 results_list.append(r['title'] + " - " + r['library_name'])
                                 results += "[{title} - {lib}]((https://app.plex.tv/desktop#!/server/{id}//details?key=%2Flibrary%2Fmetadata%2F{key})\n".format(
-                                    title = r['title'],
+                                    title=r['title'],
                                     lib=r['library_name'],
                                     id=settings.PLEX_SERVER_ID,
                                     key=r['rating_key']

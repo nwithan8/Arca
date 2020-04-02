@@ -1,11 +1,11 @@
 import os
 
 # Plex settings
-PLEX_SERVER_URL = [os.environ.get('PLEX_URL')]
-PLEX_SERVER_TOKEN = [os.environ.get('PLEX_TOKEN')]
-PLEX_SERVER_ID = [os.environ.get('PLEX_SERVER_ID')]  # after "/server/" in browser UI URL
-PLEX_SERVER_NAME = [os.environ.get('PLEX_SERVER_NAME')]
-PLEX_SERVER_ALT_NAME = [os.environ.get('PLEX_SERVER_ALT_NAME')]
+PLEX_SERVER_URL = []
+PLEX_SERVER_TOKEN = []
+PLEX_SERVER_ID = []  # after "/server/" in browser UI URL
+PLEX_SERVER_NAME = []
+PLEX_SERVER_ALT_NAME = []
 MULTI_PLEX = False
 
 # Plex Recs settings
@@ -25,17 +25,17 @@ SUBSCRIBER_PLAYLIST_TITLE = "{}'s Playlist"
 
 # Tautulli settings
 USE_TAUTULLI = True
-TAUTULLI_URL = [os.environ.get('TAUTULLI_URL')]
-TAUTULLI_API_KEY = [os.environ.get('TAUTULLI_KEY')]
+TAUTULLI_URL = []
+TAUTULLI_API_KEY = []
 MULTI_TAUTULLI = False
 
 # Ombi settings
 USE_OMBI = True
-OMBI_URL = os.environ.get('OMBI_URL')
-OMBI_API_KEY = os.environ.get('OMBI_KEY')
+OMBI_URL = ''
+OMBI_API_KEY = ''
 
 # Discord-to-Plex database (SQLite3)
-SQLITE_FILE = 'media_server/plex/PlexDiscord.db.priv'  # File path + name + extension (i.e."/root/nwithan8-cogs/plex_manager/PlexDiscord.db"
+SQLITE_FILE = 'media_server/discordConnector.db' # File path + name + extension (i.e. "/root/Arca/media_server/discordConnector.db"
 '''
 0|DiscordID|VARCHAR(100)|1||0
 1|PlexUsername|VARCHAR(100)|1||0
@@ -47,15 +47,14 @@ SQLITE_FILE = 'media_server/plex/PlexDiscord.db.priv'  # File path + name + exte
 7|Note|VARCHAR(5)|0||0
 '''
 ENABLE_BLACKLIST = True
-BLACKLIST_FILE = 'media_server/blacklist.db'
 
 USE_DROPBOX = False  # Store database in Dropbox, download and upload dynamically
 
 # Discord settings
-DISCORD_SERVER_ID = os.environ.get('DISCORD_SERVER_ID')
-DISCORD_ADMIN_ID = os.environ.get('ADMIN_ID')
-DISCORD_ADMIN_ROLE_NAME = "Admin"
-AFTER_APPROVED_ROLE_NAME = "Invited"  # Role given after someone is added to Jellyfin
+DISCORD_SERVER_ID = ''
+DISCORD_ADMIN_ID = ''
+DISCORD_ADMIN_ROLE_NAME = ''
+AFTER_APPROVED_ROLE_NAME = ''  # Role given after someone is added to Plex
 
 AUTO_CHECK_SUBS = False
 SUB_ROLES = ["Monthly Subscriber", "Yearly Subscriber", "Winner", "Bot"]  # Users with any of these roles is exempt from removal
@@ -92,6 +91,6 @@ PLEX_RECS_LIBRARIES = {
     'movie': [1],
     'show': [2],
     'artist': [3, 6],
-    '4k': [4]
+    '4kmovie': [4]
 }
 YOUTUBE_API_KEY = 'AIzaSyB4DdmAkhKtJ6NMgSJIgMCFkVJ8KD1uBk0'

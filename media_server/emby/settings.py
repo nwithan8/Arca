@@ -31,7 +31,7 @@ EMBY_USER_POLICY = {
 }
 
 # Discord-to-Jellyfin database (SQLite3)
-SQLITE_FILE = 'media_server/emby/EmbyDiscord.db'  # File path + name + extension (i.e. "/root/nwithan8-cogs/jellyfin_manager/JellyfinDiscord.db"
+SQLITE_FILE = 'media_server/discordConnector.db' # File path + name + extension (i.e. "/root/Arca/media_server/discordConnector.db"
 '''
 Database schema:
 EmbyDiscord.users
@@ -42,9 +42,8 @@ EmbyDiscord.users
 4|Note|VARCHAR(5)|0||0
 '''
 ENABLE_BLACKLIST = True
-BLACKLIST_FILE = 'media_server/blacklist.db'
 
-USE_DROPBOX = True  # Store database in Dropbox, download and upload dynamically
+USE_DROPBOX = False  # Store database in Dropbox, download and upload dynamically
 
 # Discord settings
 DISCORD_SERVER_ID = ''
@@ -52,7 +51,6 @@ DISCORD_ADMIN_ID = ''  # Presumably you, or whoever is the administrator of the 
 DISCORD_ADMIN_ROLE_NAME = "Admin"  # Only users with this role can call most administrative commands
 AFTER_APPROVED_ROLE_NAME = "Invited"  # Role given after someone is added to Jellyfin
 
-AUTO_CHECK_SUBS = False
 SUB_ROLES = ["Monthly Subscriber", "Yearly Subscriber", "Winner", "Bot"]  # Users with any of these roles is exempt from removal
 EXEMPT_SUBS = [DISCORD_ADMIN_ID]  # Discord IDs for users exempt from subscriber checks/deletion, separated by commas
 SUB_CHECK_TIME = 7  # days

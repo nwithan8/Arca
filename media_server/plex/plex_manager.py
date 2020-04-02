@@ -19,8 +19,7 @@ import helper.discord_helper as discord_helper
 
 plex = px.plex
 
-db = DB(SERVER_TYPE='Plex', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600),
-        BLACKLIST_FILE=settings.BLACKLIST_FILE, MULTI_PLEX=settings.MULTI_PLEX, USE_DROPBOX=settings.USE_DROPBOX)
+db = DB(SERVER_TYPE='plex', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600), MULTI_PLEX=settings.MULTI_PLEX, USE_DROPBOX=settings.USE_DROPBOX)
 
 
 def trial_message(startOrStop, serverNumber=None):
@@ -112,8 +111,7 @@ def remove_nonsub(memberID):
 
 async def backup_database():
     db.backup(file=settings.SQLITE_FILE,
-              rename='backup/PlexDiscord.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
-    db.backup(file='../blacklist.db', rename='backup/blacklist.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
+              rename='backup/discordConnector.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
 
 
 class PlexManager(commands.Cog):
@@ -736,7 +734,7 @@ class PlexManager(commands.Cog):
         Get database entry for Plex username
         """
         embed = discord.Embed(title=("Info for " + str(PlexUsername)))
-        n = db.describe_table(file=settings.SQLITE_FILE, table="users")
+        n = db.describe_table(file=settings.SQLITE_FILE, table="plex")
         d = db.find_entry_in_db(fieldType="PlexUsername", data=PlexUsername)
         if d:
             for i in range(0, len(n)):
@@ -760,7 +758,7 @@ class PlexManager(commands.Cog):
         Get database entry for Discord user
         """
         embed = discord.Embed(title=("Info for " + user.name))
-        n = db.describe_table(file=settings.SQLITE_FILE, table="users")
+        n = db.describe_table(file=settings.SQLITE_FILE, table="plex")
         d = db.find_entry_in_db(fieldType="DiscordID", data=user.id)
         if d:
             for i in range(0, len(n)):
