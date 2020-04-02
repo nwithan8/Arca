@@ -47,7 +47,7 @@ def request(cmd, params):
 
 class Booksonic(commands.Cog):
 
-    @commands.group(aliases=["book, bs, books, Booksonic"], pass_context=True)
+    @commands.group(aliases=["book", "bs", "books", "Booksonic"], pass_context=True)
     async def booksonic(self, ctx: commands.Context):
         """
         Booksonic server commands

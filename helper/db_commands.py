@@ -47,7 +47,7 @@ class DB:
             self.download(self.SQLITE_FILE)
             conn = sqlite3.connect(self.SQLITE_FILE)
             cur = conn.cursor()
-            query = "SELECT * FROM blacklist WHERE id_or_username = '{}'".format(str(name_or_id))
+            query = "SELECT * FROM blacklist WHERE IDorUsername = '{}'".format(str(name_or_id))
             cur.execute(query)
             result = cur.fetchone()
             cur.close()
@@ -65,7 +65,7 @@ class DB:
             result = False
             conn = sqlite3.connect(self.SQLITE_FILE)
             cur = conn.cursor()
-            query = "INSERT INTO blacklist (id_or_username) VALUES ('{}')".format(str(name_or_id))
+            query = "INSERT INTO blacklist (IDorUsername) VALUES ('{}')".format(str(name_or_id))
             cur.execute(query)
             if int(cur.rowcount) > 0:
                 result = True
@@ -82,7 +82,7 @@ class DB:
             self.download(self.SQLITE_FILE)
             conn = sqlite3.connect(self.SQLITE_FILE)
             cur = conn.cursor()
-            query = "DELETE FROM blacklist WHERE id_or_username = '{}'".format(str(name_or_id))
+            query = "DELETE FROM blacklist WHERE IDorUsername = '{}'".format(str(name_or_id))
             cur.execute(query)
             conn.commit()
             cur.close()
@@ -116,9 +116,9 @@ class DB:
             if self.PLATFORM == 'plex':
                 # Trial for Plex
                 query = "INSERT OR IGNORE INTO plex (DiscordID, PlexUsername, ExpirationStamp{serverNumOpt}, " \
-                        "Note) VALUES ('{discordId}', '{plexUsername}', '{expirationStamp}'{serverNum}, '{note}')' " \
+                        "SubType) VALUES ('{discordId}', '{plexUsername}', '{expirationStamp}'{serverNum}, '{note}')' " \
                         "".format(
-                    serverNumOpt=(", ServerNum" if serverNumber is not None else ""),
+                    serverNumOpt=(", WhichPlexServer" if serverNumber is not None else ""),
                     discordId=str(discordId),
                     plexUsername=username,
                     expirationStamp=str(timestamp),
@@ -130,17 +130,19 @@ class DB:
                     username=username)
             else:
                 # Trial for Jellyfin/Emby
-                query = "INSERT OR IGNORE INTO {platform} (DiscordID, {platform}Username, {platform}ID, " \
-                        "ExpirationStamp, Note) VALUES ('{discordId}', '{username}', '{uid}', '{time}', '{note}') ".format(
+                query = "INSERT OR IGNORE INTO {platform} (DiscordID, {platformCap}Username, {platformCap}ID, " \
+                        "ExpirationStamp, SubType) VALUES ('{discordId}', '{username}', '{uid}', '{time}', '{note}') ".format(
                     platform=self.PLATFORM,
+                    platformCap=self.PLATFORM.capitalize(),
                     discordId=str(discordId),
                     username=username,
                     uid=uid,
                     time=timestamp,
                     note=note)
                 cur.execute(str(query))
-                query = "UPDATE {platform} SET ExpirationStamp = '{time}' WHERE {platform}ID = '{uid}'".format(
+                query = "UPDATE {platform} SET ExpirationStamp = '{time}' WHERE {platformCap}ID = '{uid}'".format(
                     platform=self.PLATFORM,
+                    platformCap=self.PLATFORM.capitalize(),
                     time=str(timestamp),
                     uid=uid)
             cur.execute(str(query))
@@ -148,18 +150,19 @@ class DB:
         else:
             if self.PLATFORM == 'plex':
                 # Regular for Plex
-                query = "INSERT OR IGNORE INTO plex (DiscordID, PlexUsername{serverNumOpt}, Note) VALUES ('" \
+                query = "INSERT OR IGNORE INTO plex (DiscordID, PlexUsername{serverNumOpt}, SubType) VALUES ('" \
                         "{discordId}','{plexUsername}'{serverNum}, '{note}')".format(
-                    serverNumOpt=(", ServerNum" if serverNumber is not None else ""),
+                    serverNumOpt=(", WhichPlexServer" if serverNumber is not None else ""),
                     discordId=str(discordId),
                     plexUsername=username,
                     serverNum=((",'" + str(serverNumber) + "'") if serverNumber is not None else ""),
                     note=note)
             else:
                 # Regular for Jellyfin/Emby
-                query = "INSERT OR IGNORE INTO {platform} (DiscordID, {platform}Username, {platform}ID, Note) VALUES ('" \
+                query = "INSERT OR IGNORE INTO {platform} (DiscordID, {platformCap}Username, {platformCap}ID, SubType) VALUES ('" \
                         "{discordId}', '{username}', '{uid}', '{note}')".format(
                     platform=self.PLATFORM,
+                    platformCap=self.PLATFORM.capitalize(),
                     discordId=discordId,
                     username=username,
                     uid=uid,
@@ -190,19 +193,19 @@ class DB:
         self.download(self.SQLITE_FILE)
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
-        if self.PLATFORM == 'Plex':
-            # Find Plex User -> Username, Note, ServerNum
+        if self.PLATFORM == 'plex':
+            # Find Plex User -> Username, SubType, WhichPlexServer
             query = "SELECT {getWhat} FROM plex WHERE {whereWhat} = '{data}'".format(
-                getWhat=("PlexUsername, Note" + (
-                    ", ServerNum" if self.MULTI_PLEX else "") if ServerOrDiscord is not 'Discord' else "DiscordID"),
+                getWhat=("PlexUsername, SubType" + (
+                    ", WhichPlexServer" if self.MULTI_PLEX else "") if ServerOrDiscord is not 'Discord' else "DiscordID"),
                 whereWhat=("DiscordID" if ServerOrDiscord is not 'Discord' else "PlexUsername"),
                 data=str(data))
         else:
             # Find Jellyfin/Emby User -> ID
             query = "SELECT {getWhat} FROM {platform} WHERE {whereWhat} = '{data}'".format(
-                getWhat=("{}ID".format(self.PLATFORM) if ServerOrDiscord is not 'Discord' else "DiscordID"),
+                getWhat=("{}ID".format(self.PLATFORM.capitalize()) if ServerOrDiscord is not 'Discord' else "DiscordID"),
                 platform=self.PLATFORM,
-                whereWhat=("DiscordID" if ServerOrDiscord is not 'Discord' else "{}ID".format(self.PLATFORM)),
+                whereWhat=("DiscordID" if ServerOrDiscord is not 'Discord' else "{}ID".format(self.PLATFORM.capitalize())),
                 data=str(data))
         cur.execute(str(query))
         results = cur.fetchone()
@@ -210,10 +213,10 @@ class DB:
         conn.close()
         self.upload(self.SQLITE_FILE)
         if results:
-            return results if self.PLATFORM == 'Plex' else results[0]
+            return results if self.PLATFORM == 'plex' else results[0]
             # returns [name, note], [name, note, number] or [id]
         else:
-            if self.PLATFORM is not 'Plex':
+            if self.PLATFORM is not 'plex':
                 return None
             if ServerOrDiscord == "Plex":
                 if self.MULTI_PLEX:
@@ -229,9 +232,9 @@ class DB:
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
         query = "SELECT {what}, Note FROM {platform} WHERE {whereWhat} = '{filter}'".format(
-            what=("{}Username".format(self.PLATFORM) if ServerOrDiscord is not 'Discord' else "DiscordID"),
+            what=("{}Username".format(self.PLATFORM.capitalize()) if ServerOrDiscord is not 'Discord' else "DiscordID"),
             platform=self.PLATFORM,
-            where=("DiscordID" if ServerOrDiscord is not 'Discord' else "{}Username".format(self.PLATFORM)),
+            where=("DiscordID" if ServerOrDiscord is not 'Discord' else "{}Username".format(self.PLATFORM.capitalize())),
             filter=str(data))
         cur.execute(str(query))
         result = cur.fetchone()
@@ -283,7 +286,7 @@ class DB:
         self.download(self.SQLITE_FILE)
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
-        cur.execute("SELECT {what} FROM {platform} WHERE Note = 'w'".format(what='PlexUsername' if self.PLATFORM == 'Plex' else "{}ID".format(self.PLATFORM), platform=self.PLATFORM))
+        cur.execute("SELECT {what} FROM {platform} WHERE SubType = 'w'".format(what='PlexUsername' if self.PLATFORM == 'plex' else "{}ID".format(self.PLATFORM.capitalize()), platform=self.PLATFORM))
         results = cur.fetchall()
         cur.close()
         conn.close()
@@ -294,7 +297,7 @@ class DB:
         self.download(self.SQLITE_FILE)
         conn = sqlite3.connect(self.SQLITE_FILE)
         cur = conn.cursor()
-        query = "SELECT DiscordID FROM {platform} WHERE ExpirationStamp<={stamp} AND Note = 't'".format(platform=self.PLATFORM, stamp=str(int(time.time())))
+        query = "SELECT DiscordID FROM {platform} WHERE ExpirationStamp<={stamp} AND SubType = 't'".format(platform=self.PLATFORM, stamp=str(int(time.time())))
         cur.execute(str(query))
         results = cur.fetchall()
         cur.close()
