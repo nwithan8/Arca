@@ -343,6 +343,7 @@ class DB:
         cur = conn.cursor()
         cur.execute(str(query))
         results = cur.fetchall()
+        conn.commit()
         cur.close()
         conn.close()
         self.upload(self.SQLITE_FILE)
