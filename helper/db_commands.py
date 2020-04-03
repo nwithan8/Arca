@@ -1,16 +1,40 @@
 import sqlite3
 import time
-
 import helper.dropbox_handler as dbx
+import helper.encryption as encryption
+
+
+def unlock(database, key_file):
+    key = encryption.getRawKey(key_file)
+    if key:
+        database.execute(f'pragma key="{key}"')
+        return True
+    print("Couldn't get the key to unlock the database.")
+    return False
 
 
 class DB:
-    def __init__(self, SERVER_TYPE, SQLITE_FILE, TRIAL_LENGTH, MULTI_PLEX=None, USE_DROPBOX=False):
+    def __init__(self, SQLITE_FILE: str, SERVER_TYPE=None, TRIAL_LENGTH=None, MULTI_PLEX=None,
+                 USE_DROPBOX: bool = False,
+                 ENCRYPTED: bool = False, KEY_FILE: str = None):
         self.PLATFORM = SERVER_TYPE
         self.SQLITE_FILE = SQLITE_FILE
         self.TRIAL_LENGTH = TRIAL_LENGTH
         self.MULTI_PLEX = MULTI_PLEX
         self.USE_DROPBOX = USE_DROPBOX
+        self.ENCRYPTED = ENCRYPTED
+        self.KEY_FILE = KEY_FILE
+        if self.ENCRYPTED and not self.KEY_FILE:
+            raise Exception("Missing KEY_FILE to unlock encrypted database.")
+
+    def crypt_check(self, file):
+        if self.ENCRYPTED:
+            from pysqlcipher3 import dbapi2 as sqlcipher
+            db = sqlcipher.connect(file)
+            if unlock(db, self.KEY_FILE):
+                return db
+            return None
+        return sqlite3.connect(file)
 
     def download(self, file):
         if self.USE_DROPBOX and file:
@@ -29,7 +53,7 @@ class DB:
 
     def describe_table(self, file, table):
         self.download(file)
-        conn = sqlite3.connect(file)
+        conn = self.crypt_check(file)
         cur = conn.cursor()
         cur.execute("PRAGMA table_info([{}])".format(str(table)))
         result = cur.fetchall()
@@ -45,7 +69,7 @@ class DB:
             return None
         else:
             self.download(self.SQLITE_FILE)
-            conn = sqlite3.connect(self.SQLITE_FILE)
+            conn = self.crypt_check(self.SQLITE_FILE)
             cur = conn.cursor()
             query = "SELECT * FROM blacklist WHERE IDorUsername = '{}'".format(str(name_or_id))
             cur.execute(query)
@@ -63,7 +87,7 @@ class DB:
         else:
             self.download(self.SQLITE_FILE)
             result = False
-            conn = sqlite3.connect(self.SQLITE_FILE)
+            conn = self.crypt_check(self.SQLITE_FILE)
             cur = conn.cursor()
             query = "INSERT INTO blacklist (IDorUsername) VALUES ('{}')".format(str(name_or_id))
             cur.execute(query)
@@ -80,7 +104,7 @@ class DB:
             return None
         else:
             self.download(self.SQLITE_FILE)
-            conn = sqlite3.connect(self.SQLITE_FILE)
+            conn = self.crypt_check(self.SQLITE_FILE)
             cur = conn.cursor()
             query = "DELETE FROM blacklist WHERE IDorUsername = '{}'".format(str(name_or_id))
             cur.execute(query)
@@ -94,7 +118,7 @@ class DB:
         Returns all blacklist entries
         """
         self.download(self.SQLITE_FILE)
-        conn = sqlite3.connect(self.SQLITE_FILE)
+        conn = self.crypt_check(self.SQLITE_FILE)
         cur = conn.cursor()
         query = "SELECT * FROM blacklist"
         cur.execute(query)
@@ -109,7 +133,7 @@ class DB:
     def add_user_to_db(self, discordId, username, note, uid=None, serverNumber=None):
         self.download(self.SQLITE_FILE)
         result = False
-        conn = sqlite3.connect(self.SQLITE_FILE)
+        conn = self.crypt_check(self.SQLITE_FILE)
         cur = conn.cursor()
         if note == 't':
             timestamp = int(time.time()) + self.TRIAL_LENGTH
@@ -178,9 +202,10 @@ class DB:
 
     def remove_user_from_db(self, id):
         self.download(self.SQLITE_FILE)
-        conn = sqlite3.connect(self.SQLITE_FILE)
+        conn = self.crypt_check(self.SQLITE_FILE)
         cur = conn.cursor()
-        cur.execute(str("DELETE FROM {platform} WHERE DiscordID = '{idNumber}'".format(platform=self.PLATFORM, idNumber=str(id))))
+        cur.execute(str(
+            "DELETE FROM {platform} WHERE DiscordID = '{idNumber}'".format(platform=self.PLATFORM, idNumber=str(id))))
         conn.commit()
         cur.close()
         conn.close()
@@ -191,7 +216,7 @@ class DB:
         Get DiscordID ('Discord')/PlexUsername ('Plex') (PlexOrDiscord) of PlexUsername/DiscordID (data)
         """
         self.download(self.SQLITE_FILE)
-        conn = sqlite3.connect(self.SQLITE_FILE)
+        conn = self.crypt_check(self.SQLITE_FILE)
         cur = conn.cursor()
         if self.PLATFORM == 'plex':
             # Find Plex User -> Username, SubType, WhichPlexServer
@@ -203,9 +228,11 @@ class DB:
         else:
             # Find Jellyfin/Emby User -> ID
             query = "SELECT {getWhat} FROM {platform} WHERE {whereWhat} = '{data}'".format(
-                getWhat=("{}ID".format(self.PLATFORM.capitalize()) if ServerOrDiscord is not 'Discord' else "DiscordID"),
+                getWhat=(
+                    "{}ID".format(self.PLATFORM.capitalize()) if ServerOrDiscord is not 'Discord' else "DiscordID"),
                 platform=self.PLATFORM,
-                whereWhat=("DiscordID" if ServerOrDiscord is not 'Discord' else "{}ID".format(self.PLATFORM.capitalize())),
+                whereWhat=(
+                    "DiscordID" if ServerOrDiscord is not 'Discord' else "{}ID".format(self.PLATFORM.capitalize())),
                 data=str(data))
         cur.execute(str(query))
         results = cur.fetchone()
@@ -229,12 +256,13 @@ class DB:
         Returns {Jellyfin/Emby}Username/DiscordID, Note
         """
         self.download(self.SQLITE_FILE)
-        conn = sqlite3.connect(self.SQLITE_FILE)
+        conn = self.crypt_check(self.SQLITE_FILE)
         cur = conn.cursor()
         query = "SELECT {what}, Note FROM {platform} WHERE {whereWhat} = '{filter}'".format(
             what=("{}Username".format(self.PLATFORM.capitalize()) if ServerOrDiscord is not 'Discord' else "DiscordID"),
             platform=self.PLATFORM,
-            where=("DiscordID" if ServerOrDiscord is not 'Discord' else "{}Username".format(self.PLATFORM.capitalize())),
+            where=(
+                "DiscordID" if ServerOrDiscord is not 'Discord' else "{}Username".format(self.PLATFORM.capitalize())),
             filter=str(data))
         cur.execute(str(query))
         result = cur.fetchone()
@@ -250,9 +278,10 @@ class DB:
         Returns whole entry
         """
         self.download(self.SQLITE_FILE)
-        conn = sqlite3.connect(self.SQLITE_FILE)
+        conn = self.crypt_check(self.SQLITE_FILE)
         cur = conn.cursor()
-        query = "SELECT * FROM {platform} WHERE {where} = '{filter}'".format(platform=self.PLATFORM, where=fieldType, filter=str(data))
+        query = "SELECT * FROM {platform} WHERE {where} = '{filter}'".format(platform=self.PLATFORM, where=fieldType,
+                                                                             filter=str(data))
         cur.execute(query)
         result = cur.fetchone()
         cur.close()
@@ -267,7 +296,7 @@ class DB:
         Returns all database entries
         """
         self.download(self.SQLITE_FILE)
-        conn = sqlite3.connect(self.SQLITE_FILE)
+        conn = self.crypt_check(self.SQLITE_FILE)
         cur = conn.cursor()
         query = "SELECT * FROM {platform}".format(platform=self.PLATFORM)
         cur.execute(query)
@@ -279,25 +308,39 @@ class DB:
             return result
         return None
 
-    def getWinners(self):
+    def get_winners(self):
         """
         Get all users with 'w' note
         """
         self.download(self.SQLITE_FILE)
-        conn = sqlite3.connect(self.SQLITE_FILE)
+        conn = self.crypt_check(self.SQLITE_FILE)
         cur = conn.cursor()
-        cur.execute("SELECT {what} FROM {platform} WHERE SubType = 'w'".format(what='PlexUsername' if self.PLATFORM == 'plex' else "{}ID".format(self.PLATFORM.capitalize()), platform=self.PLATFORM))
+        cur.execute("SELECT {what} FROM {platform} WHERE SubType = 'w'".format(
+            what='PlexUsername' if self.PLATFORM == 'plex' else "{}ID".format(self.PLATFORM.capitalize()),
+            platform=self.PLATFORM))
         results = cur.fetchall()
         cur.close()
         conn.close()
         self.upload(self.SQLITE_FILE)
         return results
 
-    def getTrials(self):
+    def get_trials(self):
         self.download(self.SQLITE_FILE)
-        conn = sqlite3.connect(self.SQLITE_FILE)
+        conn = self.crypt_check(self.SQLITE_FILE)
         cur = conn.cursor()
-        query = "SELECT DiscordID FROM {platform} WHERE ExpirationStamp<={stamp} AND SubType = 't'".format(platform=self.PLATFORM, stamp=str(int(time.time())))
+        query = "SELECT DiscordID FROM {platform} WHERE ExpirationStamp<={stamp} AND SubType = 't'".format(
+            platform=self.PLATFORM, stamp=str(int(time.time())))
+        cur.execute(str(query))
+        results = cur.fetchall()
+        cur.close()
+        conn.close()
+        self.upload(self.SQLITE_FILE)
+        return results
+
+    def custom_query(self, query):
+        self.download(self.SQLITE_FILE)
+        conn = self.crypt_check()
+        cur = conn.cursor()
         cur.execute(str(query))
         results = cur.fetchall()
         cur.close()

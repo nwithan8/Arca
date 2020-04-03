@@ -19,7 +19,7 @@ import helper.discord_helper as discord_helper
 
 plex = px.plex
 
-db = DB(SERVER_TYPE='plex', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600), MULTI_PLEX=settings.MULTI_PLEX, USE_DROPBOX=settings.USE_DROPBOX)
+db = DB(SQLITE_FILE=settings.SQLITE_FILE, SERVER_TYPE='plex', TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600), MULTI_PLEX=settings.MULTI_PLEX, USE_DROPBOX=settings.USE_DROPBOX)
 
 
 def trial_message(startOrStop, serverNumber=None):
@@ -120,7 +120,7 @@ class PlexManager(commands.Cog):
 
     async def purge_winners(self, ctx):
         try:
-            results = db.getWinners()
+            results = db.get_winners()
             monitorlist = []
             for u in results:
                 monitorlist.append(u[0])
@@ -201,7 +201,7 @@ class PlexManager(commands.Cog):
 
     async def check_trials(self):
         print("Checking Plex trials...")
-        trials = db.getTrials()
+        trials = db.get_trials()
         trial_role = discord.utils.get(self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).roles,
                                        name=settings.TRIAL_ROLE_NAME)
         for u in trials:
@@ -379,7 +379,7 @@ class PlexManager(commands.Cog):
         List winners' Plex usernames
         """
         try:
-            winners = db.getWinners()
+            winners = db.get_winners()
             response = "Winners:"
             for u in winners:
                 response = response + "\n" + (u[0])

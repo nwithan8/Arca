@@ -15,7 +15,7 @@ from media_server.plex import settings as settings
 from media_server.plex import plex_recs as pr
 from helper.helper_functions import filesize
 
-db = DB(SERVER_TYPE='plex', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=None, MULTI_PLEX=None, USE_DROPBOX=settings.USE_DROPBOX)
+db = DB(SQLITE_FILE=settings.SQLITE_FILE, SERVER_TYPE='plex', TRIAL_LENGTH=None, MULTI_PLEX=None, USE_DROPBOX=settings.USE_DROPBOX)
 
 owner_players = []
 # Numbers 1-9

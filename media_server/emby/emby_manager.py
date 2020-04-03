@@ -16,7 +16,7 @@ from helper.db_commands import DB
 from helper.pastebin import hastebin, privatebin
 import helper.discord_helper as discord_helper
 
-db = DB(SERVER_TYPE='emby', SQLITE_FILE=settings.SQLITE_FILE, TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600), USE_DROPBOX=settings.USE_DROPBOX)
+db = DB(SQLITE_FILE=settings.SQLITE_FILE, SERVER_TYPE='emby', TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600), USE_DROPBOX=settings.USE_DROPBOX)
 
 
 def password(length):
@@ -149,7 +149,7 @@ class EmbyManager(commands.Cog):
 
     async def purge_winners(self, ctx):
         try:
-            winners = db.getWinners()
+            winners = db.get_winners()
             monitorlist = []
             for u in winners:
                 monitorlist.append(u[0])
@@ -217,7 +217,7 @@ class EmbyManager(commands.Cog):
 
     async def check_trials(self):
         print("Checking Emby trials...")
-        trials = db.getTrials()
+        trials = db.get_trials()
         trial_role = discord.utils.get(self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).roles,
                                        name=settings.TRIAL_ROLE_NAME)
         for u in trials:
@@ -334,7 +334,7 @@ class EmbyManager(commands.Cog):
         List winners' Emby usernames
         """
         try:
-            winners = db.getWinners()
+            winners = db.get_winners()
             response = '\n'.join([u[0] for u in winners])
             await ctx.send(response)
         except Exception as e:
