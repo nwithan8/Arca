@@ -339,7 +339,7 @@ class DB:
 
     def custom_query(self, query):
         self.download(self.SQLITE_FILE)
-        conn = self.crypt_check()
+        conn = self.crypt_check(self.SQLITE_FILE)
         cur = conn.cursor()
         cur.execute(str(query))
         results = cur.fetchall()
