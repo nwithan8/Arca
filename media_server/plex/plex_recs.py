@@ -119,7 +119,7 @@ def pickUnwatched(history, mediaList):
     """
     if history == "Error":
         return False
-    if len(history) >= mediaList:
+    if len(history) >= len(mediaList):
         return 'All'
     choice = random.choice(mediaList)
     if choice.title in history:
