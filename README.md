@@ -28,8 +28,6 @@ Cog Function
  
  Demo video: https://www.youtube.com/watch?v=6etsv5b0IRs
  
- Setup Tutorial: https://www.youtube.com/watch?v=G0iw7aRXB3M (Note: Setup video is outdated, ignore environmental variables)
- 
  # IMPORTANT UPGRADE NOTE
  Databases for each media server type (Plex, Emby, Jellyfin) has been combined into one database file.
  You can migrate your data by running ```sqlite3 discordConnector.db < migrate.sql``` from the ```media_server``` folder.
