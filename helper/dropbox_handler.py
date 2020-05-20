@@ -1,8 +1,9 @@
 import dropbox
 import os
 import ntpath
+import settings as settings
 
-DB_KEY = os.environ.get('DROPBOX_API_KEY')
+DB_KEY = settings.DROPBOX_API_KEY
 if DB_KEY:
     dbx = dropbox.Dropbox(DB_KEY)
 

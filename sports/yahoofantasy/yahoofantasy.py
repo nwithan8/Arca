@@ -23,9 +23,10 @@ from urllib.parse import urlencode, quote, unquote
 import base64
 import hmac, hashlib
 from requests_oauthlib import OAuth2Session
+import sports.yahoofantasy.settings as settings
 
-client_id = os.environ.get('FANTASY_BOT_ID')
-client_secret = os.environ.get('FANTASY_BOT_SECRET')
+client_id = settings.CLIENT_ID
+client_secret = settings.CLIENT_SECRET
 
 access_token_url = 'https://api.login.yahoo.com/oauth2/get_token'
 
