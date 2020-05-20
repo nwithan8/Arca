@@ -4,6 +4,7 @@ from discord.ext.commands import ExtensionAlreadyLoaded, ExtensionNotLoaded, Ext
 import os
 import re
 import git
+import helper.cog_list as cog_list
 
 USE_DROPBOX = False
 USE_REMOTE_CONFIG = False
@@ -31,26 +32,30 @@ class CogHandler(commands.Cog):
         """
         Load a cog (folder.file)
         """
-        try:
-            self.bot.load_extension(cog)
-            await ctx.send("{} has been enabled.".format(cog))
-            if USE_REMOTE_CONFIG:
-                edit_remote_config("cogs.txt", cog_to_add=cog)
-        except ExtensionNotFound:
+        cog = find_cog_path_by_name(cog)
+        if cog:
             try:
-                cog = '{}.py'.format(cog.replace(".", "/"))
-                if USE_DROPBOX:
-                    dropbox.download_file(cog)
                 self.bot.load_extension(cog)
                 await ctx.send("{} has been enabled.".format(cog))
+                if USE_REMOTE_CONFIG:
+                    edit_remote_config("cogs.txt", cog_to_add=cog)
+            except ExtensionNotFound:
+                try:
+                    cog = '{}.py'.format(cog.replace(".", "/"))
+                    if USE_DROPBOX:
+                        dropbox.download_file(cog)
+                    self.bot.load_extension(cog)
+                    await ctx.send("{} has been enabled.".format(cog))
+                except Exception as e:
+                    print(e)
+                    await ctx.send("That extension could not be found locally or on Dropbox.")
+            except ExtensionAlreadyLoaded:
+                await ctx.send("Extension already enabled.")
             except Exception as e:
                 print(e)
-                await ctx.send("That extension could not be found locally or on Dropbox.")
-        except ExtensionAlreadyLoaded:
-            await ctx.send("Extension already enabled.")
-        except Exception as e:
-            print(e)
-            await ctx.send("Something went wrong.")
+                await ctx.send("Something went wrong.")
+        else:
+            await ctx.send("Invalid cog name.")
 
     @commands.command(name="disable", aliases=["unload"])
     @commands.is_owner()
@@ -58,15 +63,19 @@ class CogHandler(commands.Cog):
         """
         Unload a cog (folder.file)
         """
-        try:
-            self.bot.unload_extension(cog)
-            await ctx.send("{} has been disabled.".format(cog))
-            if USE_REMOTE_CONFIG:
-                edit_remote_config("cogs.txt", cog_to_remove=cog)
-        except ExtensionNotLoaded:
-            await ctx.send("That extension is not active.")
-        except:
-            await ctx.send("Something went wrong.")
+        cog = find_cog_path_by_name(cog)
+        if cog:
+            try:
+                self.bot.unload_extension(cog)
+                await ctx.send("{} has been disabled.".format(cog))
+                if USE_REMOTE_CONFIG:
+                    edit_remote_config("cogs.txt", cog_to_remove=cog)
+            except ExtensionNotLoaded:
+                await ctx.send("That extension is not active.")
+            except:
+                await ctx.send("Something went wrong.")
+        else:
+            await ctx.send("Invalid cog name.")
 
     @commands.command(name="restart", aliases=["reload"])
     @commands.is_owner()
@@ -74,13 +83,17 @@ class CogHandler(commands.Cog):
         """
         Reload a cog (folder.file)
         """
-        try:
-            self.bot.reload_extension(cog)
-            await ctx.send("{} has been reloaded".format(cog))
-        except ExtensionNotLoaded:
-            await ctx.send("That extension is not active.")
-        except:
-            await ctx.send("Something went wrong.")
+        cog = find_cog_path_by_name(cog)
+        if cog:
+            try:
+                self.bot.reload_extension(cog)
+                await ctx.send("{} has been reloaded".format(cog))
+            except ExtensionNotLoaded:
+                await ctx.send("That extension is not active.")
+            except:
+                await ctx.send("Something went wrong.")
+        else:
+            await ctx.send("Invalid cog name.")
 
     @commands.command(name="download")
     @commands.is_owner()
@@ -88,16 +101,19 @@ class CogHandler(commands.Cog):
         """
         Download a cog from Dropbox
         """
-        if USE_DROPBOX:
-            try:
-                cog = '{}.py'.format(cog.replace(".", "/"))
-                if USE_DROPBOX:
-                    dropbox.download_file(cog)
-                await ctx.send("{} has been downloaded".format(cog))
-            except:
-                await ctx.send("Sorry, I couldn't download that file.")
-        else:
-            await ctx.send("Dropbox use is not enabled.")
+        cog = find_cog_path_by_name(cog)
+        if cog:
+            if USE_DROPBOX:
+                try:
+                    cog = '{}.py'.format(cog.replace(".", "/"))
+                    if USE_DROPBOX:
+                        dropbox.download_file(cog)
+                    await ctx.send("{} has been downloaded".format(cog))
+                except:
+                    await ctx.send("Sorry, I couldn't download that file.")
+            else:
+                await ctx.send("Dropbox use is not enabled.")
+        await ctx.send("Invalid cog name.")
 
     @commands.command(name="upload")
     @commands.is_owner()
@@ -105,22 +121,26 @@ class CogHandler(commands.Cog):
         """
         Upload a local cog to Dropbox
         """
-        if USE_DROPBOX:
-            try:
-                path = cog.replace(".", "/")
-                folderPath = '/'.join(path.split('/')[:-1])
-                if dropbox.create_folder_path(folderPath):
-                    cog = '{}.py'.format(path)
-                    print(cog)
-                    dropbox.upload_file(cog, rename=cog)
-                    await ctx.send("{} has been uploaded".format(cog))
-                else:
-                    await ctx.send("Sorry, something went wrong creating the folder path on Dropbox.")
-            except Exception as e:
-                print(e)
-                await ctx.send("Sorry, I couldn't upload that file.")
+        cog = find_cog_path_by_name(cog)
+        if cog:
+            if USE_DROPBOX:
+                try:
+                    path = cog.replace(".", "/")
+                    folderPath = '/'.join(path.split('/')[:-1])
+                    if dropbox.create_folder_path(folderPath):
+                        cog = '{}.py'.format(path)
+                        print(cog)
+                        dropbox.upload_file(cog, rename=cog)
+                        await ctx.send("{} has been uploaded".format(cog))
+                    else:
+                        await ctx.send("Sorry, something went wrong creating the folder path on Dropbox.")
+                except Exception as e:
+                    print(e)
+                    await ctx.send("Sorry, I couldn't upload that file.")
+            else:
+                await ctx.send("Dropbox use is not enabled.")
         else:
-            await ctx.send("Dropbox use is not enabled.")
+            await ctx.send("Invalid cog name.")
 
     @commands.command(name="repo")
     @commands.is_owner()
@@ -136,7 +156,8 @@ class CogHandler(commands.Cog):
                 os.mkdir('{}/{}'.format(DOWNLOADED_REPOS_FOLDER, folder_name))
                 repo = git.Repo.clone_from(url=url, to_path='{}/{}'.format(DOWNLOADED_REPOS_FOLDER, folder_name))
                 if repo:
-                    await ctx.send("Repository has been cloned. Cogs available in {}.{}".format(DOWNLOADED_REPOS_FOLDER, folder_name))
+                    await ctx.send("Repository has been cloned. Cogs available in {}.{}".format(DOWNLOADED_REPOS_FOLDER,
+                                                                                                folder_name))
                 else:
                     await ctx.send("Repository could not be cloned.")
             except Exception as e:
@@ -169,6 +190,13 @@ def edit_remote_config(filename, cog_to_add=None, cog_to_remove=None):
         for cog in current_cogs:
             f.write(cog + "\n")
     dropbox.upload_file(filename)
+
+
+def find_cog_path_by_name(cog: str):
+    for k, v in cog_list.nicks_to_paths.items():
+        if k == cog:
+            return v
+    return None
 
 
 def setup(bot):

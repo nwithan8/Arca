@@ -1,29 +1,27 @@
 """
 Interact with a Booksonic audiobook & podcast server via its API
-Copyright (C) 2019 Nathan Harris
+Copyright (C) 2020 Nathan Harris
 """
 import discord
-from discord.ext import commands, tasks
-from discord.utils import get
+from discord.ext import commands
 import requests
 import xml.etree.ElementTree as ET
 import random
 import hashlib
-import os
-import asyncio
+import media_server.booksonic.settings as settings
 
-BOOKSONIC_URL = os.environ.get('BOOKSONIC_URL')
-BOOKSONIC_USER = os.environ.get('BOOKSONIC_USER')
-BOOKSONIC_PASS = os.environ.get('BOOKSONIC_PASS')
-BOOKSONIC_SERVER_NAME = os.environ.get('BOOKSONIC_SERVER_NAME')
+BOOKSONIC_URL = settings.BOOKSONIC_URL
+BOOKSONIC_USER = settings.BOOKSONIC_USER
+BOOKSONIC_PASS = settings.BOOKSONIC_PASS
+BOOKSONIC_SERVER_NAME = settings.BOOKSONIC_SERVER_NAME
 
 # EDIT
-DEFAULT_EMAIL = ''
-USE_DEFAULT_PASSWORD = False  # If FALSE, random password generated each time
+DEFAULT_EMAIL = settings.DEFAULT_EMAIL
+USE_DEFAULT_PASSWORD = settings.USE_DEFAULT_PASSWORD  # If FALSE, random password generated each time
 if USE_DEFAULT_PASSWORD:
-    DEFAULT_PASSWORD = ''
+    DEFAULT_PASSWORD = settings.DEFAULT_PASSWORD
 
-ADMIN_ROLE_NAME = os.environ.get('BOOKSONIC_ADMIN_ROLE')
+ADMIN_ROLE_NAME = settings.ADMIN_ROLE_NAME
 
 
 def password(length):

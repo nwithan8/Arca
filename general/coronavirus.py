@@ -39,7 +39,7 @@ def make_list(data):
 
 class Coronavirus(commands.Cog):
 
-    @commands.command(name="coronavirus", aliases=['corona'], pass_content=True)
+    @commands.command(name="coronavirus", aliases=['corona', 'covid', 'covid19'], pass_content=True)
     async def coronavirus(self, ctx: commands.Context):
         """
         Get global data on the coronavirus (via ArcGIS)

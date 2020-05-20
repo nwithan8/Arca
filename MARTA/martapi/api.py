@@ -7,8 +7,10 @@ from functools import wraps
 from .exceptions import APIKeyError
 from .vehicles import Bus, Train
 
-_API_KEY = getenv('MARTA_API_KEY')
-_CACHE_EXPIRE = int(getenv('MARTA_CACHE_EXPIRE', 30))
+import MARTA.settings as settings
+
+_API_KEY = settings.MARTA_API_KEY
+_CACHE_EXPIRE = 30
 _BASE_URL = 'http://developer.itsmarta.com'
 _TRAIN_PATH = '/RealtimeTrain/RestServiceNextTrain/GetRealtimeArrivals'
 _BUS_PATH = '/BRDRestService/RestBusRealTimeService/GetAllBus'
