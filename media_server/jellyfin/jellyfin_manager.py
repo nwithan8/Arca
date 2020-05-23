@@ -12,6 +12,7 @@ import csv
 from datetime import datetime
 from media_server.jellyfin import settings as settings
 from media_server.jellyfin import jellyfin_api as jf
+from media_server.jellyfin import jellyfin_stats as js
 from helper.db_commands import DB
 from helper.pastebin import hastebin, privatebin
 import helper.discord_helper as discord_helper
@@ -158,12 +159,8 @@ class JellyfinManager(commands.Cog):
             error_message = ""
             for u in monitorlist:
                 try:
-                    query = {
-                        "CustomQueryString": "SELECT SUM(PlayDuration) FROM PlaybackActivity WHERE UserId = '{}' AND "
-                                             "DateCreated >= date(julianday(date('now'))-14)".format(str(u)),
-                        "ReplaceUserId": "false"}
                     # returns time watched in last 14 days, in seconds
-                    watchtime = jf.statsCustomQuery(query)['results'][0][0]
+                    watchtime = js.getUserHistory(user_id=str(u), past_x_days=14, sum_watch_time=True)
                     if not watchtime:
                         watchtime = 0
                     watchtime = int(watchtime)
@@ -242,7 +239,7 @@ class JellyfinManager(commands.Cog):
     async def check_trials_timer(self):
         await self.check_trials()
 
-    @commands.group(name="jf", aliases=["JF", "JellyMan", "jellyman", "JellyfinMan", "jellyfinman", "JellyfinManager", "jellyfinmanager"], pass_context=True)
+    @commands.group(name="jm", aliases=["JM", "JellyMan", "jellyman", "JellyfinMan", "jellyfinman", "JellyfinManager", "jellyfinmanager"], pass_context=True)
     async def jellyfin(self, ctx: commands.Context):
         """
         Jellyfin Media Server commands

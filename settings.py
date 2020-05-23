@@ -2,11 +2,12 @@ import os
 
 extensions = [
     # 'plex',
-    'plex_manager',
+    # 'plex_manager',
     # 'plex_manager_nodb',
-    # 'olaris_manager',
+    'jellyfin'
     # 'jellyfin_manager',
     # 'emby_manager',
+    # 'olaris_manager',
     # 'booksonic',
     # 'rclone',
     # 'news',

@@ -12,19 +12,20 @@ def authenticate():
     global token_header
     global admin_id
     xEmbyAuth = {
-        'X-Emby-Authorization': 'Emby UserId="{UserId}", Client="{Client}", Device="{Device}", DeviceId="{'
-                                'DeviceId}", Version="{Version}", Token="""'.format(
+        'X-Emby-Authorization': 'Emby UserId="{UserId}", Client="{Client}", Device="{Device}",'
+                                'DeviceId="{DeviceId}", Version="{Version}", Token="""'.format(
             UserId="",  # not required, if it was we would have to first request the UserId from the username
             Client='account-automation',
             Device=socket.gethostname(),
             DeviceId=hash(socket.gethostname()),
             Version=1,
             Token=""  # not required
-        )}
+        )
+    }
     data = {'Username': settings.JELLYFIN_ADMIN_USERNAME, 'Password': settings.JELLYFIN_ADMIN_PASSWORD,
             'Pw': settings.JELLYFIN_ADMIN_PASSWORD}
     try:
-        res = postWithToken(hdr=xEmbyAuth, method='/Users/AuthenticateByName', data=data).json()
+        res = postWithToken(hdr=xEmbyAuth, url='/Users/AuthenticateByName', data=data).json()
         token_header = {'X-Emby-Token': '{}'.format(res['AccessToken'])}
         admin_id = res['User']['Id']
     except Exception as e:
@@ -37,9 +38,9 @@ def get(cmd, params=None):
                                    ("&" + params if params else ""))).text)
 
 
-def getWithToken(hdr, method, data=None):
+def getWithToken(hdr, url, data=None):
     hdr = {'accept': 'application/json', **hdr}
-    res = requests.get('{}{}'.format(settings.JELLYFIN_URL, method), headers=hdr, data=json.dumps(data)).json()
+    res = requests.get('{}{}'.format(settings.JELLYFIN_URL, url), headers=hdr, data=json.dumps(data)).json()
     return res
 
 
@@ -50,15 +51,20 @@ def post(cmd, params, payload):
         json=payload)
 
 
-def postWithToken(hdr, method, data=None):
+def postWithToken(hdr, url, data=None):
     hdr = {'accept': 'application/json', 'Content-Type': 'application/json', **hdr}
-    return requests.post('{}{}'.format(settings.JELLYFIN_URL, method), headers=hdr, data=json.dumps(data))
+    return requests.post('{}{}'.format(settings.JELLYFIN_URL, url), headers=hdr, data=json.dumps(data))
 
 
 def delete(cmd, params):
     return requests.delete(
         '{}{}?api_key={}{}'.format(settings.JELLYFIN_URL, cmd, settings.JELLYFIN_API_KEY,
                                    ("&" + params if params is not None else "")))
+
+
+def deleteWithToken(hdr, url, data=None):
+    hdr = {'accept': 'application/json', **hdr}
+    return requests.delete('{}{}'.format(settings.JELLYFIN_URL, url), headers=hdr, data=json.dumps(data))
 
 
 def makeUser(username):
@@ -71,12 +77,12 @@ def makeUser(username):
 
 def deleteUser(userId):
     # Doesn't delete user, instead makes de-active.
-    payload = {
-        "IsDisabled": "true",
-    }
-    return updatePolicy(userId, policy=payload)
-    # url = '/Users/{}'.format(str(userId))
-    # return delete(url, None)
+    # payload = {
+    #    "IsDisabled": "true",
+    # }
+    # return updatePolicy(userId, policy=payload)
+    url = '/Users/{}'.format(str(userId))
+    return delete(url, None)
 
 
 def resetPassword(userId):
@@ -85,7 +91,7 @@ def resetPassword(userId):
         'Id': str(userId),
         'ResetPassword': 'true'
     }
-    return postWithToken(hdr=token_header, method=url, data=data)
+    return postWithToken(hdr=token_header, url=url, data=data)
 
 
 def setUserPassword(userId, currentPass, newPass):
@@ -95,24 +101,32 @@ def setUserPassword(userId, currentPass, newPass):
         'CurrentPw': currentPass,
         'NewPw': newPass
     }
-    return postWithToken(hdr=token_header, method=url, data=data)
+    return postWithToken(hdr=token_header, url=url, data=data)
 
 
 def updatePolicy(userId, policy=None):
     if not policy:
         policy = settings.JELLYFIN_USER_POLICY
     url = '/Users/{}/Policy'.format(userId)
-    return postWithToken(hdr=token_header, method=url, data=policy)
+    return postWithToken(hdr=token_header, url=url, data=policy)
 
 
-def search(keyword):
+def search(keyword, mediaType: str = None, limit: int = None):
     url = '/Search/Hints?{}'.format(urlencode({'SearchTerm': keyword}))
-    return getWithToken(hdr=token_header, method=url)['SearchHints']
+    if mediaType.lower() == 'movie':
+        url += '&IncludeItemTypes=Movie'
+    elif mediaType.lower() in ['show', 'tv', 'series', 'episode']:
+        url += '&IncludeItemTypes=Episode,Series'
+    if limit:
+        url += f'&limit={str(limit)}'
+    return getWithToken(hdr=token_header, url=url)['SearchHints']
 
 
-def getLibraries():
-    url = '/Users/{}/Items'.format(str(admin_id))
-    return getWithToken(hdr=token_header, method=url)
+def getLibraries(user_id=None):
+    if not user_id:
+        user_id = admin_id
+    url = '/Users/{}/Items'.format(str(user_id))
+    return getWithToken(hdr=token_header, url=url)
 
 
 def getUsers():
@@ -120,29 +134,69 @@ def getUsers():
     return get(url, None)
 
 
-def updateRating(itemId, upvote):
-    url = '/Users/{}/Items/{}/Rating?{}'.format(str(admin_id), str(itemId), urlencode({'Likes': upvote}))
+def updateRating(itemId, upvote, user_id=None):
+    if not user_id:
+        user_id = admin_id
+    url = '/Users/{}/Items/{}/Rating?{}'.format(str(user_id), str(itemId), urlencode({'Likes': upvote}))
 
-    return postWithToken(hdr=token_header, method=url)
+    return postWithToken(hdr=token_header, url=url)
 
 
 def makePlaylist(name):
     url = '/Playlists?{}'.format(urlencode({'Name': name}))
-    print(url)
-    return postWithToken(hdr=token_header, method=url)
+    return postWithToken(hdr=token_header, url=url)
 
 
 def addToPlaylist(playlistId, itemIds):
     item_list = ','.join(itemIds)
     url = '/Playlists/{}/Items?{}'.format(str(playlistId), str(item_list))
-    print(url)
-    return postWithToken(hdr=token_header, method=url)
+    return postWithToken(hdr=token_header, url=url)
 
 
 def statsCustomQuery(query):
     url = '/user_usage_stats/submit_custom_query'
-    return post(url, None, query)
+    return post(url, None, query).json()
 
 
 def getStatus():
     return requests.get('{}/swagger'.format(settings.JELLYFIN_URL), timeout=10).status_code
+
+
+def getServerInfo():
+    return get(cmd='/System/Info')
+
+
+def getSessions():
+    return getWithToken(hdr=token_header, url='/Sessions')
+
+
+def sendPlayStateCommand(session_id, command):
+    url = f'/Sessions/{session_id}/Playing/{command}'
+    return postWithToken(hdr=token_header, url=url)
+
+
+def sendMessageToClient(session_id, message):
+    url = f'/Sessions/{session_id}/Message'
+    return postWithToken(hdr=token_header, url=url, data={'Text': str(message)})
+
+
+def stopStream(stream_id, message_to_viewer=None):
+    if message_to_viewer:
+        sendMessageToClient(session_id=stream_id, message=message_to_viewer)
+    return sendPlayStateCommand(session_id=stream_id, command='Stop')
+
+
+def getUsernameFromId(user_id):
+    user_list = getUsers()
+    for user in user_list:
+        if user.get('id') == user_id:
+            return user.get('name')
+    return None
+
+
+def getUserIdFromUsername(username):
+    user_list = getUsers()
+    for user in user_list:
+        if user.get('name') == username:
+            return user.get('id')
+    return None

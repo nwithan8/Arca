@@ -85,3 +85,5 @@ HASTEBIN_URL = ''
 
 # Migrate/mass import users
 MIGRATION_FILE = "/"  # file path + name (leave off ".csv" extension)
+
+YOUTUBE_API_KEY = 'AIzaSyB4DdmAkhKtJ6NMgSJIgMCFkVJ8KD1uBk0'
