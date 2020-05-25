@@ -1,6 +1,9 @@
 import os
 
 # Plex settings
+# PLEASE KEEP THE []. This is a Python list!
+# If you want to use multiple servers, complete these lists as, ex. ['url1', 'url2', 'url3'], and set MULTI_PLEX = True
+# If you only want to use one server, complete these lists as, ex. ['url1'] and set MULTI_PLEX = False
 PLEX_SERVER_URL = []
 PLEX_SERVER_TOKEN = []
 PLEX_SERVER_ID = []  # after "/server/" in browser UI URL
@@ -8,13 +11,18 @@ PLEX_SERVER_NAME = []
 PLEX_SERVER_ALT_NAME = []
 MULTI_PLEX = False
 
-# Plex Recs settings
+# Plex Libraries (can use for shorthand reference to individual libraries or a group of libraries, such as when setting share restrictions)
+# Because of Discord, please use one-word names for each library
+# ex. 'oneWordLowercaseNicknameForGroup': [libraryNumber, libraryNumber]
+# Separate each group listing by a , like below
 # http://[PMS_IP_Address]:32400/library/sections?X-Plex-Token=YourTokenGoesHere
 # Use the above link to find the number for each library: composite="/library/sections/NUMBER/composite/..."
-MOVIE_LIBRARY = 1  # Might be different for your Plex library
-TV_LIBRARY = 2  # Might be different for your Plex library
-MOVIE_LIBRARY_NAME = 'Movies'
-TV_SHOW_LIBRARY_NAME = 'TV Shows'
+PLEX_LIBRARIES = {
+    'movie': [1],
+    'show': [2],
+    'artist': [3, 6],
+    '4kmovie': [4]
+}
 
 # Plex playing settings
 TERMINATE_MESSAGE = "Please direct message @Nate in the Discord server."

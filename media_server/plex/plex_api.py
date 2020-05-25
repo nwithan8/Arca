@@ -7,6 +7,7 @@ import requests
 from media_server.plex import settings as settings
 from os.path import exists
 import xml.etree.ElementTree as ET
+import helper.helper_functions as helper_functions
 from helper.encryption import Encryption
 
 plex = PlexServer(settings.PLEX_SERVER_URL[0], settings.PLEX_SERVER_TOKEN[0])
@@ -17,6 +18,10 @@ crypt = Encryption(key_file='{}/credskey.txt'.format(settings.CREDENTIALS_FOLDER
 
 shows = defaultdict(list)
 movies = defaultdict(list)
+
+all_movie_ratings = ['12', 'Approved', 'Passed', 'G', 'GP', 'PG', 'PG-13', 'M', 'R', 'NC-17', 'Unrated', 'Not Rated',
+                     'NR', 'None']
+all_tv_ratings = ['TV-Y', 'TV-Y7', 'TV-G', 'TV-PG', 'TV-14', 'TV-MA', 'NR']
 
 if settings.USE_OMBI:
     OMBI_URL = '{}/api/v1/'.format(settings.OMBI_URL)
@@ -51,15 +56,6 @@ def t_request(cmd, params=None, serverNumber=None):
             cmd
         )
     ).text)
-
-
-def filesize(size):
-    pf = ['Byte', 'Kilobyte', 'Megabyte', 'Gigabyte', 'Terabyte', 'Petabyte', 'Exabyte', 'Zettabyte', 'Yottabyte']
-    i = 0
-    while size > 1024:
-        i += 1
-        size /= 1024
-    return "{:.2f}".format(size) + " " + pf[i] + ("s" if size != 1 else "")
 
 
 def getUserCreds(user_id):
@@ -106,6 +102,12 @@ def getUrl(text):
     return str(re.search(pattern, text).group(0))
 
 
+def getTempServer(server_number=None):
+    if server_number:
+        return PlexServer(settings.PLEX_SERVER_URL[server_number], settings.PLEX_SERVER_TOKEN[server_number])
+    return plex
+
+
 def checkPlaylist(playlistName):
     for playlist in plex.playlists():
         if playlist.title == playlistName:
@@ -131,7 +133,7 @@ def urlInMessage(message):
 def getSmallestServer():
     serverNumber = 0
     smallestCount = 100
-    for i in len(0, settings.PLEX_SERVER_URL[0]):
+    for i in range(0, len(settings.PLEX_SERVER_URL)):
         tempCount = countServerSubs(i)
         if tempCount < smallestCount:
             serverNumber = i
@@ -155,28 +157,164 @@ def countServerSubs(serverNumber=None):
     return count
 
 
+def getServerUsers(server):
+    try:
+        return server.myPlexAccount().users()
+    except Exception as e:
+        print(f"Error in getServerUsers: {e}")
+    return []
+
+
+def getServerUser(server, plexname):
+    try:
+        return server.myPlexAccount().user(plexname)
+    except Exception as e:
+        print(f"Error in getServerUser: {e}")
+    return None
+
+
 def getPlexFriends(serverNumber=None):
     """
-    # Returns all usernames of Plex Friends (access in + access out)
-    (lowercase for comparison)
+    # Returns all Plex Friends (access in + access out)
     """
-    if settings.MULTI_PLEX:
-        if serverNumber:  # from a specific server
-            tempPlex = PlexServer(settings.PLEX_SERVER_URL[serverNumber], settings.PLEX_SERVER_TOKEN[serverNumber])
-            return [u.username.lower() for u in tempPlex.myPlexAccount().users()]
-        else:  # from all servers
-            users = []
-            for i in range(len(settings.PLEX_SERVER_URL)):
-                tempPlex = PlexServer(settings.PLEX_SERVER_URL[i], settings.PLEX_SERVER_TOKEN[i])
-                for u in tempPlex.myPlexAccount().users():
-                    users.append(u.username.lower())
-            return users
-    else:  # from the one server
-        tempPlex = PlexServer(settings.PLEX_SERVER_URL[0], settings.PLEX_SERVER_TOKEN[0])
-        return [u.username.lower() for u in tempPlex.myPlexAccount().users()]
+    try:
+        if settings.MULTI_PLEX:
+            if serverNumber:  # from a specific server
+                tempPlex = getTempServer(server_number=serverNumber)
+                return getServerUsers(server=tempPlex)
+            else:  # from all servers
+                users = []
+                for i in range(len(settings.PLEX_SERVER_URL)):
+                    tempPlex = getTempServer(server_number=serverNumber)
+                    for u in getServerUsers(server=tempPlex):
+                        users.append(u)
+                return users
+        else:  # from the one server
+            tempPlex = getTempServer()
+            return getServerUsers(server=tempPlex)
+    except Exception as e:
+        print(f"Error in getPlexFriends: {e}")
+    return []
 
 
-def add_to_tautulli(plexname, serverNumber=None):
+def get_defined_libraries():
+    names = [name for name in settings.PLEX_LIBRARIES.keys()]
+    ids = []
+    for _, vs in settings.PLEX_LIBRARIES.items():
+        for v in vs:
+            if v not in ids:
+                ids.append(str(v))
+    return {'Names': names, 'IDs': ids}
+
+
+def get_plex_share(share_name_or_num):
+    if not settings.PLEX_LIBRARIES:
+        return False
+    if helper_functions.is_positive_int(share_name_or_num):
+        return [int(share_name_or_num)]
+    else:
+        for name, numbers in settings.PLEX_LIBRARIES.items():
+            if name == share_name_or_num:
+                return numbers
+        return False
+
+
+def get_plex_restrictions(plexname, server_number=None):
+    try:
+        target_user = None
+        friends = getPlexFriends(serverNumber=server_number)  # rather than getServerUser because no need to specify which server if MULTI_PLEX
+        if not friends:
+            raise Exception("No users received in get_plex_restrictions function.")
+        for user in friends:
+            if user.username.lower() == plexname.lower():
+                target_user = user
+                break
+        if not target_user:
+            raise Exception(f"{plexname} not found in Plex Friends.")
+        try:
+            sections = target_user.server((settings.PLEX_SERVER_NAME[server_number] if server_number else settings.PLEX_SERVER_NAME[0])).sections()
+        except:
+            sections = target_user.server((settings.PLEX_SERVER_ALT_NAME[server_number] if server_number else settings.PLEX_SERVER_ALT_NAME[0])).sections()
+        if not sections:
+            raise Exception(f"Couldn't load sections for {plexname}.")
+        details = {'allowSync': target_user.allowSync, 'filterMovies': target_user.filterMovies,
+                   'filterShows': target_user.filterTelevision,
+                   'sections': ([section.title for section in sections] if sections else [])}
+        return details
+    except Exception as e:
+        print(f"Error in get_plex_restrictions: {e}")
+    return None
+
+
+def add_to_plex(server, plexname):
+    try:
+        server.myPlexAccount().inviteFriend(user=plexname, server=server, sections=None, allowSync=False,
+                                            allowCameraUpload=False, allowChannels=False, filterMovies=None,
+                                            filterTelevision=None, filterMusic=None)
+        return True
+    except Exception as e:
+        print(f"Error in add_to_plex: {e}")
+    return False
+
+
+def update_plex_share(server, plexname, sections_to_share=[], rating_limit={}, allow_sync: bool = None):
+    """
+
+    :param server:
+    :param plexname:
+    :param sections_to_share:
+    :param rating_limit: ex. {'Movie': 'PG-13', 'TV': 'TV-14'}
+    :param allow_sync:
+    :return:
+    """
+    try:
+        # collect section names and numbers
+        sections = []
+        for section in sections_to_share:
+            section_numbers = get_plex_share(section)
+            if section_numbers:
+                for n in section_numbers:
+                    sections.append(str(n))
+        allowed_movie_ratings = []
+        allowed_tv_ratings = []
+        if rating_limit:
+            # add max rating and all below it to allowed ratings
+            # if non_existent rating is used as limit, all ratings will be added
+            if rating_limit.get('Movie') and rating_limit.get('Movie') in all_movie_ratings:
+                for rating in all_movie_ratings:
+                    allowed_movie_ratings.append(rating)
+                    if rating == rating_limit.get('Movie'):
+                        break
+            if rating_limit.get('TV') and rating_limit.get('TV') in all_tv_ratings:
+                for rating in all_tv_ratings:
+                    allowed_tv_ratings.append(rating)
+                    if rating == rating_limit.get('TV'):
+                        break
+        server.myPlexAccount().updateFriend(user=plexname, server=server, sections=(sections if sections else None),
+                                            removeSections=False, allowSync=allow_sync, allowCameraUpload=None,
+                                            allowChannels=None,
+                                            filterMovies=(
+                                                {
+                                                    'contentRating': allowed_movie_ratings} if allowed_movie_ratings else None),
+                                            filterTelevision=(
+                                                {'contentRating': allowed_tv_ratings} if allowed_tv_ratings else None),
+                                            filterMusic=None)
+        return True
+    except Exception as e:
+        print(f"Error in update_plex_share: {e}")
+    return False
+
+
+def delete_from_plex(server, plexname):
+    try:
+        server.myPlexAccount().removeFriend(user=plexname)
+        return True
+    except Exception as e:
+        print(f"Error in delete_from_plex: {e}")
+    return False
+
+
+def refresh_tautulli(serverNumber=None):
     if settings.USE_TAUTULLI:
         return t_request("refresh_users_list", None, serverNumber)
     return None
@@ -188,7 +326,7 @@ def delete_from_tautulli(plexname, serverNumber=None):
     return None
 
 
-def add_to_ombi():
+def refresh_ombi():
     if settings.USE_OMBI:
         return requests.post(ombi_import, headers=ombi_headers)
     return None

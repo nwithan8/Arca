@@ -8,8 +8,8 @@ from discord.ext import tasks
 import requests
 import asyncio
 import time
+from typing import Union
 from datetime import datetime
-from plexapi.server import PlexServer
 import plexapi
 from helper.db_commands import DB
 from discord.ext import commands
@@ -38,18 +38,14 @@ async def add_to_plex(plexname, discordId, note, serverNumber=None):
             return ['blacklist', 'username']
         if db.check_blacklist(discordId):
             return ['blacklist', 'id']
-    tempPlex = plex
-    if serverNumber is not None:
-        tempPlex = PlexServer(settings.PLEX_SERVER_URL[serverNumber], settings.PLEX_SERVER_TOKEN[serverNumber])
+    tempPlex = px.getTempServer()
     try:
         if db.add_user_to_db(discordId=discordId, username=plexname, note=note, serverNumber=serverNumber):
-            tempPlex.myPlexAccount().inviteFriend(user=plexname, server=tempPlex, sections=None, allowSync=False,
-                                                  allowCameraUpload=False, allowChannels=False, filterMovies=None,
-                                                  filterTelevision=None, filterMusic=None)
+            px.add_to_plex(server=tempPlex, plexname=plexname)
             await asyncio.sleep(30)
-            px.add_to_tautulli(serverNumber)
+            px.refresh_tautulli(serverNumber)
             if note != 't':  # Trial members do not have access to Ombi
-                px.add_to_ombi()
+                px.refresh_ombi()
             return [True, None]
         else:
             print("{} could not be added to the database.".format(plexname))
@@ -69,8 +65,7 @@ def delete_from_plex(id):
     700 - user not found in database
     500 - unknown error
     """
-    tempPlex = plex
-    serverNumber = 0
+    serverNumber = None
     try:
         results = db.find_user_in_db(ServerOrDiscord="Plex", data=id)
         if not results:
@@ -79,16 +74,16 @@ def delete_from_plex(id):
         note = results[1]
         if settings.MULTI_PLEX:
             serverNumber = results[2]
-            tempPlex = PlexServer(settings.PLEX_SERVER_URL[serverNumber], settings.PLEX_SERVER_TOKEN[serverNumber])
+        tempPlex = px.getTempServer(server_number=serverNumber)
         if not plexname:
             return 700, serverNumber  # user not found
         else:
             try:
-                tempPlex.myPlexAccount().removeFriend(user=plexname)
+                px.delete_from_plex(server=tempPlex, plexname=plexname)
                 if note != 't':
                     px.delete_from_ombi(plexname)  # Error if trying to remove trial user that doesn't exist in Ombi?
                 px.delete_from_tautulli(plexname, serverNumber)
-                db.remove_user_from_db(id)
+                db.remove_user_from_db_by_discord(id)
                 return 200, serverNumber
             except plexapi.exceptions.NotFound:
                 return 500, serverNumber  # user not found on Plex
@@ -179,7 +174,7 @@ class PlexManager(commands.Cog):
                     await user.remove_roles(discord.utils.get(self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).roles,
                                                               name=settings.WINNER_ROLE_NAME),
                                             reason="Inactive winner")
-                    db.remove_user_from_db(id)
+                    db.remove_user_from_db_by_discord(id)
                     return "<@" + id + ">, "
                 else:
                     return None
@@ -278,7 +273,7 @@ class PlexManager(commands.Cog):
         if name is not None:
             if settings.MULTI_PLEX:
                 for i in range(0, len(settings.PLEX_SERVER_URL)):
-                    tempPlex = PlexServer(settings.PLEX_SERVER_URL[i], settings.PLEX_SERVER_TOKEN[i])
+                    tempPlex = px.getTempServer(server_number=i)
                     for u in tempPlex.myPlexAccount().users():
                         if u.username == name:
                             for s in u.servers:
@@ -440,7 +435,7 @@ class PlexManager(commands.Cog):
         run this to remove the user's entry in the
         Plex user database.
         """
-        existingUsers = px.getPlexFriends()
+        existingUsers = [u.username.lower() for u in px.getPlexFriends()]
         dbEntries = db.get_all_entries_in_db()
         if dbEntries:
             deletedUsers = ""
@@ -449,7 +444,7 @@ class PlexManager(commands.Cog):
                     # existingUsers (returned as lowercase)
                     deletedUsers += entry[1] + "\n"
                     print("Deleting " + str(entry[1]) + " from the Plex database...")
-                    # db.remove_user_from_db(entry[0])  # entry[0] is DiscordID
+                    # db.remove_user_from_db_by_discord(entry[0])  # entry[0] is DiscordID
             if deletedUsers:
                 await ctx.send("The following users were deleted from the database:\n" + deletedUsers[:-1])
             else:
@@ -504,7 +499,7 @@ class PlexManager(commands.Cog):
         print(error)
         await ctx.send("Something went wrong. Please try again later.")
 
-    @pm.command(name="add", alias=["invite", "new"], pass_context=True)
+    @pm.command(name="add", aliases=["invite", "new"], pass_context=True)
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
     async def pm_add(self, ctx: commands.Context, user: discord.Member, PlexUsername: str, serverNumber: int = None):
         """
@@ -567,7 +562,7 @@ class PlexManager(commands.Cog):
         print(error)
         await ctx.send("Please mention the Discord user to add to Plex, as well as their Plex username.")
 
-    @pm.command(name="remove", alias=["uninvite", "delete", "rem"])
+    @pm.command(name="remove", aliases=["uninvite", "delete", "rem"])
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
     async def pm_remove(self, ctx: commands.Context, user: discord.Member):
         """
@@ -587,6 +582,89 @@ class PlexManager(commands.Cog):
     async def pm_remove_error(self, ctx, error):
         print(error)
         await ctx.send("Please mention the Discord user to remove from Plex.")
+
+    @pm.command(name='edit', aliases=['update', 'change'])
+    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    async def pm_edit(self, ctx: commands.Context, username: Union[discord.Member, str], category: str, *, category_settings: str):
+        """
+        Update an existing Plex user's restrictions. Can edit library access, ratings and sync ability
+
+        Examples:
+        - pm edit username share 1 2 4 to limit 'username' to libraries 1, 2 and 4
+        - pm edit username tv TV-14 to limit 'username' to up to TV-14 rated shows
+        - pm edit username movie PG-13 to limit 'username' to up to PG-13 rated movies
+        - pm edit username sync on to allow 'username' to sync content (offline access)
+        - pm edit username movie/tv help to display available ratings
+        """
+        error_finding_name = False
+        server_number = None
+        if isinstance(username, discord.Member):
+            results = db.find_user_in_db(ServerOrDiscord="Plex", data=username.id)
+            if not results:
+                error_finding_name = True  # user not found
+            else:
+                username = results[0]
+                if settings.MULTI_PLEX:
+                    server_number = results[2]
+        if not error_finding_name:
+            tempPlex = px.getTempServer(server_number=server_number)
+            category_settings = category_settings.split()
+            if category == 'share':
+                if 'help' in category_settings:
+                    names_and_ids = px.get_defined_libraries()
+                    await ctx.send("Include the numbers or names of the libraries you want {username} to have access "
+                                   "to. Available values (case sensitive): '{names}', '{ids}'".format(username=username,
+                                                                                                      names="', '".join(names_and_ids['Names']),
+                                                                                                      ids="', '".join(names_and_ids['IDs'])
+                                                                                                      )
+                                   )
+                else:
+                    if px.update_plex_share(server=tempPlex, plexname=username, sections_to_share=category_settings):
+                        await ctx.send(f"{username} can now only access those libraries.")
+                    else:
+                        await ctx.send(f"Sorry, I couldn't update the library restrictions for {username}.")
+            elif category == 'movie':
+                # case matters for ratings
+                if 'help' in category_settings or category_settings[0] not in px.all_movie_ratings:
+                    await ctx.send("Available movie ratings (case sensitive): '{}'".format("', '".join(px.all_movie_ratings)))
+                else:
+                    rating_limit = {'Movie': category_settings[0]}
+                    if px.update_plex_share(server=tempPlex, plexname=username, rating_limit=rating_limit):
+                        await ctx.send(f"{username} is now restricted to {category_settings} and below movie ratings.")
+                    else:
+                        await ctx.send(f"Sorry, I couldn't update the movie rating restrictions for {username}.")
+            elif category in ['tv', 'show']:
+                # case matters for ratings
+                if 'help' in category_settings or category_settings[0] not in px.all_tv_ratings:
+                    await ctx.send("Available tv ratings (case sensitive): '{}'".format("', '".join(px.all_tv_ratings)))
+                else:
+                    rating_limit = {'TV': category_settings[0]}
+                    if px.update_plex_share(server=tempPlex, plexname=username, rating_limit=rating_limit):
+                        await ctx.send(f"{username} is now restricted to {category_settings} and below TV ratings.")
+                    else:
+                        await ctx.send(f"Sorry, I couldn't update the TV rating restrictions for {username}.")
+            elif category == 'sync':
+                if category_settings[0].lower() in ['yes', 'true', 'on', 'enable']:
+                    if px.update_plex_share(server=tempPlex, plexname=username, allow_sync=True):
+                        await ctx.send(f"Sync is now enabled for {username}.")
+                    else:
+                        await ctx.send(f"Could not enable sync for {username}.")
+                elif category_settings[0].lower() in ['no', 'false', 'off', 'disable']:
+                    if px.update_plex_share(server=tempPlex, plexname=username, allow_sync=False):
+                        await ctx.send(f"Sync is now disabled for {username}.")
+                    else:
+                        await ctx.send(f"Could not disable sync for {username}.")
+                else:
+                    await ctx.send("Please indicate 'on' or 'off' for sync setting.")
+            else:
+                await ctx.send("That's not a valid option. Please indicate 'share', 'movie', 'show' or 'sync'. See help for more details.")
+        else:
+            await ctx.send("Could not find that Discord user's Plex username. Try again with their Plex username instead.")
+
+    @pm_edit.error
+    async def pm_edit_error(self, ctx, error):
+        print(error)
+        await ctx.send("Sorry, something went wrong.")
 
     @pm.command(name="trial")
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
@@ -642,6 +720,48 @@ class PlexManager(commands.Cog):
     async def pm_trial_error(self, ctx, error):
         print(error)
         await ctx.send("Please mention the Discord user to add to Plex, as well as their Plex username.")
+
+    @pm.command(name='details', aliases=['restrictions'], pass_context=True)
+    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    async def pm_details(self, ctx: commands.Context, username: Union[discord.Member, str]):
+        error_finding_name = False
+        if isinstance(username, discord.Member):
+            results = db.find_user_in_db(ServerOrDiscord="Plex", data=username.id)
+            if not results:
+                error_finding_name = True  # user not found
+            else:
+                username = results[0]
+        if not error_finding_name:
+            details = px.get_plex_restrictions(plexname=username)
+            if details:
+                embed = discord.Embed(title=f"Plex settings for {username}")
+                if details.get('sections'):
+                    embed.add_field(name="Shared Sections", value=", ".join(details.get('sections')), inline=False)
+                else:
+                    embed.add_field(name="Shared Sections", value="None", inline=False)
+                if details.get('filterMovies'):
+                    embed.add_field(name="Allowed Movie Ratings", value=", ".join(details.get('filterMovies').get('contentRating')), inline=False)
+                else:
+                    embed.add_field(name="Allowed Movie Ratings", value="All", inline=False)
+                if details.get('filterShows'):
+                    embed.add_field(name="Allowed TV Show Ratings", value=", ".join(details.get('filterShows').get('contentRating')), inline=False)
+                else:
+                    embed.add_field(name="Allowed TV Show Ratings", value="All", inline=False)
+                if details.get('allowSync'):
+                    embed.add_field(name="Sync", value='Enabled', inline=False)
+                else:
+                    embed.add_field(name="Sync", value='Disabled', inline=False)
+                await ctx.send(embed=embed)
+            else:
+                await ctx.send(f"Sorry, I couldn't find the share settings for {username}.")
+        else:
+            await ctx.send(
+                "Could not find that Discord user's Plex username. Try again with their Plex username instead.")
+
+    @pm_details.error
+    async def pm_details_error(self, ctx, error):
+        print(error)
+        await ctx.send("Sorry, something went wrong.")
 
     @pm.command(name="import", pass_context=True)
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)

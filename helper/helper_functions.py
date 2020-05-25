@@ -10,3 +10,7 @@ def filesize(size):
         i += 1
         size /= 1024
     return "{:.2f}".format(size) + " " + pf[i] + ("s" if size != 1 else "")
+
+
+def is_positive_int(n):
+    return n.isdigit()
