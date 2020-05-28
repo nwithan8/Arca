@@ -16,8 +16,10 @@ from media_server.jellyfin import jellyfin_stats as js
 from helper.db_commands import DB
 from helper.pastebin import hastebin, privatebin
 import helper.discord_helper as discord_helper
+from typing import Union
 
-db = DB(SQLITE_FILE=settings.SQLITE_FILE, SERVER_TYPE='jellyfin', TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600), USE_DROPBOX=settings.USE_DROPBOX)
+db = DB(SQLITE_FILE=settings.SQLITE_FILE, SERVER_TYPE='jellyfin', TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600),
+        USE_DROPBOX=settings.USE_DROPBOX)
 
 
 def password(length):
@@ -45,7 +47,7 @@ def update_policy(uid, policy=None):
 
 async def sendAddMessage(user, username, pwd=None):
     text = "Hostname: {}\nUsername: {}\n{}\n".format(str(settings.JELLYFIN_URL), str(username), (
-                    "Password: " + pwd if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
+        "Password: " + pwd if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
     if settings.USE_PASTEBIN:
         if settings.USE_PASTEBIN == 'privatebin':
             data, error = privatebin(
@@ -74,7 +76,7 @@ def get_jellyfin_users():
     Return dictionary {'user_name': 'user_id'}
     """
     users = {}
-    for u in jf.getUsers():
+    for u in jf.getUsers_short():
         users[u['name']] = u['id']
     return users
 
@@ -110,7 +112,7 @@ def add_to_jellyfin(username, discordId, note):
         return False, None, None
 
 
-def remove_from_jellyfin(id):
+def remove_from_jellyfin(user_id):
     """
     Remove a Discord user from Jellyfin
     Returns:
@@ -120,14 +122,14 @@ def remove_from_jellyfin(id):
     500 - unknown error
     """
     try:
-        jellyfinId = db.find_user_in_db(ServerOrDiscord="Jellyfin", data=id)
+        jellyfinId = db.find_user_in_db(ServerOrDiscord="Jellyfin", data=user_id)
         if not jellyfinId:
             return 700  # user not found
-        r = jf.deleteUser(jellyfinId)
+        r = jf.deleteUser(userId=jellyfinId)
         if not r:
             print(r.content.decode("utf-8"))
             return 600  # user not deleted
-        db.remove_user_from_db(id)
+        db.remove_user_from_db_by_discord(user_id)
         return 200  # user removed successfully
     except Exception as e:
         print(e)
@@ -137,7 +139,7 @@ def remove_from_jellyfin(id):
 def remove_nonsub(memberID):
     if memberID not in settings.EXEMPT_SUBS:
         print("Ending sub for {}".format(memberID))
-        return remove_from_jellyfin(memberID)
+        return remove_from_jellyfin(user_id=memberID)
 
 
 async def backup_database():
@@ -186,13 +188,15 @@ class JellyfinManager(commands.Cog):
         try:
             id = db.find_user_in_db(ServerOrDiscord="Discord", data=jellyfinId)
             if id is not None:
-                s = remove_from_jellyfin(jellyfinId)
+                s = remove_from_jellyfin(user_id=jellyfinId)
                 if s == 200:
                     user = self.bot
                     await user.create_dm()
                     await user.dm_channel.send(
-                        "You have been removed from {} due to inactivity.".format(str(settings.JELLYFIN_SERVER_NICKNAME)))
-                    await user.remove_roles(discord.utils.get(self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).roles, name=settings.WINNER_ROLE_NAME),
+                        "You have been removed from {} due to inactivity.".format(
+                            str(settings.JELLYFIN_SERVER_NICKNAME)))
+                    await user.remove_roles(discord.utils.get(self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).roles,
+                                                              name=settings.WINNER_ROLE_NAME),
                                             reason="Inactive winner")
                     return "<@{}>, ".format(id)
         except Exception as e:
@@ -201,7 +205,8 @@ class JellyfinManager(commands.Cog):
 
     async def check_subs(self):
         print("Checking Jellyfin subs...")
-        for member in discord_helper.get_users_without_roles(bot=self.bot, roleNames=settings.SUB_ROLES, guildID=settings.DISCORD_SERVER_ID):
+        for member in discord_helper.get_users_without_roles(bot=self.bot, roleNames=settings.SUB_ROLES,
+                                                             guildID=settings.DISCORD_SERVER_ID):
             s = remove_nonsub(member.id)
             if s == 700:
                 print("{} was not a past Jellyfin subscriber".format(member))
@@ -212,11 +217,12 @@ class JellyfinManager(commands.Cog):
     async def check_trials(self):
         print("Checking Jellyfin trials...")
         trials = db.get_trials()
-        trial_role = discord.utils.get(self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).roles, name=settings.TRIAL_ROLE_NAME)
+        trial_role = discord.utils.get(self.bot.get_guild(int(settings.DISCORD_SERVER_ID)).roles,
+                                       name=settings.TRIAL_ROLE_NAME)
         for u in trials:
             print("Ending trial for {}".format(str(u[0])))
             try:
-                s = remove_from_jellyfin(int(u[0]))
+                s = remove_from_jellyfin(user_id=int(u[0]))
                 if s == 200:
                     user = self.bot.get_guild(int(settings.DISCORD_SERVER_ID))
                     await user.create_dm()
@@ -239,7 +245,8 @@ class JellyfinManager(commands.Cog):
     async def check_trials_timer(self):
         await self.check_trials()
 
-    @commands.group(name="jm", aliases=["JM", "JellyMan", "jellyman", "JellyfinMan", "jellyfinman", "JellyfinManager", "jellyfinmanager"], pass_context=True)
+    @commands.group(name="jm", aliases=["JM", "JellyMan", "jellyman", "JellyfinMan", "jellyfinman", "JellyfinManager",
+                                        "jellyfinmanager"], pass_context=True)
     async def jellyfin(self, ctx: commands.Context):
         """
         Jellyfin Media Server commands
@@ -259,7 +266,8 @@ class JellyfinManager(commands.Cog):
             name = JellyfinUsername
         if name in get_jellyfin_users().keys():
             await ctx.send(
-                '{} access to {}'.format(("You have" if JellyfinUsername is None else name + " has"), settings.JELLYFIN_SERVER_NICKNAME))
+                '{} access to {}'.format(("You have" if JellyfinUsername is None else name + " has"),
+                                         settings.JELLYFIN_SERVER_NICKNAME))
         else:
             await ctx.send('{} not have access to {}'.format(("You do" if JellyfinUsername is None else name + " does"),
                                                              settings.JELLYFIN_SERVER_NICKNAME))
@@ -387,7 +395,7 @@ class JellyfinManager(commands.Cog):
             for entry in dbEntries:
                 if entry[1] not in existingUsers.keys():  # entry[1] is JellyfinUsername
                     deletedUsers += entry[1] + ", "
-                    db.remove_user_from_db(entry[0])  # entry[0] is DiscordID
+                    db.remove_user_from_db_by_discord(entry[0])  # entry[0] is DiscordID
             if deletedUsers:
                 await ctx.send("The following users were deleted from the database: " + deletedUsers[:-2])
             else:
@@ -462,7 +470,7 @@ class JellyfinManager(commands.Cog):
         """
         Delete a Discord user from Jellyfin
         """
-        s = remove_from_jellyfin(user.id)
+        s = remove_from_jellyfin(user_id=user.id)
         if s == 200:
             await ctx.send("You've been removed from {}, {}.".format(settings.JELLYFIN_SERVER_NICKNAME, user.mention))
         elif s == 600:
@@ -485,7 +493,8 @@ class JellyfinManager(commands.Cog):
         """
         s, u, p = add_to_jellyfin(JellyfinUsername, user.id, 't')
         if s:
-            await sendAddMessage(user, JellyfinUsername, (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
+            await sendAddMessage(user, JellyfinUsername,
+                                 (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
         else:
             if "exist" in u:
                 await ctx.send(u)
@@ -498,6 +507,180 @@ class JellyfinManager(commands.Cog):
     async def jellyfin_trial_error(self, ctx, error):
         print(error)
         await ctx.send("Please mention the Discord user to add to Jellyfin, as well as their Jellyfin username.")
+
+    @jellyfin.command(name='edit', aliases=['update', 'change'])
+    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    async def jellyfin_edit(self, ctx: commands.Context, username: Union[discord.Member, str], category: str, *,
+                            category_settings: str):
+        """
+        Update an existing Jellyfin user's restrictions. Can edit library access, sync ability and account status
+
+        Examples:
+        - jm edit username share 1 2 4 to limit 'username' to libraries 1, 2 and 4
+        - jm edit username sync on to allow 'username' to sync content (offline access)
+        - jm edit username livetv off to disable live TV access for 'username'
+        - jm edit username account disabled to disable 'username' account (this is different from deletion)
+        """
+        error_finding_name = False
+        jellyfinId = 0
+        if isinstance(username, discord.Member):
+            results = db.find_user_in_db(ServerOrDiscord="Jellyfin", data=username)
+            if not results:
+                error_finding_name = True  # user not found
+            else:
+                jellyfinId = results[0]
+        else:
+            jellyfinId = jf.getUserIdFromUsername(username=username)
+            if not jellyfinId:
+                error_finding_name = True  # user not found
+        if not error_finding_name:
+            category_settings = category_settings.split()
+            if category == 'share':
+                if 'help' in category_settings:
+                    nicks_and_names = jf.get_defined_libraries()
+                    await ctx.send("Include the numbers or names of the libraries you want {username} to have access "
+                                   "to. Available values (case sensitive): '{nicknames}'".format(username=username,
+                                                                                                 nicknames="', '".join(
+                                                                                                     nicks_and_names[
+                                                                                                         'Nicknames'])
+                                                                                                 )
+                                   )
+                elif category_settings[0].lower() == 'none':
+                    new_policy = {'EnableAllFolders': False}
+                    if jf.updatePolicy(userId=jellyfinId, policy=new_policy):
+                        await ctx.send(f"{username} can no longer access any libraries.")
+                    else:
+                        await ctx.send(f"Sorry, I couldn't update the library restrictions for {username}.")
+                elif category_settings[0].lower() == 'all':
+                    new_policy = {'EnableAllFolders': True}
+                    if jf.updatePolicy(userId=jellyfinId, policy=new_policy):
+                        await ctx.send(f"{username} can now access all libraries.")
+                    else:
+                        await ctx.send(f"Sorry, I couldn't update the library restrictions for {username}.")
+                else:
+                    # convert '4kmovie' -> 'Movies (4K)'
+                    nicks_and_names = jf.get_defined_libraries()
+                    translated_library_names = []
+                    for i in range(0, len(nicks_and_names['Nicknames'])):
+                        if nicks_and_names['Nicknames'][i] in category_settings:
+                            translated_library_names.append(nicks_and_names['Full Names'][i])
+                    # convert 'Movies (4K)' -> library ID
+                    all_libraries = jf.getAllLibraries()
+                    libraries_to_add = []
+                    for lib in all_libraries['Items']:
+                        if lib['Name'] in translated_library_names:
+                            libraries_to_add.append(lib['Id'])
+                    # try again, looking in library names rather than user-defined ones in settings
+                    for lib in all_libraries['Items']:
+                        if lib['Name'] in category_settings and lib['Id'] not in libraries_to_add:
+                            libraries_to_add.append(lib['Id'])
+                    if libraries_to_add and len(libraries_to_add) == len(category_settings):
+                        new_policy = {"EnabledFolders": libraries_to_add, 'EnableAllFolders': False}
+                        if jf.updatePolicy(userId=jellyfinId, policy=new_policy):
+                            await ctx.send(f"{username} can now only access those {len(libraries_to_add)} libraries.")
+                        else:
+                            await ctx.send(f"Sorry, I couldn't update the library restrictions for {username}.")
+                    else:
+                        await ctx.send("Sorry, I couldn't find one or more of those libraries.")
+            elif category == 'livetv':
+                if category_settings[0].lower() in ['yes', 'true', 'on', 'enable']:
+                    new_policy = {'EnableLiveTvAccess': True}
+                    if jf.updatePolicy(userId=jellyfinId, policy=new_policy):
+                        await ctx.send(f"Live TV access is now enabled for {username}.")
+                    else:
+                        await ctx.send(f"Could not enable live TV access for {username}.")
+                elif category_settings[0].lower() in ['no', 'false', 'off', 'disable']:
+                    new_policy = {'EnableLiveTvAccess': False}
+                    if jf.updatePolicy(userId=jellyfinId, policy=new_policy):
+                        await ctx.send(f"Live TV access is now disabled for {username}.")
+                    else:
+                        await ctx.send(f"Could not disable live TV access for {username}.")
+                else:
+                    await ctx.send("Please indicate 'on' or 'off' for live TV setting.")
+            elif category in ['sync', 'download']:
+                if category_settings[0].lower() in ['yes', 'true', 'on', 'enable']:
+                    new_policy = {'EnableContentDownloading': True}
+                    if jf.updatePolicy(userId=jellyfinId, policy=new_policy):
+                        await ctx.send(f"Sync is now enabled for {username}.")
+                    else:
+                        await ctx.send(f"Could not enable sync for {username}.")
+                elif category_settings[0].lower() in ['no', 'false', 'off', 'disable']:
+                    new_policy = {'EnableContentDownloading': False}
+                    if jf.updatePolicy(userId=jellyfinId, policy=new_policy):
+                        await ctx.send(f"Sync is now disabled for {username}.")
+                    else:
+                        await ctx.send(f"Could not disable sync for {username}.")
+                else:
+                    await ctx.send("Please indicate 'on' or 'off' for sync setting.")
+            elif category == 'account':
+                if category_settings[0].lower() in ['enabled', 'on', 'enable']:
+                    if jf.disableUser(userId=jellyfinId, enable=True):
+                        await ctx.send(f"{username} is now enabled.")
+                    else:
+                        await ctx.send(f"Could not enable account for {username}.")
+                elif category_settings[0].lower() in ['disabled', 'off', 'disable']:
+                    if jf.disableUser(userId=jellyfinId, enable=False):
+                        await ctx.send(f"{username} is now disabled.")
+                    else:
+                        await ctx.send(f"Could not disable account for {username}.")
+                else:
+                    await ctx.send("Please indicate 'on' or 'off' for account enabled setting.")
+            else:
+                await ctx.send(
+                    "That's not a valid option. Please indicate 'share', 'sync', 'livetv' or 'account'. See help for more details.")
+        else:
+            await ctx.send(
+                "Could not find that Discord user's Jellyfin username. Try again with their Jellyfin username instead.")
+
+    @jellyfin_edit.error
+    async def jellyfin_edit_error(self, ctx, error):
+        print(error)
+        await ctx.send("Sorry, something went wrong.")
+
+    @jellyfin.command(name='details', aliases=['restrictions'], pass_context=True)
+    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    async def jellyfin_details(self, ctx: commands.Context, username: Union[discord.Member, str]):
+        error_finding_name = False
+        jellyfinId = 0
+        if isinstance(username, discord.Member):
+            results = db.find_user_in_db(ServerOrDiscord="Jellyfin", data=username)
+            if not results:
+                error_finding_name = True  # user not found
+            else:
+                jellyfinId = results[0]
+        else:
+            jellyfinId = jf.getUserIdFromUsername(username=username)
+            if not jellyfinId:
+                error_finding_name = True  # user not found
+        if not error_finding_name:
+            details = jf.getUserDetailsSimplified(user_id=jellyfinId)
+            if details:
+                embed = discord.Embed(title=f"Jellyfin settings for {details['Name']}")
+                if details.get('Admin') is not None:
+                    embed.add_field(name='Administrator', value=('Yes' if details['Admin'] else 'No'), inline=False)
+                if details.get('Disabled') is not None:
+                    embed.add_field(name='Enabled', value=('Yes' if not details['Disabled'] else 'No'), inline=False)
+                if details.get('EnabledFolderNames') is not None:
+                    embed.add_field(name='Shared Sections', value=(
+                        ", ".join(details['EnabledFolderNames']) if details['EnabledFolderNames'] else 'None'),
+                                    inline=False)
+                if details.get('DownloadContent') is not None:
+                    embed.add_field(name='Can Download', value=('Yes' if details['DownloadContent'] else 'No'),
+                                    inline=False)
+                if details.get('LiveTVAccess') is not None:
+                    embed.add_field(name='Can Watch Live TV', value=('Yes' if details['LiveTVAccess'] else 'No'),
+                                    inline=False)
+                await ctx.send(embed=embed)
+            else:
+                await ctx.send(f"Sorry, I couldn't find the settings for {username}.")
+        else:
+            await ctx.send(
+                "Could not find that Discord user's Jellyfin username. Try again with their Jellyfin username instead.")
+
+    @jellyfin_details.error
+    async def jellyfin_details_error(self, ctx, error):
+        print(error)
+        await ctx.send("Sorry, something went wrong.")
 
     @jellyfin.command(name="import", pass_context=True)
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
@@ -519,7 +702,8 @@ class JellyfinManager(commands.Cog):
             if len(subType) > 4:
                 await ctx.send("subType must be less than 5 characters long.")
             else:
-                new_entry = db.add_user_to_db(discordId=user.id, username=JellyfinUsername, note=subType, uid=jellyfinId)
+                new_entry = db.add_user_to_db(discordId=user.id, username=JellyfinUsername, note=subType,
+                                              uid=jellyfinId)
                 if new_entry:
                     if subType == 't':
                         await ctx.send("Trial user was added/new timestamp issued.")
@@ -645,7 +829,8 @@ class JellyfinManager(commands.Cog):
                 user = discord.utils.get(ctx.message.guild.members, name=jellyfin_username)
                 s, u, p = add_to_jellyfin(jellyfin_username, user.id, 's')  # Users added as 'Subscribers'
                 if s:
-                    await sendAddMessage(user, jellyfin_username, (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
+                    await sendAddMessage(user, jellyfin_username,
+                                         (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
                     data = [str(row['Discord_Tag']), str(row['Plex_Username']), str(jellyfin_username)]
                     writer.writerow(data)
                     count += 1
@@ -663,11 +848,12 @@ class JellyfinManager(commands.Cog):
                 for u in message.mentions:
                     await u.add_roles(tempWinner, reason="Winner - access winner invite channel")
             if message.channel.id == settings.WINNER_CHANNEL and discord.utils.get(message.guild.roles,
-                                                                          name=settings.TEMP_WINNER_ROLE_NAME) in message.author.roles:
+                                                                                   name=settings.TEMP_WINNER_ROLE_NAME) in message.author.roles:
                 username = message.content.strip()  # Only include username, nothing else
                 s, u, p = add_to_jellyfin(username, message.author.id, 'w')
                 if s:
-                    await sendAddMessage(message.author, username, (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
+                    await sendAddMessage(message.author, username,
+                                         (p if settings.CREATE_PASSWORD else settings.NO_PASSWORD_MESSAGE))
                     await message.channel.send(
                         "You've been added, {}! Please check your direct messages for login information.".format(
                             message.author.mention))

@@ -76,13 +76,17 @@ def makeUser(username):
 
 
 def deleteUser(userId):
-    # Doesn't delete user, instead makes de-active.
-    # payload = {
-    #    "IsDisabled": "true",
-    # }
-    # return updatePolicy(userId, policy=payload)
     url = '/Users/{}'.format(str(userId))
     return delete(url, None)
+
+
+def disableUser(userId, enable=False):
+    payload = {
+        "IsDisabled": True,
+    }
+    if enable:
+        payload['IsDisabled'] = False
+    return updatePolicy(userId, policy=payload)
 
 
 def resetPassword(userId):
@@ -122,23 +126,107 @@ def search(keyword, mediaType: str = None, limit: int = None):
     return getWithToken(hdr=token_header, url=url)['SearchHints']
 
 
-def getLibraries(user_id=None):
+def getUserLibraries(user_id=None):
     if not user_id:
         user_id = admin_id
     url = '/Users/{}/Items'.format(str(user_id))
     return getWithToken(hdr=token_header, url=url)
 
 
-def getUsers():
+def getAllLibraries():
+    return get(cmd='/Library/MediaFolders', params=None)
+
+
+def getUsers_short():
     url = '/user_usage_stats/user_list'
     return get(url, None)
+
+
+def getUsers_details():
+    url = '/Users'
+    return get(url, None)
+
+
+def getUserDetails(user_id):
+    for user in getUsers_details():
+        if user['Id'] == user_id:
+            return user
+    return None
+
+
+def getUserConfig(user_id):
+    try:
+        details = getUserDetails(user_id=user_id)
+        return details.get('Configuration')
+    except Exception as e:
+        print(f"{e}")
+    return None
+
+
+def getUserPolicy(user_id):
+    try:
+        details = getUserDetails(user_id=user_id)
+        return details.get('Policy')
+    except Exception as e:
+        print(f"{e}")
+    return None
+
+
+def getUserDetailsSimplified(user_id):
+    try:
+        details = getUserDetails(user_id=user_id)
+        simplifiedDetails = {
+            'Name': details.get('Name'),
+            'ServerId': details.get('ServerId'),
+            'Id': details.get('Id'),
+            'HasPassword': details.get('HasPassword')
+        }
+        policy = details.get('Policy')
+        if policy:
+            policyDetails = {
+                'Admin': policy.get('IsAdministrator'),
+                'Hidden': policy.get('IsHidden'),
+                'Disabled': policy.get('IsDisabled'),
+                'RemoteControlOfOthers': policy.get('EnableRemoteControlOfOtherUsers'),
+                'SharedDeviceControl': policy.get('EnableShareDeviceControl'),
+                'RemoteAccess': policy.get('EnableRemoteAccess'),
+                'LiveTVManagement': policy.get('EnableLiveTvManagement'),
+                'LiveTVAccess': policy.get('EnableLiveTvAccess'),
+                'MediaPlayback': policy.get('EnableMediaPlayback'),
+                'AudioTranscoding': policy.get('EnableAudioPlaybackTranscoding'),
+                'VideoTranscoding': policy.get('EnableVideoPlaybackTranscoding'),
+                'PlaybackRemuxing': policy.get('EnablePlaybackRemuxing'),
+                'ForceRemoteTranscoding': policy.get('ForceRemoteSourceTranscoding'),
+                'DeleteContent': policy.get('EnableContentDeletion'),
+                'DeleteContentFromFolders': policy.get('EnableContentDeletionFromFolders'),
+                'DownloadContent': policy.get('EnableContentDownloading'),
+                'SyncTranscoding': policy.get('EnableSyncTranscoding'),
+                'MediaConversion': policy.get('EnableMediaConversion'),
+                'EnabledDevices': (True if policy.get('EnableAllDevices') == True else policy.get('EnabledDevices')),
+                'EnabledChannels': (True if policy.get('EnableAllChannels') == True else policy.get('EnabledChannels')),
+                'EnabledFolders': (True if policy.get('EnableAllFolders') == True else policy.get('EnabledFolders')),
+                'RemoteBitrateLimit': policy.get('RemoteClientBitrateLimit'),
+                'PublicSharing': policy.get('EnablePublicSharing'),
+                'InvalidLoginAttempts': policy.get('InvalidLoginAttempts'),
+                'InvalidLoginLockout': (False if policy.get('LoginAttemptsBeforeLockout') == -1 else policy.get(
+                    'LoginAttemptsBeforeLockout'))
+            }
+            user_folders = getUserLibraries(user_id=user_id)
+            folder_names = []
+            if user_folders and user_folders.get('Items'):
+                folder_names = [folder['Name'] for folder in user_folders.get('Items')]
+            policyDetails['EnabledFolderNames'] = folder_names
+            simplifiedDetails.update(policyDetails)
+        return simplifiedDetails
+    except Exception as e:
+        print(f"Error in getUserDetailsSimplified: {e}")
+    return None
 
 
 def updateRating(itemId, upvote, user_id=None):
     if not user_id:
         user_id = admin_id
     url = '/Users/{}/Items/{}/Rating?{}'.format(str(user_id), str(itemId), urlencode({'Likes': upvote}))
-
     return postWithToken(hdr=token_header, url=url)
 
 
@@ -187,7 +275,7 @@ def stopStream(stream_id, message_to_viewer=None):
 
 
 def getUsernameFromId(user_id):
-    user_list = getUsers()
+    user_list = getUsers_short()
     for user in user_list:
         if user.get('id') == user_id:
             return user.get('name')
@@ -195,8 +283,33 @@ def getUsernameFromId(user_id):
 
 
 def getUserIdFromUsername(username):
-    user_list = getUsers()
+    user_list = getUsers_short()
     for user in user_list:
         if user.get('name') == username:
             return user.get('id')
+    return None
+
+
+def get_defined_libraries():
+    nicknames = [name for name in settings.JELLYFIN_LIBRARIES.keys()]
+    names = []
+    for _, v in settings.JELLYFIN_LIBRARIES.items():
+        if v not in names:
+            names.append(v)
+    return {'Nicknames': nicknames, 'Full Names': names}
+
+
+def getLibraryNameFromId(library_id):
+    libraries = getAllLibraries()
+    for lib in libraries['Items']:
+        if lib['Id'] == library_id:
+            return lib['Name']
+    return None
+
+
+def getLibraryIdFromName(library_name):
+    libraries = getAllLibraries()
+    for lib in libraries['Items']:
+        if lib['Name'] == library_name:
+            return lib['Id']
     return None

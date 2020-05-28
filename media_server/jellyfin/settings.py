@@ -30,6 +30,16 @@ JELLYFIN_USER_POLICY = {
     ]
 }
 
+# Jellyfin Libraries (can use for shorthand reference to individual libraries or a group of libraries, such as when setting share restrictions)
+# Because of Discord, please use one-word names for each library
+# ex. 'oneWordLowercaseNicknameForGroup': 'Full Library Name'
+JELLYFIN_LIBRARIES = {
+    'movies': 'Movies',
+    'shows': 'TV Shows',
+    'music': 'Music',
+    '4kmovies': 'Movies (4K)'
+}
+
 # Discord-to-Jellyfin database (SQLite3)
 SQLITE_FILE = 'media_server/discordConnector.db' # File path + name + extension (i.e. "/root/Arca/media_server/discordConnector.db"
 '''
