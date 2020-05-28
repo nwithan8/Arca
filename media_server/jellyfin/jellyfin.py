@@ -22,6 +22,20 @@ from helper.db_commands import DB
 from helper.pastebin import hastebin, privatebin
 import helper.discord_helper as discord_helper
 
+live_session_ids = []
+emoji_numbers = [u"1\u20e3", u"2\u20e3", u"3\u20e3", u"4\u20e3", u"5\u20e3", u"6\u20e3", u"7\u20e3", u"8\u20e3",
+                 u"9\u20e3"]
+
+
+def selectIcon(state):
+    switcher = {
+        "playing": ":arrow_forward:",
+        "paused": ":pause_button:",
+        "stopped": ":stop_button:",
+        "buffering": ":blue_circle:",
+    }
+    return str(switcher.get(state, ""))
+
 
 class Jellyfin(commands.Cog):
 
@@ -119,6 +133,61 @@ class Jellyfin(commands.Cog):
     async def jellyfin_rec_new_error(self, ctx, error):
         print(error)
         await ctx.send("Sorry, something went wrong while looking for a new recommendation.")
+
+    @jellyfin.command(name="current", aliases=["now"], hidden=True, pass_context=True)
+    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    async def jellyfin_now(self, ctx: commands.Context):
+        """
+        Current Jellyfin activity
+        """
+        global live_session_ids
+        live_session_ids.clear()
+        sessions = jf.getLiveSessions()
+        if sessions:
+            transcode_count = sum(1 for x in sessions if x.method == 'Transcode')
+            overview_message = f"Sessions: {len(sessions)} {'stream' if len(sessions) == 1 else 'streams'} ({transcode_count} {'transcode' if transcode_count == 1 else 'transcodes'})"
+            count = 0
+            final_message = overview_message + "\n"
+            for session in sessions:
+                try:
+                    count = count + 1
+                    stream_message = f"**({count})** {selectIcon(str(session.state.lower()))} {session.username}: *{session.title}*\n" \
+                                     f"__Player__: {session.client} ({session.deviceName})\n" \
+                                     f"{'(Transcoding)' if session.method == 'Transcode' else ''}"
+                    final_message += f"\n{stream_message}\n"
+                    live_session_ids.append(session.deviceId)
+                except ValueError:
+                    live_session_ids.append("000")
+                    pass
+            sent_message = await ctx.send(final_message)
+            """
+            # feature currently unavailable, 500 error on Jellyfin when trying to change stream state
+            if live_session_ids:
+                await ctx.send(final_message + "\nTo terminate a stream, react with the stream number.")
+                for i in range(count):
+                    await sent_message.add_reaction(emoji_numbers[i])
+                manage_streams = True
+                while manage_streams:
+                    def check(reaction, user):
+                        return user != sent_message.author
+                    try:
+                        reaction, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
+                        if reaction and str(reaction.emoji) in emoji_numbers:
+                            try:
+                                loc = emoji_numbers.index(str(reaction.emoji))
+                                if jf.stopStream(stream_id=live_session_ids[loc],
+                                                 message_to_viewer='The admin has stopped your stream.'):
+                                    end_notification = await ctx.send(content=f"Stream {loc + 1} was ended.")
+                                    await end_notification.delete(delay=1.0)
+                            except Exception as e:
+                                end_notification = await ctx.send(content="Something went wrong.")
+                                await end_notification.delete(delay=1.0)
+                    except asyncio.TimeoutError:
+                        await sent_message.delete()
+                        manage_streams = False
+            """
+        else:
+            await ctx.send("No current activity.")
 
 
 def setup(bot):

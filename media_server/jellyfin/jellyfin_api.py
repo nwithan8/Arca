@@ -40,8 +40,7 @@ def get(cmd, params=None):
 
 def getWithToken(hdr, url, data=None):
     hdr = {'accept': 'application/json', **hdr}
-    res = requests.get('{}{}'.format(settings.JELLYFIN_URL, url), headers=hdr, data=json.dumps(data)).json()
-    return res
+    return requests.get('{}{}'.format(settings.JELLYFIN_URL, url), headers=hdr, params=data).json()
 
 
 def post(cmd, params, payload):
@@ -254,8 +253,17 @@ def getServerInfo():
     return get(cmd='/System/Info')
 
 
-def getSessions():
-    return getWithToken(hdr=token_header, url='/Sessions')
+def getAllSessions(params=None):
+    return getWithToken(hdr=token_header, url='/Sessions', data=params)
+
+
+def getLiveSessions():
+    live_sessions = []
+    sessions = getAllSessions(params={'ActiveWithinSeconds': 20})
+    for session in sessions:
+        if session.get('NowPlayingItem'):
+            live_sessions.append(NowPlayingItem(data=session))
+    return live_sessions
 
 
 def sendPlayStateCommand(session_id, command):
@@ -313,3 +321,41 @@ def getLibraryIdFromName(library_name):
         if lib['Name'] == library_name:
             return lib['Id']
     return None
+
+
+def get_suggestion_by_user_id(user_id, media="Movie,Episode", limit=1):
+    """
+    ONLY WORKS FOR CURRENTLY-AUTHENTICATED USER
+    """
+    return getWithToken(hdr=token_header, url=f"/Users/{user_id}/Suggestions?type={media}&limit={limit}")
+
+
+class NowPlayingItem:
+    def __init__(self, data):
+        self.sessionId = data['Id']
+        self.userId = data['UserId']
+        self.username = data['UserName']
+        self.mediaType = data['NowPlayingItem']['MediaType']
+        self.videoType = data['NowPlayingItem']['Type']
+        self.title = data['NowPlayingItem']['Name']
+        self.summary = data['NowPlayingItem']['Overview']
+        self.path = data['NowPlayingItem']['Path']
+        self.mediaId = data['NowPlayingItem']['Id']
+        self.seasonTitle = None
+        self.seasonId = None
+        self.seriesTitle = None
+        self.seriesId = None
+        if self.videoType == 'Episode':
+            self.seasonTitle = data['NowPlayingItem']['SeasonName']
+            self.seasonId = data['NowPlayingItem']['SeasonId']
+            self.seriesTitle = data['NowPlayingItem']['SeriesName']
+            self.seriesId = data['NowPlayingItem']['SeriesId']
+        self.container = data['NowPlayingItem']['Container']
+        self.dateCreated = data['NowPlayingItem']['Container']
+        self.width = data['NowPlayingItem']['Width']
+        self.height = data['NowPlayingItem']['Height']
+        self.method = data['PlayState']['PlayMethod']
+        self.state = ('Paused' if data['PlayState']['IsPaused'] else 'Playing')
+        self.client = data['Client']
+        self.deviceId = data['DeviceId']
+        self.deviceName = data['DeviceName']
