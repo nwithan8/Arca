@@ -3,6 +3,10 @@ import os
 from os.path import exists
 
 
+def getRawKey(key_file):
+    return readFromFile(key_file)
+
+
 def getKey(key_file):
     """
     WARNING: New key will be made (and potentially overwrite old file) if key cannot be loaded
@@ -17,17 +21,26 @@ def getKey(key_file):
         return Fernet(key)
 
 
+def splitPath(file_path):
+    return '/'.join(file_path.split('/')[:-1])
+
+
+def makePath(file_path):
+    working_path = splitPath(file_path)
+    if not os.path.exists(working_path):
+        os.makedirs(working_path)
+
+
 def makeKey():
     return Fernet.generate_key()
 
 
 def saveKey(key, filename):
-    f = open(filename, 'w+')
-    f.write(key.decode('utf-8'))
-    f.close()
+    writeToFile(text=key.decode('utf-8'), filename=filename)
 
 
 def writeToFile(text, filename):
+    makePath(filename)
     f = open(filename, 'w+')
     f.write(text)
     f.close()
