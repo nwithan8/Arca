@@ -12,12 +12,12 @@ def getKey(key_file):
     WARNING: New key will be made (and potentially overwrite old file) if key cannot be loaded
     """
     try:
-        key = open(key_file, 'r').read()
+        key = readFromFile(key_file)
         return Fernet(key)
     except Exception as e:
         print("Could not locate encryption key. Creating a new one...")
         key = makeKey()
-        saveKey(makeKey(), key_file)
+        saveKey(key, key_file)
         return Fernet(key)
 
 
@@ -67,7 +67,7 @@ class Encryption:
             self.key = Fernet(key)
         self.key_file = key_file
         if self.key_file:
-            self.key = getKey(self.key_file)
+            self.key = getKey(self.key_file)  # Fernet object
 
     def encryptText(self, text):
         token = self.key.encrypt(bytes(text, encoding='utf8'))
