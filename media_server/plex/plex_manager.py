@@ -17,9 +17,10 @@ from media_server.plex import settings as settings
 from media_server.plex import plex_api as px
 import helper.discord_helper as discord_helper
 
-plex = px.plex
+plex_connections = px.PlexConnections(plex_credentials=settings.PLEX_SERVERS)
 
-db = DB(SQLITE_FILE=settings.SQLITE_FILE, SERVER_TYPE='plex', TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600), MULTI_PLEX=settings.MULTI_PLEX, USE_DROPBOX=settings.USE_DROPBOX)
+db = DB(SQLITE_FILE=settings.SQLITE_FILE, SERVER_TYPE='plex', TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600),
+        MULTI_PLEX=settings.MULTI_PLEX, USE_DROPBOX=settings.USE_DROPBOX)
 
 
 def trial_message(startOrStop, serverNumber=None):
@@ -585,7 +586,8 @@ class PlexManager(commands.Cog):
 
     @pm.command(name='edit', aliases=['update', 'change'])
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
-    async def pm_edit(self, ctx: commands.Context, username: Union[discord.Member, str], category: str, *, category_settings: str):
+    async def pm_edit(self, ctx: commands.Context, username: Union[discord.Member, str], category: str, *,
+                      category_settings: str):
         """
         Update an existing Plex user's restrictions. Can edit library access, ratings and sync ability
 
@@ -614,8 +616,12 @@ class PlexManager(commands.Cog):
                     names_and_ids = px.get_defined_libraries()
                     await ctx.send("Include the numbers or names of the libraries you want {username} to have access "
                                    "to. Available values (case sensitive): '{names}', '{ids}'".format(username=username,
-                                                                                                      names="', '".join(names_and_ids['Names']),
-                                                                                                      ids="', '".join(names_and_ids['IDs'])
+                                                                                                      names="', '".join(
+                                                                                                          names_and_ids[
+                                                                                                              'Names']),
+                                                                                                      ids="', '".join(
+                                                                                                          names_and_ids[
+                                                                                                              'IDs'])
                                                                                                       )
                                    )
                 else:
@@ -626,7 +632,8 @@ class PlexManager(commands.Cog):
             elif category == 'movie':
                 # case matters for ratings
                 if 'help' in category_settings or category_settings[0] not in px.all_movie_ratings:
-                    await ctx.send("Available movie ratings (case sensitive): '{}'".format("', '".join(px.all_movie_ratings)))
+                    await ctx.send(
+                        "Available movie ratings (case sensitive): '{}'".format("', '".join(px.all_movie_ratings)))
                 else:
                     rating_limit = {'Movie': category_settings[0]}
                     if px.update_plex_share(server=tempPlex, plexname=username, rating_limit=rating_limit):
@@ -657,9 +664,11 @@ class PlexManager(commands.Cog):
                 else:
                     await ctx.send("Please indicate 'on' or 'off' for sync setting.")
             else:
-                await ctx.send("That's not a valid option. Please indicate 'share', 'movie', 'show' or 'sync'. See help for more details.")
+                await ctx.send(
+                    "That's not a valid option. Please indicate 'share', 'movie', 'show' or 'sync'. See help for more details.")
         else:
-            await ctx.send("Could not find that Discord user's Plex username. Try again with their Plex username instead.")
+            await ctx.send(
+                "Could not find that Discord user's Plex username. Try again with their Plex username instead.")
 
     @pm_edit.error
     async def pm_edit_error(self, ctx, error):
@@ -740,11 +749,13 @@ class PlexManager(commands.Cog):
                 else:
                     embed.add_field(name="Shared Sections", value="None", inline=False)
                 if details.get('filterMovies'):
-                    embed.add_field(name="Allowed Movie Ratings", value=", ".join(details.get('filterMovies').get('contentRating')), inline=False)
+                    embed.add_field(name="Allowed Movie Ratings",
+                                    value=", ".join(details.get('filterMovies').get('contentRating')), inline=False)
                 else:
                     embed.add_field(name="Allowed Movie Ratings", value="All", inline=False)
                 if details.get('filterShows'):
-                    embed.add_field(name="Allowed TV Show Ratings", value=", ".join(details.get('filterShows').get('contentRating')), inline=False)
+                    embed.add_field(name="Allowed TV Show Ratings",
+                                    value=", ".join(details.get('filterShows').get('contentRating')), inline=False)
                 else:
                     embed.add_field(name="Allowed TV Show Ratings", value="All", inline=False)
                 if details.get('allowSync'):

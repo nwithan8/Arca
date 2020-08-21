@@ -5,7 +5,7 @@ import helper.encryption as encryption
 
 
 def unlock(database, key_file):
-    key = encryption.getRawKey(key_file)
+    key = encryption.get_raw_key(key_file)
     if key:
         database.execute(f'pragma key="{key}"')
         return True
@@ -183,7 +183,8 @@ class DB:
                     note=note)
             else:
                 # Regular for Jellyfin/Emby
-                query = "INSERT OR IGNORE INTO {platform} (DiscordID, {platformCap}Username, {platformCap}ID, SubType) VALUES ('" \
+                query = "INSERT OR IGNORE INTO {platform} (DiscordID, {platformCap}Username, {platformCap}ID, " \
+                        "SubType) VALUES ('" \
                         "{discordId}', '{username}', '{uid}', '{note}')".format(
                     platform=self.PLATFORM,
                     platformCap=self.PLATFORM.capitalize(),
@@ -258,7 +259,7 @@ class DB:
         self.download(self.SQLITE_FILE)
         conn = self.crypt_check(self.SQLITE_FILE)
         cur = conn.cursor()
-        query = "SELECT {what}, Note FROM {platform} WHERE {whereWhat} = '{filter}'".format(
+        query = "SELECT {what}, Note FROM {platform} WHERE {where} = '{filter}'".format(
             what=("{}Username".format(self.PLATFORM.capitalize()) if ServerOrDiscord is not 'Discord' else "DiscordID"),
             platform=self.PLATFORM,
             where=(

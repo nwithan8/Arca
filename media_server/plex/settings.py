@@ -1,6 +1,30 @@
 import os
 
 # Plex settings
+PLEX_SERVERS = {
+    1: {
+        'url': '',
+        'token': '',
+        'server_name': '',
+        'server_alt_name': '',
+        'credentials_folder'
+        'tautulli': {
+            'url': '',
+            'api_key': ''
+        },
+        'ombi': {
+            'url': '',
+            'api_key': ''
+        },
+        'libraries': {
+            'movie': [1],
+            'show': [2],
+            'artist': [3, 6],
+            '4kmovie': [4]
+        }
+    }
+}
+
 # PLEASE KEEP THE []. This is a Python list!
 # If you want to use multiple servers, complete these lists as, ex. ['url1', 'url2', 'url3'], and set MULTI_PLEX = True
 # If you only want to use one server, complete these lists as, ex. ['url1'] and set MULTI_PLEX = False
@@ -43,7 +67,7 @@ OMBI_URL = ''
 OMBI_API_KEY = ''
 
 # Discord-to-Plex database (SQLite3)
-SQLITE_FILE = 'media_server/discordConnector.db' # File path + name + extension (i.e. "/root/Arca/media_server/discordConnector.db"
+SQLITE_FILE = 'media_server/discordConnector.db'  # File path + name + extension (i.e. "/root/Arca/media_server/discordConnector.db"
 '''
 0|DiscordID|VARCHAR(100)|1||0
 1|PlexUsername|VARCHAR(100)|1||0
@@ -65,7 +89,8 @@ DISCORD_ADMIN_ROLE_NAME = ''
 AFTER_APPROVED_ROLE_NAME = ''  # Role given after someone is added to Plex
 
 AUTO_CHECK_SUBS = False
-SUB_ROLES = ["Monthly Subscriber", "Yearly Subscriber", "Winner", "Bot"]  # Users with any of these roles is exempt from removal
+SUB_ROLES = ["Monthly Subscriber", "Yearly Subscriber", "Winner",
+             "Bot"]  # Users with any of these roles is exempt from removal
 EXEMPT_SUBS = [DISCORD_ADMIN_ID]  # Discord IDs for users exempt from subscriber checks/deletion, separated by commas
 SUB_CHECK_TIME = 7  # days
 CURRENTLY_PLAYING_ROLE_NAME = 'Watching'
