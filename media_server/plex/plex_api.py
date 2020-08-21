@@ -11,6 +11,7 @@ from media_server.plex import settings as settings
 import helper.helper_functions as helper_functions
 from helper.encryption import Encryption
 from media_server.connectors.ombi import OmbiConnector
+from media_server.connectors.tautulli import TautulliConnector
 
 plex = PlexServer(settings.PLEX_SERVER_URL[0], settings.PLEX_SERVER_TOKEN[0])
 auth_header = {'X-Plex-Token': settings.PLEX_SERVER_TOKEN[0]}
@@ -25,27 +26,14 @@ all_movie_ratings = ['12', 'Approved', 'Passed', 'G', 'GP', 'PG', 'PG-13', 'M', 
                      'NR', 'None']
 all_tv_ratings = ['TV-Y', 'TV-Y7', 'TV-G', 'TV-PG', 'TV-14', 'TV-MA', 'NR']
 
+
+tautulli_connections = {}
+
 if settings.USE_OMBI:
     ombi = OmbiConnector(url=settings.OMBI_URL, api_key=settings.OMBI_API_KEY)
-
-
-def t_request(cmd, params=None, serverNumber=None):
-    if params:
-        return json.loads(requests.get(
-            "{}/api/v2?apikey={}&{}&cmd={}".format(
-                (settings.TAUTULLI_URL[serverNumber] if serverNumber is not None else settings.TAUTULLI_URL[0]),
-                (settings.TAUTULLI_API_KEY[serverNumber] if serverNumber is not None else settings.TAUTULLI_API_KEY[0]),
-                params,
-                cmd
-            )
-        ).text)
-    return json.loads(requests.get(
-        "{}/api/v2?apikey={}&cmd={}".format(
-            (settings.TAUTULLI_URL[serverNumber] if serverNumber is not None else settings.TAUTULLI_URL[0]),
-            (settings.TAUTULLI_API_KEY[serverNumber] if serverNumber is not None else settings.TAUTULLI_API_KEY[0]),
-            cmd
-        )
-    ).text)
+if settings.USE_TAUTULLI:
+    for i in range(0, len(settings.TAUTULLI_URL)):
+        tautulli_connections[i+1] = TautulliConnector(url=settings.TAUTULLI_URL[i], api_key=settings.TAUTULLI_API_KEY[i])
 
 
 def getUserCreds(user_id):
@@ -304,15 +292,17 @@ def delete_from_plex(server, plexname):
     return False
 
 
-def refresh_tautulli(serverNumber=None):
+def refresh_tautulli(serverNumber: int = None):
     if settings.USE_TAUTULLI:
-        return t_request("refresh_users_list", None, serverNumber)
+        temp_tautulli = tautulli_connections[serverNumber]
+        return temp_tautulli.refresh_users()
     return None
 
 
-def delete_from_tautulli(plexname, serverNumber=None):
+def delete_from_tautulli(plexname, serverNumber: int = None):
     if settings.USE_TAUTULLI:
-        return t_request("delete_user", "user_id=" + str(plexname), serverNumber)
+        temp_tautulli = tautulli_connections[serverNumber]
+        return temp_tautulli.delete_user(plex_username=plexname)
     return None
 
 
