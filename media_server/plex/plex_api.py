@@ -4,11 +4,13 @@ import os
 import re
 import json
 import requests
-from media_server.plex import settings as settings
 from os.path import exists
 import xml.etree.ElementTree as ET
+
+from media_server.plex import settings as settings
 import helper.helper_functions as helper_functions
 from helper.encryption import Encryption
+from media_server.connectors.ombi import OmbiConnector
 
 plex = PlexServer(settings.PLEX_SERVER_URL[0], settings.PLEX_SERVER_TOKEN[0])
 auth_header = {'X-Plex-Token': settings.PLEX_SERVER_TOKEN[0]}
@@ -24,19 +26,7 @@ all_movie_ratings = ['12', 'Approved', 'Passed', 'G', 'GP', 'PG', 'PG-13', 'M', 
 all_tv_ratings = ['TV-Y', 'TV-Y7', 'TV-G', 'TV-PG', 'TV-14', 'TV-MA', 'NR']
 
 if settings.USE_OMBI:
-    OMBI_URL = '{}/api/v1/'.format(settings.OMBI_URL)
-    ombi_import = '{}Job/plexuserimporter'.format(OMBI_URL)
-    ombi_users = '{}Identity/Users'.format(OMBI_URL)
-    ombi_delete = '{}Identity/'.format(OMBI_URL)
-    ombi_movie_count = '{}Request/movie/total'.format(OMBI_URL)
-    ombi_movie_id = '{}Request/movie/1/'.format(OMBI_URL)
-    ombi_approve_movie = '{}Request/movie/approve'.format(OMBI_URL)
-    ombi_tv_count = '{}Request/tv/total'.format(OMBI_URL)
-    ombi_tv_id = '{}Request/tv/1/'.format(OMBI_URL)
-    ombi_approve_tv = '{}Request/tv/approve'.format(OMBI_URL)
-    approve_header = {'ApiKey': settings.OMBI_API_KEY, 'accept': 'application/json',
-                      'Content-Type': 'application/json-patch+json'}
-    ombi_headers = {'ApiKey': settings.OMBI_API_KEY}
+    ombi = OmbiConnector(url=settings.OMBI_URL, api_key=settings.OMBI_API_KEY)
 
 
 def t_request(cmd, params=None, serverNumber=None):
@@ -328,19 +318,13 @@ def delete_from_tautulli(plexname, serverNumber=None):
 
 def refresh_ombi():
     if settings.USE_OMBI:
-        return requests.post(ombi_import, headers=ombi_headers)
+        return ombi.refresh_users()
     return None
 
 
 def delete_from_ombi(plexname):
     if settings.USE_OMBI:
-        data = requests.get(ombi_users, headers=ombi_headers).json()
-        uid = ""
-        for i in data:
-            if i['userName'].lower() == plexname:
-                uid = i['id']
-        to_delete = str(ombi_delete) + str(uid)
-        return requests.delete(to_delete, headers=ombi_headers)
+        return ombi.delete_user(plex_username=plexname)
     return None
 
 
