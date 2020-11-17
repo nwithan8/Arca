@@ -44,8 +44,7 @@ class OmbiConnector:
         try:
             return f"{endpoints[target_endpoint].format(self.url)}{(append if append else '')}"
         except:
-            pass
-        return None
+            return None
 
     def _get(self, target_endpoint, headers, append: str = None):
         url = self._make_endpoint(target_endpoint=target_endpoint, append=append)
@@ -92,7 +91,9 @@ class OmbiConnector:
                 ombi_user_id = self.get_user(username=ombi_username).id
             except:
                 raise Exception(f"Could not locate an Ombi user with the username: {ombi_username}")
-        body = _make_notification_body(notifier_number=1, notifier_value=discord_id, user_id=ombi_user_id)
+        body = _make_notification_body(notifier_number=1,
+                                       notifier_value=discord_id,
+                                       user_id=ombi_user_id)
         if self._post(target_endpoint='post_notification_preferences', data=body, headers=self.headers):
             return True
         return False

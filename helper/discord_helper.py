@@ -66,3 +66,40 @@ def inline_code(text):
 
 def code_block(text):
     return f"```{text}```"
+
+
+emoji_numbers = ["1️⃣", "2️⃣", "3️⃣", "4️⃣" ,"5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣"]
+
+async def add_emoji_number_reactions(message, count):
+    """
+    Add number reactions to a message for user interaction
+    :param message: message to add emojis to
+    :param count: how many emojis to add
+    :return: None
+    """
+
+    if count <= 0:
+        return
+
+    # Only add reactions if necessary, and remove unnecessary reactions
+    cache_msg = await message.channel.fetch_message(message.id)
+    msg_emoji = [str(r.emoji) for r in cache_msg.reactions]
+
+    emoji_to_remove = []
+
+    for i,e in enumerate(msg_emoji):
+        if i >= count or i != emoji_numbers.index(e):
+            emoji_to_remove.append(e)
+
+    # if all reactions need to be removed, do it all at once
+    if len(emoji_to_remove) == len(msg_emoji):
+        await message.clear_reactions()
+        msg_emoji = []
+    else:
+        for e in emoji_to_remove:
+            await message.clear_reaction(e)
+            del(msg_emoji[msg_emoji.index(e)])
+
+    for i in range(0, count):
+        if emoji_numbers[i] not in msg_emoji:
+            await message.add_reaction(emoji_numbers[i])

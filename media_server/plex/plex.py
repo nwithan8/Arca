@@ -10,32 +10,33 @@ import datetime
 from decimal import *
 import asyncio
 import media_server.plex.plex_api as px
+import media_server.connectors.tautulli as tautulli
 from helper.db_commands import DB
 from media_server.plex import settings as settings
 from media_server.plex import plex_recs as pr
 from helper.helper_functions import filesize
+import helper.discord_helper as discord_styling
 
 db = DB(SQLITE_FILE=settings.SQLITE_FILE, SERVER_TYPE='plex', TRIAL_LENGTH=None, MULTI_PLEX=None, USE_DROPBOX=settings.USE_DROPBOX)
 
+plex_connections = px.PlexConnections()
+current_plex_instance = plex_connections.get_plex_instance()
+
 owner_players = []
-# Numbers 1-9
-emoji_numbers = [u"1\u20e3", u"2\u20e3", u"3\u20e3", u"4\u20e3", u"5\u20e3", u"6\u20e3", u"7\u20e3", u"8\u20e3",
-                 u"9\u20e3"]
 session_ids = []
 
 shows = defaultdict(list)
 movies = defaultdict(list)
 
 
-def selectIcon(state):
-    switcher = {
-        "playing": ":arrow_forward:",
-        "paused": ":pause_button:",
-        "stopped": ":stop_button:",
-        "buffering": ":blue_circle:",
-    }
-    return str(switcher.get(state, ""))
-
+def switch_plex_server(server_number):
+    global current_plex_instance
+    server_number -= 1
+    new_instance = plex_connections.get_plex_instance(server_number=server_number)
+    if new_instance:
+        current_plex_instance = new_instance
+        return True
+    return False
 
 class Plex(commands.Cog):
 
@@ -55,6 +56,16 @@ class Plex(commands.Cog):
         if ctx.invoked_subcommand is None:
             await ctx.send("What subcommand?")
 
+    @plex.command(name="switch", aliases=["default"], pass_context=True)
+    async def plex_switch(self, ctx: commands.Context, server_number: int):
+        """
+        Change current/default Plex Media Server
+        """
+        if switch_plex_server(server_number=server_number):
+            await ctx.send(f"Now using Plex Server #{server_number}")
+        else:
+            await ctx.send(f"Could not switch to Plex Server #{server_number}")
+
     @plex.group(name="rec", aliases=["sug", "recommend", "suggest"], pass_context=True)
     async def plex_rec(self, ctx: commands.Context, mediaType: str):
         """
@@ -66,8 +77,7 @@ class Plex(commands.Cog):
         if ctx.invoked_subcommand is None:
             mediaType = mediaType.lower()
             if mediaType.lower() not in pr.libraries.keys():
-                acceptedTypes = "', '".join(pr.libraries.keys())
-                await ctx.send("Please try again, indicating '{}'".format(acceptedTypes))
+                await ctx.send(f"Please try again, indicating '{', '.join(pr.libraries.keys())}'")
             else:
                 holdMessage = await ctx.send(
                     "Looking for a{} {}...".format("n" if (mediaType[0] in ['a', 'e', 'i', 'o', 'u']) else "",
@@ -97,15 +107,14 @@ class Plex(commands.Cog):
                         while askAboutPlayer:
                             try:
                                 def check(react, reactUser, numPlayers):
-                                    return str(react.emoji) in emoji_numbers[
+                                    return str(react.emoji) in discord_styling.emoji_numbers[
                                                                :numberOfPlayers] and reactUser.id == settings.DISCORD_ADMIN_ID
 
                                 playerQuestion = await ctx.send(response)
-                                for i in range(0, numberOfPlayers - 1):
-                                    await playerQuestion.add_reaction(emoji_numbers[i])
+                                await discord_styling.add_emoji_number_reactions(message=playerQuestion, count=numberOfPlayers)
                                 reaction, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
                                 if reaction:
-                                    playerNumber = emoji_numbers.index(str(reaction.emoji))
+                                    playerNumber = discord_styling.emoji_numbers.index(str(reaction.emoji))
                                     mediaItem = pr.getFullMediaItem(mediaItem)
                                     if mediaItem:
                                         pr.playMedia(playerNumber, mediaItem)
@@ -162,15 +171,15 @@ class Plex(commands.Cog):
                     while askAboutPlayer:
                         try:
                             def check(react, reactUser, numPlayers):
-                                return str(react.emoji) in emoji_numbers[
+                                return str(react.emoji) in discord_styling.emoji_numbers[
                                                            :numberOfPlayers] and reactUser.id == settings.DISCORD_ADMIN_ID
 
                             playerQuestion = await ctx.send(response)
-                            for i in range(0, numberOfPlayers - 1):
-                                await playerQuestion.add_reaction(emoji_numbers[i])
+
+                            await discord_styling.add_emoji_number_reactions(message=playerQuestion, count=numberOfPlayers)
                             reaction, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
                             if reaction:
-                                playerNumber = emoji_numbers.index(str(reaction.emoji))
+                                playerNumber = discord_styling.emoji_numbers.index(str(reaction.emoji))
                                 mediaItem = pr.getFullMediaItem(mediaItem)
                                 if mediaItem:
                                     pr.playMedia(playerNumber, mediaItem)
@@ -203,19 +212,20 @@ class Plex(commands.Cog):
         Watch time statistics for a user
         """
         user_id = None
-        for u in px.t_request("get_user_names", None)['response']['data']:
-            if u['friendly_name'] == PlexUsername:
-                user_id = u['user_id']
+        for user in current_plex_instance.tautulli.get_user_names(remove_response=True):
+            if user['friendly_name'] == PlexUsername:
+                user_id = user['user_id']
                 break
         if not user_id:
             await ctx.send("User not found.")
         else:
-            embed = discord.Embed(title=PlexUsername + "'s Total Plex Watch Time")
-            for i in px.t_request("get_user_watch_time_stats", "user_id=" + str(user_id))['response']['data']:
-                embed.add_field(name=str(datetime.timedelta(seconds=int(i['total_time']))) + ", " + str(
-                    i['total_plays']) + " plays", value=(
-                    "Last " + str(i['query_days']) + (" Day " if int(i['query_days']) == 1 else " Days ") if int(
-                        i['query_days']) != 0 else "All Time "), inline=False)
+            embed = discord.Embed(title=f"{PlexUsername}'s Total Plex Watch Time")
+            for user in current_plex_instance.tautulli.get_user_watch_time_stats(user_id=user_id, remove_response=True):
+                embed.add_field(name=f"{datetime.timedelta(seconds=int(user['total_time']))}, {user['total_plays']} plays",
+                                value=f"Last {user['query_days']} Day{('s' if int(user['query_days']) > 1 else '')}"
+                                if int(user['query_days']) != 0
+                                else "All Time ",
+                                inline=False)
             await ctx.send(embed=embed)
 
     @plex_stats.error
@@ -227,27 +237,19 @@ class Plex(commands.Cog):
         """
         Size of Plex libraries
         """
-        embed = discord.Embed(title=settings.PLEX_SERVER_NAME[0] + " Library Statistics")
+        embed = discord.Embed(title=f"{current_plex_instance.name} Library Statistics")
         size = 0
-        for l in px.t_request("get_libraries", None)['response']['data']:
-            if l['section_name'] not in ['']:  # Exempt sections from list if needed
-                if l['section_type'] == 'movie':
-                    size = size + \
-                           px.t_request("get_library_media_info", "section_id=" + str(l['section_id']))['response'][
-                               'data']['total_file_size']
-                    embed.add_field(name=str(l['count']) + " movies", value=str(l['section_name']), inline=False)
-                elif l['section_type'] == 'show':
-                    size = size + \
-                           px.t_request("get_library_media_info", "section_id=" + str(l['section_id']))['response'][
-                               'data']['total_file_size']
-                    embed.add_field(name=str(l['count']) + " shows, " + str(l['parent_count']) + " seasons, " + str(
-                        l['child_count']) + " episodes", value=str(l['section_name']), inline=False)
-                elif l['section_type'] == 'artist':
-                    size = size + \
-                           px.t_request("get_library_media_info", "section_id=" + str(l['section_id']))['response'][
-                               'data']['total_file_size']
-                    embed.add_field(name=str(l['count']) + " artists, " + str(l['parent_count']) + " albums, " + str(
-                        l['child_count']) + " songs", value=str(l['section_name']), inline=False)
+        for lib in current_plex_instance.tautulli.get_libraries(remove_response=True):
+            if lib['section_name'] not in ['']:  # Exempt sections from list if needed
+                size += current_plex_instance.tautulli.get_library_media_info(section_id=lib['section_id'], remove_response=True).get('total_file_size', 0)
+                if lib['section_type'] == 'movie':
+                    embed.add_field(name=str(lib['count']) + " movies", value=str(lib['section_name']), inline=False)
+                elif lib['section_type'] == 'show':
+                    embed.add_field(name=str(lib['count']) + " shows, " + str(lib['parent_count']) + " seasons, " + str(
+                        lib['child_count']) + " episodes", value=str(lib['section_name']), inline=False)
+                elif lib['section_type'] == 'artist':
+                    embed.add_field(name=str(lib['count']) + " artists, " + str(lib['parent_count']) + " albums, " + str(
+                        lib['child_count']) + " songs", value=str(lib['section_name']), inline=False)
         embed.add_field(name='\u200b', value="Total: " + filesize(size))
         await ctx.send(embed=embed)
 
@@ -257,52 +259,29 @@ class Plex(commands.Cog):
         Most popular media or most active users during time range (in days)
         Use 'movies','shows','artists' or 'users'
         """
-        embed = discord.Embed(title=(
-                                        'Most popular ' + searchTerm.lower() if searchTerm.lower() != 'users' else 'Most active users') + ' in past ' + str(
-            timeRange) + (' days' if int(timeRange) > 1 else ' day'))
-        count = 1
-        if searchTerm.lower() == "movies":
-            for m in \
-                    px.t_request("get_home_stats",
-                                 "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
-                        'response']['data'][0]['rows']:
-                embed.add_field(name=str(count) + ". " + str(m['title']),
-                                value=str(m['total_plays']) + (" plays" if int(m['total_plays']) > 1 else " play"),
-                                inline=False)
-                count = count + 1
-            await ctx.send(embed=embed)
-        elif searchTerm.lower() == "shows":
-            for m in \
-                    px.t_request("get_home_stats",
-                                 "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
-                        'response']['data'][1]['rows']:
-                embed.add_field(name=str(count) + ". " + str(m['title']),
-                                value=str(m['total_plays']) + (" plays" if int(m['total_plays']) > 1 else " play"),
-                                inline=False)
-                count = count + 1
-            await ctx.send(embed=embed)
-        elif searchTerm.lower() == "artists":
-            for m in \
-                    px.t_request("get_home_stats",
-                                 "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
-                        'response']['data'][2]['rows']:
-                embed.add_field(name=str(count) + ". " + str(m['title']),
-                                value=str(m['total_plays']) + (" plays" if int(m['total_plays']) > 1 else " play"),
-                                inline=False)
-                count = count + 1
-            await ctx.send(embed=embed)
-        elif searchTerm.lower() == "users":
-            for m in \
-                    px.t_request("get_home_stats",
-                                 "time_range=" + str(timeRange) + "&stats_type=duration&stats_count=5")[
-                        'response']['data'][7]['rows']:
-                embed.add_field(name=str(count) + ". " + str(m['friendly_name']),
-                                value=str(m['total_plays']) + (" plays" if int(m['total_plays']) > 1 else " play"),
-                                inline=False)
-                count = count + 1
-            await ctx.send(embed=embed)
-        else:
+        stats = current_plex_instance.tautulli.home_stats(time_range=timeRange,
+                                                          stat_category=searchTerm.lower(),
+                                                          stat_type='duration',
+                                                          stat_count=5)
+        if not stats:
             await ctx.send("Please try again. Use 'movies','shows','artists' or 'users'")
+        else:
+            count = 1
+            if searchTerm.lower() == "users":
+                embed = discord.Embed(title=f"Most active users in past f{timeRange} day{('s' if timeRange > 1 else '')}")
+                for user in stats:
+                    embed.add_field(name=f"{count}. {user['friendly_name']}",
+                                    value=f"{user['total_plays']} play{('s' if int(user['total_plays']) > 1 else '')}",
+                                    inline=False)
+            else:
+                embed = discord.Embed(
+                    title=f"Most popular {searchTerm.lower()} in past f{timeRange} day{('s' if timeRange > 1 else '')}")
+                for entry in stats:
+                    embed.add_field(name=f"{count}. {entry['title']}",
+                                    value=f"{entry['total_plays']} play{('s' if int(entry['total_plays']) > 1 else '')}",
+                                    inline=False)
+                    count = count + 1
+            await ctx.send(embed=embed)
 
     @plex_top.error
     async def plex_top_error(self, ctx, error):
@@ -314,59 +293,57 @@ class Plex(commands.Cog):
         """
         Current Plex activity
         """
-        embed = discord.Embed(title="Current Plex activity")
-        json_data = px.t_request("get_activity", None)
+        json_data = current_plex_instance.tautulli.current_activity(remove_response=True)
         try:
-            stream_count = json_data['response']['data']['stream_count']
-            transcode_count = json_data['response']['data']['stream_count_transcode']
-            total_bandwidth = json_data['response']['data']['total_bandwidth']
-            lan_bandwidth = json_data['response']['data']['lan_bandwidth']
-            overview_message = "Sessions: " + str(stream_count) + (
-                " stream" if int(stream_count) == 1 else " streams") + ((" (" + str(transcode_count) + (
-                " transcode" if int(transcode_count) == 1 else " transcodes") + ")") if int(
-                transcode_count) > 0 else "") + ((" | Bandwidth: " + str(
-                round(Decimal(float(total_bandwidth) / 1024), 1)) + " Mbps" + ((" (LAN: " + str(
-                round(Decimal(float(lan_bandwidth) / 1024), 1)) + " Mbps)") if int(lan_bandwidth) > 0 else "")) if int(
-                total_bandwidth) > 0 else "")
-            sessions = json_data['response']['data']['sessions']
+            stream_count = json_data['stream_count']
+            transcode_count = json_data['stream_count_transcode']
+            total_bandwidth = json_data['total_bandwidth']
+            lan_bandwidth = json_data['lan_bandwidth']
+            overview_message = tautulli.build_overview_message(stream_count=stream_count,
+                                                               transcode_count=transcode_count,
+                                                               total_bandwidth=total_bandwidth,
+                                                               lan_bandwidth=lan_bandwidth)
+            sessions = json_data['sessions']
             count = 0
             final_message = overview_message + "\n"
             for session in sessions:
                 try:
-                    count = count + 1
-                    stream_message = "**(" + str(count) + ")** " + selectIcon(str(session['state'])) + " " + str(
-                        session['username']) + ": *" + str(session["full_title"]) + "*\n"
-                    stream_message = stream_message + "__Player__: " + str(session['product']) + " (" + str(
-                        session['player']) + ")\n"
-                    stream_message = stream_message + "__Quality__: " + str(session['quality_profile']) + " (" + (
-                        str(round(Decimal(float(session['bandwidth']) / 1024), 1)) if session[
-                                                                                          'bandwidth'] is not "" else "O") + " Mbps)" + (
-                                         " (Transcode)" if str(
-                                             session['stream_container_decision']) == 'transcode' else "")
+                    count += 1
+                    stream_message = tautulli.build_stream_message(session_data=session,
+                                                                   count=count,
+                                                                   state=session['state'],
+                                                                   username=session['username'],
+                                                                   title=session['full_title'],
+                                                                   player=session['player'],
+                                                                   product=session['product'],
+                                                                   quality_profile=session['quality_profile'],
+                                                                   stream_container_decision=session['stream_container_decision'],
+                                                                   bandwidth=session['bandwidth'],
+                                                                   auto_decode=True)
                     final_message = final_message + "\n" + stream_message + "\n"
                     session_ids.append(str(session['session_id']))
                 except ValueError:
                     session_ids.append("000")
                     pass
-            print(final_message)
             if int(stream_count) > 0:
                 sent_message = await ctx.send(final_message + "\nTo terminate a stream, react with the stream number.")
-                for i in range(count):
-                    await sent_message.add_reaction(emoji_numbers[i])
+                await discord_styling.add_emoji_number_reactions(message=sent_message, count=count)
+
                 manage_streams = True
                 while manage_streams:
                     def check(reaction, user):
-                        return user != sent_message.author
+                        return user != sent_message.author and str(reaction.emoji) in discord_styling.emoji_numbers
 
                     try:
                         reaction, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
-                        if reaction and str(reaction.emoji) in emoji_numbers:
+                        if reaction and str(reaction.emoji) in discord_styling.emoji_numbers:
                             try:
-                                loc = emoji_numbers.index(str(reaction.emoji))
-                                px.t_request('terminate_session',
-                                             'session_id=' + str(session_ids[loc]) + '&message=' + str(
-                                                 settings.TERMINATE_MESSAGE))
-                                end_notification = await ctx.send(content="Stream " + str(loc + 1) + " was ended.")
+                                loc = discord_styling.emoji_numbers.index(str(reaction.emoji))
+                                if current_plex_instance.tautulli.terminate_session(session_id=session_ids[loc],
+                                                                                    message=settings.TERMINATE_MESSAGE):
+                                    end_notification = await ctx.send(content=f"Stream {loc + 1} was ended.")
+                                else:
+                                    end_notification = await ctx.send(content=f"Could not stop stream {loc + 1}")
                                 await end_notification.delete(delay=1.0)
                             except:
                                 end_notification = await ctx.send(content="Something went wrong.")
@@ -377,36 +354,42 @@ class Plex(commands.Cog):
             else:
                 await ctx.send("No current activity.")
         except KeyError:
-            await ctx.send("**Connection error.**")
+            await ctx.send(discord_styling.bold("Connection error."))
 
     @plex.command(name="new", alias=["added"], pass_context=True)
     async def plex_new(self, ctx: commands.Context):
         """
         See recently added content
         """
-        e = discord.Embed(title="Recently Added to " + str(settings.PLEX_SERVER_NAME[0]))
+        e = discord.Embed(title=f"Recently Added to {current_plex_instance.name}")
         count = 5
         cur = 0
-        recently_added = px.t_request("get_recently_added", "count=" + str(count))
-        listing = recently_added['response']['data']['recently_added'][cur]
-        url = '{base}/api/v2?apikey={key}&cmd=pms_image_proxy&img={thumb}'.format(base=settings.TAUTULLI_URL[0],
-                                                                                  key=settings.TAUTULLI_API_KEY[0],
-                                                                                  thumb=listing['thumb'])
-        e.set_image(url=url)
-        e.description = "({loc}/{count}) {title} - [Watch Now](https://app.plex.tv/desktop#!/server/{id}//details?key=%2Flibrary%2Fmetadata%2F{key})".format(
-            loc=str(cur + 1),
-            count=str(count),
-            title=(listing['grandparent_title'] if listing['grandparent_title'] else (
-                listing['parent_title'] if listing['parent_title'] else listing[
-                    'full_title'])),
-            id=settings.PLEX_SERVER_ID,
-            key=listing['rating_key']
-        )
+        recently_added = current_plex_instance.tautulli.recently_added(count=count, remove_response=True)
+        new_items = []
+        for i in range(0, count):
+            listing = recently_added['recently_added'][i]
+            item = {
+                'url': current_plex_instance.tautulli.image_thumb_url(thumb=listing['thumb']),
+                'description': "({loc}/{count}) {title} - [Watch Now]({link})".format(
+                    loc=str(i + 1),
+                    count=str(count),
+                    title=(listing['grandparent_title']
+                           if listing['grandparent_title']
+                           else (listing['parent_title']
+                                 if listing['parent_title']
+                                 else listing['full_title'])
+                           ),
+                    link=current_plex_instance.get_watch_now_link(rating_key=listing['rating_key'])
+                ),
+            }
+            new_items.append(item)
+        e.set_image(url=new_items[cur]['url'])
+        e.description = new_items[cur]['description']
         ra_embed = await ctx.send(embed=e)
         nav = True
         while nav:
             def check(reaction, user):
-                return user != ra_embed.author
+                return user != ra_embed.author and str(reaction.emoji) in [u"\u27A1", u"\u2B05"]
 
             try:
                 if cur == 0:
@@ -420,42 +403,20 @@ class Plex(commands.Cog):
             except asyncio.TimeoutError:
                 await ra_embed.delete()
                 nav = False
-                px.t_request("delete_image_cache", None)
+                current_plex_instance.tautulli.delete_image_cache()
             else:
                 if reaction.emoji == u"\u27A1":
                     if cur + 1 < count:
                         cur += 1
-                        listing = recently_added['response']['data']['recently_added'][cur]
-                        url = '{base}/api/v2?apikey={key}&cmd=pms_image_proxy&img={thumb}'.format(
-                            base=settings.TAUTULLI_URL[0], key=settings.TAUTULLI_API_KEY[0], thumb=listing['thumb'])
-                        e.set_image(url=url)
-                        e.description = "({loc}/{count}) {title} - [Watch Now](https://app.plex.tv/desktop#!/server/{id}//details?key=%2Flibrary%2Fmetadata%2F{key})".format(
-                            loc=str(cur + 1),
-                            count=str(count),
-                            title=(listing['grandparent_title'] if listing['grandparent_title'] else (
-                                listing['parent_title'] if listing['parent_title'] else listing[
-                                    'full_title'])),
-                            id=settings.PLEX_SERVER_ID,
-                            key=listing['rating_key']
-                        )
+                        e.set_image(url=new_items[cur]['url'])
+                        e.description = new_items[cur]['description']
                         await ra_embed.edit(embed=e)
                         await ra_embed.clear_reactions()
                 else:
                     if cur - 1 >= 0:
                         cur -= 1
-                        listing = recently_added['response']['data']['recently_added'][cur]
-                        url = '{base}/api/v2?apikey={key}&cmd=pms_image_proxy&img={thumb}'.format(
-                            base=settings.TAUTULLI_URL[0], key=settings.TAUTULLI_API_KEY[0], thumb=listing['thumb'])
-                        e.set_image(url=url)
-                        e.description = "({loc}/{count}) {title} - [Watch Now](https://app.plex.tv/desktop#!/server/{id}//details?key=%2Flibrary%2Fmetadata%2F{key})".format(
-                            loc=str(cur + 1),
-                            count=str(count),
-                            title=(listing['grandparent_title'] if listing['grandparent_title'] else (
-                                listing['parent_title'] if listing['parent_title'] else listing[
-                                    'full_title'])),
-                            id=settings.PLEX_SERVER_ID,
-                            key=listing['rating_key']
-                        )
+                        e.set_image(url=new_items[cur]['url'])
+                        e.description = new_items[cur]['description']
                         await ra_embed.edit(embed=e)
                         await ra_embed.clear_reactions()
 
@@ -464,8 +425,8 @@ class Plex(commands.Cog):
         """
         Search for Plex content
         """
-        json_data = px.t_request("search", "query=" + searchTerm)['response']['data']
-        embed = discord.Embed(title="'" + searchTerm + "' Search Results")
+        json_data = current_plex_instance.tautulli.search(keyword=searchTerm)
+        embed = discord.Embed(title=f"'{searchTerm}' Search Results")
         if json_data['results_count'] > 0:
             for k, l in json_data['results_list'].items():
                 results = ""
@@ -475,18 +436,16 @@ class Plex(commands.Cog):
                         if searchTerm.lower() in str(r['title']).lower():
                             if r['title'] in results_list or k == 'collection':
                                 results_list.append(r['title'] + " - " + r['library_name'])
-                                results += "[{title} - {lib}]((https://app.plex.tv/desktop#!/server/{id}//details?key=%2Flibrary%2Fmetadata%2F{key})\n".format(
+                                results += "[{title} - {lib}]({link})\n".format(
                                     title=r['title'],
                                     lib=r['library_name'],
-                                    id=settings.PLEX_SERVER_ID,
-                                    key=r['rating_key']
+                                    link=current_plex_instance.get_watch_now_link(rating_key=r['rating_key'])
                                 )
                             else:
                                 results_list.append(r['title'])
-                                results += "[{title}](https://app.plex.tv/desktop#!/server/{id}/details?key=%2Flibrary%2Fmetadata%2F{key})\n".format(
+                                results += "[{title}]({link})\n".format(
                                     title=r['title'],
-                                    id=settings.PLEX_SERVER_ID,
-                                    key=r['rating_key']
+                                    link=current_plex_instance.get_watch_now_link(rating_key=r['rating_key'])
                                 )
                     if results:
                         embed.add_field(name=k.capitalize() + ("s" if len(results_list) > 1 else ""),
@@ -503,36 +462,20 @@ class Plex(commands.Cog):
         if reaction.emoji == '✅':
             username = db.find_user_in_db(ServerOrDiscord='Plex', data=user.id)[0]
             if username:
-                url = px.urlInMessage(reaction.message)
+                url = current_plex_instance.url_in_message(message=reaction.message)
                 if url:
-                    ratingKey = px.getRatingKey(url)
-                    libraryID, title = px.getMediaInfo(ratingKey)
-                    mediaItem = px.getMediaItem(title, ratingKey, libraryID)
-                    if mediaItem:
-                        playlist_title = settings.SUBSCRIBER_PLAYLIST_TITLE.format(username) if mediaItem.type in [
-                            'artist',
-                            'album',
-                            'track'] else settings.SUBSCRIBER_WATCHLIST_TITLEs.format(
-                            username)
+                    rating_key = current_plex_instance.get_rating_key(url)
+                    library_id, title = current_plex_instance.get_media_info(rating_key=rating_key)
+                    media_item = current_plex_instance.get_media_item(title=title, rating_key=rating_key, library_id=library_id)
+                    if media_item:
+                        playlist_title = settings.SUBSCRIBER_PLAYLIST_TITLE.format(username) \
+                            if media_item.type in ['artist', 'album', 'track'] \
+                            else settings.SUBSCRIBER_WATCHLIST_TITLE.format(username)
                         try:
-                            playlist = px.checkPlaylist(playlist_title)
-                            if playlist:
-                                already = False
-                                for item in playlist.items():
-                                    if str(item.ratingKey) == str(ratingKey):
-                                        await reaction.message.channel.send(
-                                            "That item is already on your {}list".format(
-                                                'play' if mediaItem.type in ['artist', 'track', 'album'] else 'watch'))
-                                        already = True
-                                        break
-                                if not already:
-                                    playlist.addItems([mediaItem])
-                                    await reaction.message.channel.send("Item added to your {}list".format(
-                                        'play' if mediaItem.type in ['artist', 'track', 'album'] else 'watch'))
-                            else:
-                                px.plex.createPlaylist(title=playlist_title, items=[mediaItem])
-                                await reaction.message.channel.send("New {}list created and item added.".format(
-                                    'play' if mediaItem.type in ['artist', 'track', 'album'] else 'watch'))
+                            response = current_plex_instance.add_to_playlist(playlist_title=playlist_title,
+                                                                             rating_key=rating_key,
+                                                                             item_to_add=media_item)
+                            reaction.message.channel.send(response)
                         except Exception as e:
                             print(e)
                             await reaction.message.channel.send(
