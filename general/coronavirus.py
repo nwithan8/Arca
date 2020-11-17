@@ -18,22 +18,19 @@ def get_data():
 
 def convert_to_length(text, length):
     text = str(text)
-    print(text)
-    print(len(text))
     if length > len(text):
         text = text.rjust(length - len(text))
-        print(text)
     return text
 
 
 def make_list(data):
     timestamp = int(str(data[0]['Last_Update'])[:-3])
     timestamp = datetime.fromtimestamp(timestamp).strftime('%B %d, %Y %H:%M')
-    response = "Conavirus numbers (Updated {})\n\n".format(timestamp)
-    response += "%40s|%10s|%7s|%10s\n\n" % ("Country", "Confirmed", "Death", "Recovered")
+    response = f"Conavirus numbers (Updated {timestamp})\n\n"
+    response += "%40s|%10s|%7s\n\n" % ("Country", "Confirmed", "Death")
     for country in data:
-        response += "%40s|%10s|%7s|%10s\n" % (
-        country['Country_Region'], str(country['Confirmed']), str(country['Deaths']), str(country['Recovered']))
+        response += "%40s|%10s|%7s\n" % (
+        country['Country_Region'], str(country['Confirmed']), str(country['Deaths']))
     return response
 
 
@@ -50,11 +47,11 @@ class Coronavirus(commands.Cog):
             temp_list = ""
             for line in list.splitlines():
                 if len(temp_list) < 1800:
-                    temp_list += "\n" + line
+                    temp_list += f"\n{line}"
                 else:
-                    await ctx.send("```" + temp_list + "```")
+                    await ctx.send(f"```{temp_list}```")
                     temp_list = ""
-            await ctx.send("```" + temp_list + "```")
+            await ctx.send(f"```{temp_list}```")
         else:
             await ctx.send("Sorry, I couldn't grab the latest numbers")
 
