@@ -23,7 +23,7 @@ feeds = {
         "CNN":"http://rss.cnn.com/rss/cnn_topstories.rss",
         "NPR":"https://www.npr.org/rss/rss.php?id=1001",
         "NYT":"https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
-        "Reut":"http://feeds.reuters.com/reuters/topNews",
+        "Reut":"https://news.google.com/rss/search?q=when:24h+allinurl:reuters.com&ceid=US:en&hl=en-US&gl=US",
         "USAT":"http://rssfeeds.usatoday.com/usatoday-NewsTopStories",
         "WSJ":"https://feeds.a.dj.com/rss/WSJcomUSBusiness.xml",
         "WP":"http://feeds.washingtonpost.com/rss/national"
@@ -32,7 +32,7 @@ feeds = {
         "BBC":"http://feeds.bbci.co.uk/news/rss.xml",
         "CNN":"http://rss.cnn.com/rss/cnn_topstories.rss",
         "NYT":"https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
-        "Reut":"http://feeds.reuters.com/reuters/topNews",
+        "Reut":"https://news.google.com/rss/search?q=when:24h+allinurl:reuters.com&ceid=US:en&hl=en-US&gl=US",
         "USAT":"http://rssfeeds.usatoday.com/usatoday-NewsTopStories"
     },
     "latest":{
@@ -46,7 +46,7 @@ feeds = {
         "CNN":"http://rss.cnn.com/rss/cnn_world.rss",
         "NPR":"https://www.npr.org/rss/rss.php?id=1004",
         "NYT":"https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
-        "Reut":"http://feeds.reuters.com/Reuters/worldNews",
+        "Reut":"https://news.google.com/rss/search?q=when:24h+allinurl:reuters.com&ceid=US:en&hl=en-US&gl=US",
         "USAT":"http://rssfeeds.usatoday.com/UsatodaycomWorld-TopStories",
         "WSJ":"https://feeds.a.dj.com/rss/RSSWorldNews.xml",
         "WP":"http://feeds.washingtonpost.com/rss/world"
@@ -55,7 +55,6 @@ feeds = {
         "CNN":"http://rss.cnn.com/rss/cnn_us.rss",
         "NPR":"https://www.npr.org/rss/rss.php?id=1003",
         "NYT":"https://rss.nytimes.com/services/xml/rss/nyt/US.xml",
-        "Reut":"http://feeds.reuters.com/Reuters/domesticNews",
         "USAT":"http://rssfeeds.usatoday.com/UsatodaycomNation-TopStories",
         "WSJ":"https://feeds.a.dj.com/rss/WSJcomUSBusiness.xml",
         "WP":"http://feeds.washingtonpost.com/rss/national"
@@ -64,7 +63,6 @@ feeds = {
         "CNN":"http://rss.cnn.com/rss/edition_sport.rss",
         "ESPN":"https://www.espn.com/espn/rss/news",
         "NYT":"https://rss.nytimes.com/services/xml/rss/nyt/Sports.xml",
-        "Reut":"http://feeds.reuters.com/reuters/sportsNews",
         "USAT":"http://rssfeeds.usatoday.com/UsatodaycomSports-TopStories",
         "WP":"http://feeds.washingtonpost.com/rss/sports"
     }
@@ -84,15 +82,14 @@ outlets={
 
 class News(commands.Cog):
     
-    def headline(self, category, outlet):
+    def get_single_headline(self, category, outlet):
         f = feedparser.parse(feeds[category][outlet])
         return f['entries'][0]['title'], f['entries'][0].link
     
-    def headlines(self, category, outlet, number):
+    def get_headlines(self, category, outlet, number: int = 5):
         f = feedparser.parse(feeds[category][outlet])
-        count = 0
         data = []
-        for i in range(0,number):
+        for i in range(0, number):
             data.append(f['entries'][i])
         return data
     
@@ -124,94 +121,98 @@ class News(commands.Cog):
         s = s.replace("&apos;", "'")
         s = s.replace("&amp;", "&")
         return s
+
+    def add_embed_field(self, embed, title, outlet_name, link):
+        embed.add_field(name=self.unescape(title), value=f"[*{outlet_name}*]({link})", inline=False)
     
+    def make_category_response_embed(self, embed_title: str, category: str, count: int = 5):
+        embed = discord.Embed(title=embed_title)
+        for o in feeds[category]:
+            t, l = self.get_single_headline(category, o)
+            self.add_embed_field(embed=embed, title=t, link=l, outlet_name=outlets[o])
+        return embed
+
     @commands.group(pass_context=True, case_insensitive=True)
     async def news(self, ctx: commands.Context):
         """
         Get news headlines and links
         """
         if ctx.invoked_subcommand is None:
-            await ctx.send("What subcommand?")   
-            
-    @news.command(name="brief", pass_context=True, case_insensitive=True)
-    async def news_brief(self, ctx: commands.Context):
-        """
-        Get 5 top headlines
-        """
-        embed = discord.Embed(title="News Brief")
-        for o in feeds['brief']:
-            t,l = self.headline("brief",o)
-            embed.add_field(name=self.unescape(t),value="["+"*"+outlets[o]+"*"+"]("+l+")", inline=False)
-            #embed.add_field(name="*"+outlets[o]+"*",value="["+self.unescape(t)+"]("+l+")", inline=False)
-        await ctx.send(embed=embed)
+            await ctx.send("What subcommand?")
     
-    @news_brief.error
-    async def news_brief_error(self, ctx, error):
-        await ctx.send("Something went wrong. Please try again later.")
-    
-    @news.command(name="top", pass_context=True, case_insensitive=True)
-    async def news_top(self, ctx: commands.Context, *, outlet: str):
+    @news.command(name="from", pass_context=True, case_insensitive=True)
+    async def news_from(self, ctx: commands.Context, *, outlet: str):
         """
         Top headlines from a specific outlet
-        Supported outlets: BBC, CNN, NYT, Reuters, USA Today
         """
+        if outlet == 'all':
+            return self.news_brief(ctx=ctx)
         o = self.get_outlet(outlet)
-        if o == None:
-            await ctx.send("That outlet is not supported.")
+        if not o:
+            await ctx.send(f"{outlet} is not supported.")
         else:
-            embed = discord.Embed(title="Top News from "+outlets[o])
-            h = self.headlines("top",o,5)
+            embed = discord.Embed(title=f"Top News from {outlets[o]}")
+            h = self.get_headlines("top", o, 5)
             for i in h:
-                embed.add_field(name=self.unescape(i['title']),value="["+str(time.strftime('%b %d, %Y, %I:%M %p',i.updated_parsed))+"]("+i['link']+")", inline=False)
-                #embed.add_field(name=str(time.strftime('%b %d, %Y, %I:%M %p',i.updated_parsed)),value="["+self.unescape(i['title'])+"]("+i['link']+")", inline=False)
+                embed.add_field(name=self.unescape(i['title']),
+                                value=f"[{str(time.strftime('%b %d, %Y, %I:%M %p', i.updated_parsed))}]({i['link']})",
+                                inline=False)
             await ctx.send(embed=embed)
             
-    @news_top.error
+    @news_from.error
     async def news_top_error(self, ctx, error):
         await ctx.send("Something went wrong. Please try again with another outlet.")
         
-    @news.command(name="world",aliases=["international"], pass_context=True, case_insensitive=True)
+    @news.command(name="outlets", pass_context=True, case_insensitive=True)
+    async def news_outlets(self, ctx: commands.Context):
+        """
+        List all available outlets
+        """
+        await ctx.send(f"Available outlets: {', '.join(outlet for outlet in feeds['top'].keys())}")
+
+    @news.command(name="brief", aliases=['all'], pass_context=True, case_insensitive=True)
+    async def news_brief(self, ctx: commands.Context):
+        """
+        Top news headlines
+        """
+        embed = self.make_category_response_embed(embed_title="News Brief", category='brief', count=5)
+        await ctx.send(embed=embed)
+
+    @news_brief.error
+    async def news_brief_error(self, ctx, error):
+        await ctx.send("Something went wrong. Please try again later.")
+
+
+    @news.command(name="world", aliases=["international"], pass_context=True, case_insensitive=True)
     async def news_world(self, ctx: commands.Context):
         """
         World news headlines
         """
-        embed = discord.Embed(title="World News")
-        for o in feeds['world']:
-            t,l = self.headline("world",o)
-            embed.add_field(name=self.unescape(t),value="["+"*"+outlets[o]+"*"+"]("+l+")", inline=False)
-            #embed.add_field(name="*"+outlets[o]+"*",value="["+self.unescape(t)+"]("+l+")", inline=False)
+        embed = self.make_category_response_embed(embed_title="World News", category='world')
         await ctx.send(embed=embed)
         
     @news_world.error
     async def news_world_error(self, ctx, error):
         await ctx.send("Something went wrong. Please try again later.")
         
-    @news.command(name="u.s",aliases=["us","america","united states","national"], pass_context=True, case_insensitive=True)
+    @news.command(name="u.s", aliases=["us", "america", "united states", "national"], pass_context=True, case_insensitive=True)
     async def news_us(self, ctx: commands.Context):
         """
         U.S. news headlines
         """
-        embed = discord.Embed(title="U.S. News")
-        for o in feeds['us']:
-            t,l = self.headline("us",o)
-            embed.add_field(name=self.unescape(t),value="["+"*"+outlets[o]+"*"+"]("+l+")", inline=False)
-            #embed.add_field(name="*"+outlets[o]+"*",value="["+self.unescape(t)+"]("+l+")", inline=False)
+        embed = self.make_category_response_embed(embed_title="U.S. News", category='us')
         await ctx.send(embed=embed)
         
     @news_us.error
     async def news_us_error(self, ctx, error):
         await ctx.send("Something went wrong. Please try again later.")
         
-    @news.command(name="sports",aliases=["sport"], pass_context=True, case_insensitive=True)
+    @news.command(name="sports", aliases=["sport"], pass_context=True, case_insensitive=True)
     async def news_sports(self, ctx: commands.Context):
         """
-        Sports headlines
+        Sports news headlines
         """
-        embed = discord.Embed(title="Sports News")
-        for o in feeds['sports']:
-            t,l = self.headline("sports",o)
-            embed.add_field(name=self.unescape(t),value="["+"*"+outlets[o]+"*"+"]("+l+")", inline=False)
-            #embed.add_field(name="*"+outlets[o]+"*",value="["+self.unescape(t)+"]("+l+")", inline=False)
+        embed = self.make_category_response_embed(embed_title="Sports News", category='sports')
         await ctx.send(embed=embed)
         
     @news_sports.error
