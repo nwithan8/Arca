@@ -51,3 +51,18 @@ def user_has_role(ctx, user, role_name):
     if role in user.roles:
         return True
     return False
+
+def bold(text):
+    return f"**{text}**"
+
+def italic(text):
+    return f"*{text}*"
+
+def underline(text):
+    return f"__{text}__"
+
+def inline_code(text):
+    return f"``{text}``"
+
+def code_block(text):
+    return f"```{text}```"
