@@ -11,6 +11,7 @@ import urllib.request
 import re
 from bs4 import BeautifulSoup
 import requests
+import helper.discord_helper as helper
 from collections import defaultdict
 import json
 from progress.bar import Bar
@@ -47,11 +48,11 @@ class ESPN(commands.Cog):
         
     def fix_league(self, league):
         league = league.lower()
-        if (league == "cfb"):
+        if league == "cfb":
             league = "ncf"
-        if (league in ["cbbm","ncaam"]):
+        if league in ["cbbm", "ncaam"]:
             league = "ncb"
-        if (league in ["cbbw","ncaaw"]):
+        if league in ["cbbw", "ncaaw"]:
             league = "ncw"
         return league
     
@@ -74,7 +75,7 @@ class ESPN(commands.Cog):
         STRIP = "1234567890 "
         STRIP_BRACES = "()1234567890 "
         #visit espn bottomline website to get scores as html page
-        url = 'http://www.espn.com/'+league+'/bottomline/scores'
+        url = f'http://www.espn.com/{league}/bottomline/scores'
         req = urllib.request.Request(url)
         response = urllib.request.urlopen(req)
         page = response.read()
@@ -107,7 +108,7 @@ class ESPN(commands.Cog):
             team2_rank = ''
             team2_score = '0'
                                 
-            if (' at ' not in score):
+            if ' at ' not in score:
                 teams = score.split('  ')
                 team1_name = teams[0][0:teams[0].rfind(' ')].lstrip(STRIP)
                 team2_name = teams[1][0:teams[1].rfind(' ')].lstrip(STRIP)
@@ -173,17 +174,17 @@ class ESPN(commands.Cog):
         try:
             scores = self.get_scores(league)
             if not scores:
-                await ctx.send("Oops, there's no " + league.upper() + " games!")
+                await ctx.send(f"Oops, there's no {league.upper()} games!")
             else:
                 searched_id = ""
                 for g in scores:
                         if (scores[g][0].lower().strip() == team.lower().strip()) or (scores[g][3].lower().strip() == team.lower().strip()):
                             searched_id = g
                             break
-                embed = discord.Embed(title=("(" + scores[searched_id][1] + ") " if scores[searched_id][1] != '' else '') + scores[searched_id][0] + " " + scores[searched_id][2] + " - " + ("(" + scores[searched_id][4] + ") " if scores[searched_id][4] != '' else '') + scores[searched_id][3] + " " + scores[searched_id][5] + " " + scores[searched_id][6])
+                embed = discord.Embed(title=(f"({scores[searched_id][1]}) " if scores[searched_id][1] != '' else '') + f"{scores[searched_id][0]} {scores[searched_id][2]} - " + (f"({scores[searched_id][4]}) " if scores[searched_id][4] != '' else '') + f"{scores[searched_id][3]} {scores[searched_id][5]} {scores[searched_id][6]}")
                 embed.set_thumbnail(url="https://image.flaticon.com/icons/png/128/870/870901.png")
                 try:
-                    soup = BeautifulSoup(requests.get("http://www.espn.com/"+league+"/game?gameId=" + str(searched_id)).content)
+                    soup = BeautifulSoup(requests.get(f"http://www.espn.com/{league}/game?gameId={str(searched_id)}").content)
                     probholder = soup.find("span", {"class": "header-win-percentage"})
                     if not probholder:
                         await ctx.send("Couldn't find that game.")
@@ -192,12 +193,16 @@ class ESPN(commands.Cog):
                         team_id = re.search('/500/(.*).png&amp', str(probholder)).group(1)
                         name = (team_codes[league][team_id][0] if league in pro_leagues else team_codes[league][team_id][0])
                         if float(prob) < 100:
-                            embed.add_field(name="The " + name + " have a " + prob + "% chance of winning.", value="http://www.espn.com/"+league+"/game?gameId="+str(searched_id),inline=False)
+                            embed.add_field(name=f"The {name} have a {prob}% chance of winning.",
+                                            value=f"http://www.espn.com/{league}/game?gameId={str(searched_id)}",
+                                            inline=False)
                         else:
-                            embed.add_field(name="The " + name + " won.", value="http://www.espn.com/"+league+"/game?gameId="+str(searched_id),inline=False)
+                            embed.add_field(name=f"The {name} won.",
+                                            value="http://www.espn.com/{league}/game?gameId={str(searched_id)}",
+                                            inline=False)
                         await ctx.send(embed=embed)
                 except:
-                    await ctx.send("Sorry, couldn't reach ESPN.com")
+                    await ctx.send("Sorry, couldn't reach espn.com")
         except Exception as e:
             print(str(e))
             await ctx.send("Something went wrong. Please try again.")
@@ -217,7 +222,7 @@ class ESPN(commands.Cog):
             try:
                 scores=self.get_scores(league)
                 if not scores:
-                    await ctx.send("Oops there's no " + league.upper() + " games!")
+                    await ctx.send(f"Oops, there's no {league.upper()} games!")
                 else:
                     embed = discord.Embed(title="Top Teams")
                     embed.set_thumbnail(url="https://image.flaticon.com/icons/png/128/870/870901.png")
@@ -240,8 +245,16 @@ class ESPN(commands.Cog):
                                 top_games[max(scores[g][1],scores[g][4])][1] = scores[g]
                     for i in range(1,26):
                         if str(i) in top_games:
-                            embed.add_field(name=("(" + top_games[str(i)][1][1] + ") " if top_games[str(i)][1][1] != '' else '') + ("**"+top_games[str(i)][1][0]+"** " if int(top_games[str(i)][1][2]) > int(top_games[str(i)][1][5]) else top_games[str(i)][1][0]+" ")+top_games[str(i)][1][2]+" - "+ ("(" + top_games[str(i)][1][4] + ") " if top_games[str(i)][1][4] != '' else '') + ("**"+top_games[str(i)][1][3]+"** " if int(top_games[str(i)][1][5]) > int(top_games[str(i)][1][2]) else top_games[str(i)][1][3]+" ")+top_games[str(i)][1][5],value=top_games[str(i)][1][6]+("" if not str(top_games[str(i)][0])[0].isdigit() else " - [Live](http://www.espn.com/"+league+"/game?gameId="+top_games[str(i)][0]+")"),inline=False)
-                            #print(top_games[str(i)])
+
+                            embed.add_field(name = self.make_score_entry(team_1_ranking=top_games[str(i)][1][1],
+                                                         team_1_name=top_games[str(i)][1][0],
+                                                         team_1_score=top_games[str(i)][1][2],
+                                                         team_2_ranking=top_games[str(i)][1][4],
+                                                         team_2_name=top_games[str(i)][1][3],
+                                                         team_2_score=top_games[str(i)][1][5],
+                                                         team_1_winning=(int(top_games[str(i)][1][2]) > int(top_games[str(i)][1][5]))),
+                                            value=top_games[str(i)][1][6]+("" if not str(top_games[str(i)][0])[0].isdigit() else f" - [Live](http://www.espn.com/{league}/game?gameId={top_games[str(i)][0]})"),
+                                            inline=False)
                     await ctx.send(embed=embed)
             except Exception as e:
                 print(str(e))
@@ -264,7 +277,7 @@ class ESPN(commands.Cog):
         try:
             scores = self.get_scores(league)
             if not scores:
-                await ctx.send("Oops, there's no " + league.upper() + " games!")
+                await ctx.send(f"Oops, there's no {league.upper()} games!")
             else:
                 embed = discord.Embed(title="ESPN Scoreboard")
                 embed.set_thumbnail(url="https://image.flaticon.com/icons/png/128/870/870901.png")
@@ -274,24 +287,37 @@ class ESPN(commands.Cog):
                 if team == 'all':
                     fc = 0
                     for g in scores:
-                        embed.add_field(name=("(" + scores[g][1] + ") " if scores[g][1] != '' else '') + ("**"+scores[g][0]+"** " if int(scores[g][2]) > int(scores[g][5]) else scores[g][0]+" ")+scores[g][2]+" - "+ ("(" + scores[g][4] + ") " if scores[g][4] != '' else '') + ("**"+scores[g][3]+"** " if int(scores[g][5]) > int(scores[g][2]) else scores[g][3]+" ")+scores[g][5],value=scores[g][6]+("" if not str(g)[0].isdigit() else " - [Live](http://www.espn.com/"+league+"/game?gameId="+g+")"),inline=False)
+                        embed.add_field(name=self.make_score_entry(team_1_ranking=scores[g][1],
+                                                                       team_1_name=scores[g][0],
+                                                                       team_1_score=scores[g][2],
+                                                                       team_2_ranking=scores[g][4],
+                                                                       team_2_name=scores[g][3],
+                                                                       team_2_score=scores[g][5],
+                                                                       team_1_winning=(int(scores[g][2]) > int(scores[g][5]))),
+                                        value=scores[g][6]+("" if not str(g)[0].isdigit() else f" - [Live](http://www.espn.com/{league}/game?gameId={g})"),
+                                        inline=False)
                         fc = fc + 1
                         if fc >= 23:
-                            embed.add_field(name='\u200b',value="http://www.espn.com/"+league+"/scoreboard",inline=False)
-                            embed.title = "ESPN Scoreboard (Page " + str(page_count) + ")"
+                            embed.add_field(name='\u200b',
+                                            value=f"http://www.espn.com/{league}/scoreboard",
+                                            inline=False)
+                            embed.title = f"ESPN Scoreboard (Page {page_count})"
                             page_count = page_count + 1
                             await ctx.send(embed=embed)
-                            embed = discord.Embed(title="ESPN Scoreboard (Page " + str(page_count) + ")")
+                            embed = discord.Embed(title=f"ESPN Scoreboard (Page {page_count})")
                             embed.set_thumbnail(url="https://image.flaticon.com/icons/png/128/870/870901.png")
                             fc = 0
                         if len(embed) > 5900:
-                            embed.add_field(name='\u200b',value="http://www.espn.com/"+league+"/scoreboard",inline=False)
-                            embed.title = "ESPN Scoreboard (Page " + str(page_count) + ")"
+                            embed.add_field(name='\u200b',value=f"http://www.espn.com/{league}/scoreboard",
+                                            inline=False)
+                            embed.title = f"ESPN Scoreboard (Page {page_count})"
                             page_count = page_count + 1
                             await ctx.send(embed=embed)
-                            embed = discord.Embed(title="ESPN Scoreboard (Page " + str(page_count) + ")")
+                            embed = discord.Embed(title=f"ESPN Scoreboard (Page {page_count})")
                             embed.set_thumbnail(url="https://image.flaticon.com/icons/png/128/870/870901.png")
-                    embed.add_field(name='\u200b',value="http://www.espn.com/"+league+"/scoreboard",inline=False)
+                    embed.add_field(name='\u200b',
+                                    value=f"http://www.espn.com/{league}/scoreboard",
+                                    inline=False)
                     respond = True
                 elif team == 'live':
                     fc = 0
@@ -302,29 +328,51 @@ class ESPN(commands.Cog):
                         live_keywords = ['in ','end']
                     for g in scores:
                         if any(d in scores[g][6].lower() for d in live_keywords):
-                            embed.add_field(name=("(" + scores[g][1] + ") " if scores[g][1] != '' else '') + ("**"+scores[g][0]+"** " if int(scores[g][2]) > int(scores[g][5]) else scores[g][0]+" ")+scores[g][2]+" - "+ ("(" + scores[g][4] + ") " if scores[g][4] != '' else '') + ("**"+scores[g][3]+"** " if int(scores[g][5]) > int(scores[g][2]) else scores[g][3]+" ")+scores[g][5],value=scores[g][6]+("" if not str(g)[0].isdigit() else " - [Live](http://www.espn.com/"+league+"/game?gameId="+g+")"),inline=False)
+                            embed.add_field(name=self.make_score_entry(team_1_ranking=scores[g][1],
+                                                                       team_1_name=scores[g][0],
+                                                                       team_1_score=scores[g][2],
+                                                                       team_2_ranking=scores[g][4],
+                                                                       team_2_name=scores[g][3],
+                                                                       team_2_score=scores[g][5],
+                                                                       team_1_winning=(int(scores[g][2]) > int(scores[g][5]))),
+                                            value=scores[g][6]+("" if not str(g)[0].isdigit() else f" - [Live](http://www.espn.com/{league}/game?gameId={g})"),
+                                            inline=False)
                             fc = fc + 1
                             if fc >= 23:
-                                embed.add_field(name='\u200b',value="http://www.espn.com/"+league+"/scoreboard",inline=False)
-                                embed.title = "ESPN Scoreboard (Page " + str(page_count) + ")"
+                                embed.add_field(name='\u200b',
+                                                value=f"http://www.espn.com/{league}/scoreboard",
+                                                inline=False)
+                                embed.title = f"ESPN Scoreboard (Page {page_count})"
                                 page_count = page_count + 1
                                 await ctx.send(embed=embed)
-                                embed = discord.Embed(title="ESPN Scoreboard (Page " + str(page_count) + ")")
+                                embed = discord.Embed(title=f"ESPN Scoreboard (Page {page_count})")
                                 embed.set_thumbnail(url="https://image.flaticon.com/icons/png/128/870/870901.png")
                                 fc = 0
                             if len(embed) > 5900:
-                                embed.add_field(name='\u200b',value="http://www.espn.com/"+league+"/scoreboard",inline=False)
-                                embed.title = "ESPN Scoreboard (Page " + str(page_count) + ")"
+                                embed.add_field(name='\u200b',
+                                                value=f"http://www.espn.com/{league}/scoreboard",
+                                                inline=False)
+                                embed.title = f"ESPN Scoreboard (Page {page_count})"
                                 page_count = page_count + 1
                                 await ctx.send(embed=embed)
-                                embed = discord.Embed(title="ESPN Scoreboard (Page " + str(page_count) + ")")
+                                embed = discord.Embed(title=f"ESPN Scoreboard (Page {page_count})")
                                 embed.set_thumbnail(url="https://image.flaticon.com/icons/png/128/870/870901.png")
                             respond = True # check this in loop, otherwise could end up returning blank embed
-                    embed.add_field(name='\u200b',value="http://www.espn.com/"+league+"/scoreboard",inline=False)
+                    embed.add_field(name='\u200b',
+                                    value=f"http://www.espn.com/{league}/scoreboard",
+                                    inline=False)
                 else:
                     for g in scores:
                         if (scores[g][0].lower().strip() == team.lower().strip()) or (scores[g][3].lower().strip() == team.lower().strip()):
-                            embed.add_field(name=("(" + scores[g][1] + ") " if scores[g][1] != '' else '') + ("**"+scores[g][0]+"** " if int(scores[g][2]) > int(scores[g][5]) else scores[g][0]+" ")+scores[g][2]+" - "+ ("(" + scores[g][4] + ") " if scores[g][4] != '' else '') + ("**"+scores[g][3]+"** " if int(scores[g][5]) > int(scores[g][2]) else scores[g][3]+" ")+scores[g][5],value=scores[g][6]+("" if not str(g)[0].isdigit() else " - [Live](http://www.espn.com/"+league+"/game?gameId="+g+")"),inline=False)
+                            embed.add_field(name=self.make_score_entry(team_1_ranking=scores[g][1],
+                                                                       team_1_name=scores[g][0],
+                                                                       team_1_score=scores[g][2],
+                                                                       team_2_ranking=scores[g][4],
+                                                                       team_2_name=scores[g][3],
+                                                                       team_2_score=scores[g][5],
+                                                                       team_1_winning=(int(scores[g][2]) > int(scores[g][5]))),
+                                            value=scores[g][6] + ('' if not str(g)[0].isdigit() else f" - [Live](http://www.espn.com/{league}/game?gameId={g})"),
+                                            inline=False)
                             #if not scores[g][6][1].isdigit():
                             #embed.add_field(name='\u200b',value="http://www.espn.com/"+league+"/boxscore?gameId="+g,inline=False)
                             respond = True
@@ -333,13 +381,19 @@ class ESPN(commands.Cog):
                     if team == "all" or team == "live":
                         await ctx.send("No games were found.")
                     else:
-                        await ctx.send("That team wasn't found. Either they aren't playing, or the name is incorrect.\nTry again with a different team name (i.e. \"Boston\", not \"Red Sox\").")
+                        await ctx.send("That team wasn't found. Either they aren't playing, or the name is incorrect.\n"
+                                       "Try again with a different team name (i.e. \"Boston\", not \"Red Sox\").")
                 else:
                     await ctx.send(embed=embed)
         except Exception as e:
             print(str(e))
             await ctx.send("Something went wrong. Please try again.")
-            
+
+    def make_score_entry(self, team_1_name, team_1_score, team_2_name, team_2_score, team_1_winning, team_1_ranking = None, team_2_ranking = None):
+        team_1 = (f"{team_1_ranking} " if team_1_ranking else '') + (helper.bold(team_1_name) if team_1_winning else team_1_name) + " " + str(team_1_score)
+        team_2 = (f"{team_2_ranking} " if team_2_ranking else '') + (helper.bold(team_2_name) if not team_1_winning else team_2_name) + " " + str(team_2_score)
+        return f"{team_1} - {team_2}"
+
     @espn_score.error
     async def espn_score_error(self, ctx, error):
         await ctx.send("Please include <league> <team>")
@@ -356,23 +410,23 @@ class ESPN(commands.Cog):
         if league in all_leagues:
             if league in pro_leagues:
                 for t, c in team_codes[league].items():
-                    if (team.lower() in c[0].lower() or team.lower() in c[3]):
+                    if team.lower() in c[0].lower() or team.lower() in c[3]:
                         team_name = c[0]
                         team_id = t
                         break
             elif league in college_leagues:
                 for t, c in team_codes[league].items():
-                    if (team.lower() == c[0].lower() or team.lower() == c[1].lower()):
+                    if team.lower() == c[0].lower() or team.lower() == c[1].lower():
                         team_name = c[0]
                         team_id = t
                         break
-            if team_id == None:
+            if not team_id:
                 await ctx.send("Couldn't find that team.")
             else:
                 fc = 0
                 res = team_name + " Schedule:\n"
                 try:
-                    table = BeautifulSoup(requests.get("http://www.espn.com/" + league + "/team/schedule/_/" + ("name/" if league in pro_leagues else "id/") + str(team_id)).content, features="lxml").find('tbody',{"class":"Table__TBODY"}).findAll('tr')
+                    table = BeautifulSoup(requests.get(f"http://www.espn.com/{league}/team/schedule/_/" + ("name/" if league in pro_leagues else "id/") + str(team_id)).content, features="lxml").find('tbody',{"class":"Table__TBODY"}).findAll('tr')
                     week_count = 0
                     addition = ""
                     for row in table:
@@ -394,9 +448,9 @@ class ESPN(commands.Cog):
                 except (TypeError, AttributeError, IndexError):
                     res = res
                 if league in ["ncf", "ncb", "ncw"]:
-                    await ctx.send((res + "\n" if res != "" else "") + "http://www.espn.com/" + league + "/team/schedule/_/id/"+team_id)
+                    await ctx.send((res + "\n" if res != "" else "") + f"http://www.espn.com/{league}/team/schedule/_/id/{team_id}")
                 else:
-                    await ctx.send((res + "\n" if res != "" else "") + "http://www.espn.com/" + league + "/team/schedule/_/name/"+team_id)
+                    await ctx.send((res + "\n" if res != "" else "") + f"http://www.espn.com/{league}/team/schedule/_/name/{team_id}")
                     #try:
                     #    soup = BeautifulSoup(requests.get("http://www.espn.com/"+league+"/team/schedule/_/name/" + str(searched_id)).content)
                     #    raw_schedule = soup.find("tbody", {"class": "Table2__tbody"})
@@ -409,14 +463,15 @@ class ESPN(commands.Cog):
                     #except:
                     #    await ctx.send("Sorry, couldn't reach ESPN.com")
         else:
-            await ctx.send("Couldn't find that league.\nUse 'ESPN league' to see supported leagues.")
+            await ctx.send("Couldn't find that league.\n"
+                           "Use 'ESPN league' to see supported leagues.")
                 
     @espn_sched.error
     async def espn_sched_error(self, ctx, error):
         print(error)
         await ctx.send("Please include <league> <team>")
         
-    @espn.command(name="stats", aliases=["record","rank"])
+    @espn.command(name="stats", aliases=["record", "rank"])
     async def espn_stats(self, ctx: commands.Context, league: str, *, team: str):
         """
         Get record, ranking and stats for a team
@@ -428,28 +483,34 @@ class ESPN(commands.Cog):
         if league in all_leagues:
             if league in pro_leagues:
                 for t, c in team_codes[league].items():
-                    if (team.lower() in c[0].lower() or team.lower() == c[1].lower()):
+                    if team.lower() in c[0].lower() or team.lower() == c[1].lower():
                         team_name = c[0]
                         team_id = t
                         break
             elif league in college_leagues:
                 for t, c in team_codes[league].items():
-                    if (team.lower() == c[0].lower() or team.lower() == c[1].lower()):
+                    if team.lower() == c[0].lower() or team.lower() == c[1].lower():
                         team_name = c[0]
                         team_id = t
                         break
-            if team_id == None:
+            if not team_id:
                 await ctx.send("Couldn't find that team.")
             else:
                 try:
-                    soup = BeautifulSoup(requests.get("http://www.espn.com/" + league + "/team/stats/_/" + ("id/" if league in college_leagues else "name/") + team_id).content, features="lxml").find("ul", {"class": "list flex ClubhouseHeader__Record n8 ml4"}).findAll("li")
+                    soup = BeautifulSoup(requests.get(f"http://www.espn.com/{league}/team/stats/_/" + ("id/" if league in college_leagues else "name/") + team_id).content, features="lxml").find("ul", {"class": "list flex ClubhouseHeader__Record n8 ml4"}).findAll("li")
                     embed = discord.Embed(title=str(team_codes[league][team_id][0]))
                     embed.set_thumbnail(url="https://image.flaticon.com/icons/png/128/870/870901.png")
-                    embed.add_field(name=str(soup[0].text), value=str(soup[1].text),inline=False)
+                    embed.add_field(name=str(soup[0].text),
+                                    value=str(soup[1].text),
+                                    inline=False)
                     if league in ["ncf", "ncb", "ncw"]:
-                        embed.add_field(name='\u200b', value="http://www.espn.com/" + league + "/team/stats/_/id/"+team_id,inline=False)
+                        embed.add_field(name='\u200b',
+                                        value=f"http://www.espn.com/{league}/team/stats/_/id/{team_id}",
+                                        inline=False)
                     else:
-                        embed.add_field(name='\u200b', value="http://www.espn.com/" + league + "/team/stats/_/name/"+team_id,inline=False)
+                        embed.add_field(name='\u200b',
+                                        value=f"http://www.espn.com/{league}/team/stats/_/name/{team_id}",
+                                        inline=False)
                     await ctx.send(embed=embed)
                 except (TypeError, AttributeError, IndexError):
                     await ctx.send("No record found for that team.")
@@ -459,16 +520,12 @@ class ESPN(commands.Cog):
         print(error)
         await ctx.send("Please include <league> <team>")
         
-    @espn.command(name="leagues",aliases=['league','conf','confs','conference','conferences'])
+    @espn.command(name="leagues", aliases=['league', 'conf', 'confs', 'conference', 'conferences'])
     async def espn_leagues(self, ctx: commands.Context):
         """
         Show supported leagues
         """
-        r = ""
-        for l in all_leagues:
-            r = r + l.upper() + ", "
-        r = r[:-2]
-        await ctx.send("Supported leagues:\n" + r)
+        await ctx.send("Supported leagues:\n" + ', '.join(l.upper() for l in all_leagues))
         
     def __init__(self, bot):
         self.bot = bot
