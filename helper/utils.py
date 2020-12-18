@@ -47,3 +47,11 @@ def filesize(size):
 
 def is_positive_int(n):
     return n.isdigit()
+
+
+class StatusResponse:
+    def __init__(self, success: bool = None, code: int = None, issue: str = None, attachment = None):
+        self.success = success
+        self.code = code
+        self.issue = issue
+        self.attachment = attachment

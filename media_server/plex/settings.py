@@ -66,7 +66,7 @@ USE_OMBI = True
 OMBI_URL = ''
 OMBI_API_KEY = ''
 
-# Discord-to-Plex database (SQLite3)
+# Discord-to-Plex database_handler (SQLite3)
 SQLITE_FILE = 'media_server/discordConnector.db'  # File path + name + extension (i.e. "/root/Arca/media_server/discordConnector.db"
 '''
 0|DiscordID|VARCHAR(100)|1||0
@@ -80,7 +80,7 @@ SQLITE_FILE = 'media_server/discordConnector.db'  # File path + name + extension
 '''
 ENABLE_BLACKLIST = True
 
-USE_DROPBOX = False  # Store database in Dropbox, download and upload dynamically
+USE_DROPBOX = False  # Store database_handler in Dropbox, download and upload dynamically
 
 # Discord settings
 DISCORD_SERVER_ID = ''
@@ -97,7 +97,7 @@ CURRENTLY_PLAYING_ROLE_NAME = 'Watching'
 
 # Trial settings
 TRIAL_ROLE_NAME = "Trial Member"  # Role given to a trial user
-TRIAL_LENGTH = 24  # (hours) How long a trial lasts
+TRIAL_LENGTH = 24 * 60 * 60  # (seconds) How long a trial lasts
 TRIAL_CHECK_FREQUENCY = 15  # (minutes) How often the bot checks for trial expirations
 
 # Winner settings
@@ -108,7 +108,7 @@ AUTO_WINNERS = False
 # winners will be auto-assigned the TEMP_WINNER_ROLE_NAME. That role gives them access to a specified WINNER_CHANNEL
 # channel Users then post their Jellyfin username (ONLY their Jellyfin username) in the channel, which is processed
 # by the bot. The bot invites the Jellyfin username, and associates the Discord user author of the message with the
-# Jellyfin username in the database. The user is then have the TEMP_WINNER_ROLE_NAME role removed (which removes them
+# Jellyfin username in the database_handler. The user is then have the TEMP_WINNER_ROLE_NAME role removed (which removes them
 # from the WINNER_CHANNEL channel), and assigned the final WINNER_ROLE_NAME role.
 TEMP_WINNER_ROLE_NAME = "Uninvited Winner"  # Role temporarily given to a winner (used if AUTO_WINNERS = True)
 WINNER_CHANNEL = 0  # Channel ID

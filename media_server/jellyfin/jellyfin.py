@@ -18,7 +18,7 @@ from media_server.jellyfin import settings as settings
 from media_server.jellyfin import jellyfin_api as jf
 from media_server.jellyfin import jellyfin_stats as js
 from media_server.jellyfin import jellyfin_recs as jr
-from helper.db_commands import DB
+from helper.database import Database
 from helper.pastebin import hastebin, privatebin
 import helper.discord_helper as discord_helper
 

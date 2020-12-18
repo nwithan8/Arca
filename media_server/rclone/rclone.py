@@ -12,7 +12,7 @@ import platform
 import json
 from media_server.rclone import settings as settings
 import helper.discord_helper as discord_helper
-from helper.helper_functions import filesize
+from helper.utils import filesize
 from concurrent.futures import ThreadPoolExecutor
 
 

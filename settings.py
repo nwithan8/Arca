@@ -1,9 +1,8 @@
 import os
 
 extensions = [
-    # 'plex',
+    # 'plex_tools',
     # 'plex_manager',
-    # 'plex_manager_nodb',
     'jellyfin'
     # 'jellyfin_manager',
     # 'emby_manager',
@@ -22,6 +21,8 @@ extensions = [
     # 'speedtest',
     # 'voice_channel'
 ]
+
+ROOT_FOLDER = "./"
 
 PREFIX = "*"
 BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN")

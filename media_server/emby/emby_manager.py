@@ -12,11 +12,11 @@ import csv
 from datetime import datetime
 from media_server.emby import settings as settings
 from media_server.emby import emby_api as em
-from helper.db_commands import DB
+from helper.database import Database
 from helper.pastebin import hastebin, privatebin
 import helper.discord_helper as discord_helper
 
-db = DB(SQLITE_FILE=settings.SQLITE_FILE, SERVER_TYPE='emby', TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600), USE_DROPBOX=settings.USE_DROPBOX)
+db = Database(SQLITE_FILE=settings.SQLITE_FILE, SERVER_TYPE='emby', TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600), USE_DROPBOX=settings.USE_DROPBOX)
 
 
 def password(length):
@@ -78,7 +78,7 @@ def get_emby_users():
     return users
 
 
-async def add_to_emby(username, discordId, note, useEmbyConnect=False):
+async def add_to_emby(username, discord_id, note, useEmbyConnect=False):
     """
     Add a Discord user to Emby
 
@@ -89,7 +89,7 @@ async def add_to_emby(username, discordId, note, useEmbyConnect=False):
         if settings.ENABLE_BLACKLIST:
             if db.check_blacklist(username):
                 return False, 'blacklist', 'username'
-            if db.check_blacklist(discordId):
+            if db.check_blacklist(discord_id):
                 return False, 'blacklist', 'id'
         r = em.makeUser(username)
         if str(r.status_code).startswith('2'):
@@ -100,7 +100,7 @@ async def add_to_emby(username, discordId, note, useEmbyConnect=False):
                 print("Password update for {} failed. Moving on...".format(username))
             if useEmbyConnect:
                 em.addConnectUser(connect_username=username, user_id=uid)
-            success = db.add_user_to_db(discordId=discordId, username=username, note=note, uid=uid)
+            success = db.add_user_to_db(discord_id=discord_id, username=username, note=note, uid=uid)
             if success:
                 if update_policy(uid, settings.EMBY_USER_POLICY):
                     policyEnforced = True
@@ -117,7 +117,7 @@ def remove_from_emby(id):
     Returns:
     200 - user found and removed successfully
     600 - user found, but not removed
-    700 - user not found in database
+    700 - user not found in database_handler
     500 - unknown error
     """
     try:
@@ -338,7 +338,7 @@ class EmbyManager(commands.Cog):
             response = '\n'.join([u[0] for u in winners])
             await ctx.send(response)
         except Exception as e:
-            await ctx.send("Error pulling winners from database.")
+            await ctx.send("Error pulling winners from database_handler.")
 
     @emby.command(name="purge", pass_context=True)
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
@@ -383,10 +383,10 @@ class EmbyManager(commands.Cog):
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
     async def emby_cleandb(self, ctx: commands.Context):
         """
-        Remove old users from database
+        Remove old users from database_handler
         If you delete a user from Emby directly,
         run this to remove the user's entry in the
-        Emby user database.
+        Emby user database_handler.
         """
         existingUsers = get_emby_users()
         dbEntries = db.get_all_entries_in_db()
@@ -397,11 +397,11 @@ class EmbyManager(commands.Cog):
                     deletedUsers += entry[1] + ", "
                     db.remove_user_from_db(entry[0])  # entry[0] is DiscordID
             if deletedUsers:
-                await ctx.send("The following users were deleted from the database: " + deletedUsers[:-2])
+                await ctx.send("The following users were deleted from the database_handler: " + deletedUsers[:-2])
             else:
-                await ctx.send("No old users found and removed from database.")
+                await ctx.send("No old users found and removed from database_handler.")
         else:
-            await ctx.send("An error occurred when grabbing users from the database.")
+            await ctx.send("An error occurred when grabbing users from the database_handler.")
 
     @emby_cleandb.error
     async def emby_cleandb_error(self, ctx, error):
@@ -412,7 +412,7 @@ class EmbyManager(commands.Cog):
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
     async def emby_backupdb(self, ctx: commands.Context):
         """
-        Backup the database to Dropbox.
+        Backup the database_handler to Dropbox.
         This is automatically done every 24 hours.
         """
         await backup_database()
@@ -534,11 +534,11 @@ class EmbyManager(commands.Cog):
     async def emby_import(self, ctx: commands.Context, user: discord.Member, EmbyUsername: str, subType: str,
                           serverNumber: int = None):
         """
-        Add existing Emby users to the database.
+        Add existing Emby users to the database_handler.
         user - tag a Discord user
         EmbyUsername - Emby username of the Discord user
         subType - custom note for tracking subscriber type; MUST be less than 5 letters.
-        Default in database: 's' for Subscriber, 'w' for Winner, 't' for Trial.
+        Default in database_handler: 's' for Subscriber, 'w' for Winner, 't' for Trial.
         NOTE: subType 't' will make a new 24-hour timestamp for the user.
         """
         users = get_emby_users()
@@ -549,20 +549,20 @@ class EmbyManager(commands.Cog):
             if len(subType) > 4:
                 await ctx.send("subType must be less than 5 characters long.")
             else:
-                new_entry = db.add_user_to_db(discordId=user.id, username=EmbyUsername, note=subType, uid=embyId)
+                new_entry = db.add_user_to_db(discord_id=user.id, username=EmbyUsername, note=subType, uid=embyId)
                 if new_entry:
                     if subType == 't':
                         await ctx.send("Trial user was added/new timestamp issued.")
                     else:
-                        await ctx.send("User added to the database.")
+                        await ctx.send("User added to the database_handler.")
                 else:
-                    await ctx.send("User already exists in the database.")
+                    await ctx.send("User already exists in the database_handler.")
 
     @emby_import.error
     async def emby_import_error(self, ctx, error):
         print(error)
         await ctx.send(
-            "Please mention the Discord user to add to the database, including their Emby username and sub type.")
+            "Please mention the Discord user to add to the database_handler, including their Emby username and sub type.")
 
     @emby.group(name="find", aliases=["id"], pass_context=True)
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
@@ -605,7 +605,7 @@ class EmbyManager(commands.Cog):
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
     async def emby_info(self, ctx: commands.Context):
         """
-        Get database entry for a user
+        Get database_handler entry for a user
         """
         if ctx.invoked_subcommand is None:
             await ctx.send("What subcommand?")
@@ -613,7 +613,7 @@ class EmbyManager(commands.Cog):
     @emby_info.command(name="emby", aliases=["j"])
     async def emby_info_emby(self, ctx, EmbyUsername: str):
         """
-        Get database entry for Emby username
+        Get database_handler entry for Emby username
         """
         embed = discord.Embed(title=("Info for {}".format(str(EmbyUsername))))
         n = db.describe_table(file=settings.SQLITE_FILE, table="emby")
@@ -629,12 +629,12 @@ class EmbyManager(commands.Cog):
                     embed.add_field(name=str(n[i][1]), value=val, inline=False)
             await ctx.send(embed=embed)
         else:
-            await ctx.send("That user is not in the database.")
+            await ctx.send("That user is not in the database_handler.")
 
     @emby_info.command(name="discord", aliases=["d"])
     async def emby_info_discord(self, ctx, user: discord.Member):
         """
-        Get database entry for Discord user
+        Get database_handler entry for Discord user
         """
         embed = discord.Embed(title=("Info for {}".format(user.name)))
         n = db.describe_table(file=settings.SQLITE_FILE, table="emby")
@@ -651,7 +651,7 @@ class EmbyManager(commands.Cog):
                     embed.add_field(name=str(n[i][1]), value=val, inline=False)
             await ctx.send(embed=embed)
         else:
-            await ctx.send("That user is not in the database.")
+            await ctx.send("That user is not in the database_handler.")
 
     @emby_info.error
     async def emby_info_error(self, ctx, error):

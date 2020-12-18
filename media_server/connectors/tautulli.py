@@ -3,7 +3,7 @@ from decimal import Decimal
 import requests
 from urllib.parse import urlencode
 from typing import Union
-from helper.helper_functions import humanbitrate
+from helper.utils import humanbitrate
 from helper.discord_helper import emoji_numbers
 
 sessions_message = """{stream_count} stream{plural}"""
@@ -91,18 +91,18 @@ class TautulliConnector:
         except:
             return None
 
-    def _get_json(self, command, params=None):
+    def _get_json(self, command, params=None) -> Union[dict, None]:
         try:
             return self._get(command=command, params=params).json()
         except:
             return None
 
-    def refresh_users(self):
+    def refresh_users(self) -> bool:
         if self._get(command='refresh_users_list'):
             return True
         return False
 
-    def delete_user(self, plex_username):
+    def delete_user(self, plex_username) -> bool:
         if self._get(command='delete_user', params={'user_id': plex_username}):
             return True
         return False

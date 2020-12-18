@@ -11,13 +11,11 @@ from decimal import *
 import asyncio
 import media_server.plex.plex_api as px
 import media_server.connectors.tautulli as tautulli
-from helper.db_commands import DB
+from helper.database import Database
 from media_server.plex import settings as settings
 from media_server.plex import plex_recs as pr
-from helper.helper_functions import filesize
+from helper.utils import filesize
 import helper.discord_helper as discord_styling
-
-db = DB(SQLITE_FILE=settings.SQLITE_FILE, SERVER_TYPE='plex', TRIAL_LENGTH=None, MULTI_PLEX=None, USE_DROPBOX=settings.USE_DROPBOX)
 
 plex_connections = px.PlexConnections()
 current_plex_instance = plex_connections.get_plex_instance()
@@ -38,7 +36,7 @@ def switch_plex_server(server_number):
         return True
     return False
 
-class Plex(commands.Cog):
+class PlexTools(commands.Cog):
 
     @tasks.loop(minutes=60.0)  # update library every hour
     async def makeLibraries(self):
@@ -490,4 +488,4 @@ class Plex(commands.Cog):
 
 
 def setup(bot):
-    bot.add_cog(Plex(bot))
+    bot.add_cog(PlexTools(bot))

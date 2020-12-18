@@ -1,14 +1,15 @@
+from typing import List
+
 import discord
 from discord.ext import commands, tasks
 import asyncio
 
 
-def get_users_with_roles(bot, roleNames=[], guild=None, guildID=None):
+def get_users_with_roles(bot, roleNames: List[str] = [], guild = None, guildID = None):
     filtered_members = []
     filtered_roles = []
     if not guild and not guildID:
         raise Exception("'Server' and 'Server ID' cannot both be empty.")
-        return None
     if guild:
         guildID = guild.id
     allRoles = bot.get_guild(int(guildID)).roles
@@ -21,12 +22,11 @@ def get_users_with_roles(bot, roleNames=[], guild=None, guildID=None):
     return filtered_members
 
 
-def get_users_without_roles(bot, roleNames=[], guild=None, guildID=None):
+def get_users_without_roles(bot, roleNames: List[str] = [], guild = None, guildID = None):
     filtered_members = []
     filtered_roles = []
     if not guild and not guildID:
         raise Exception("'Server' and 'Server ID' cannot both be empty.")
-        return None
     if guild:
         guildID = guild.id
     allRoles = bot.get_guild(int(guildID)).roles
@@ -39,7 +39,7 @@ def get_users_without_roles(bot, roleNames=[], guild=None, guildID=None):
     return filtered_members
 
 
-def user_has_role(ctx, user, role_name):
+def user_has_role(ctx, user: discord.Member, role_name: str) -> bool:
     """
     Check if user has a role
     :param ctx: commands.Context
@@ -52,25 +52,28 @@ def user_has_role(ctx, user, role_name):
         return True
     return False
 
-def bold(text):
+def server_id(ctx: commands.Context) -> int:
+    return ctx.message.guild.id
+
+def bold(text) -> str:
     return f"**{text}**"
 
-def italic(text):
+def italic(text) -> str:
     return f"*{text}*"
 
-def underline(text):
+def underline(text) -> str:
     return f"__{text}__"
 
-def inline_code(text):
+def inline_code(text) -> str:
     return f"``{text}``"
 
-def code_block(text):
+def code_block(text) -> str:
     return f"```{text}```"
 
 
 emoji_numbers = ["1️⃣", "2️⃣", "3️⃣", "4️⃣" ,"5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣"]
 
-async def add_emoji_number_reactions(message, count):
+async def add_emoji_number_reactions(message: discord.Message, count: int):
     """
     Add number reactions to a message for user interaction
     :param message: message to add emojis to

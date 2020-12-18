@@ -1,127 +1,116 @@
 """
 Interact with a Plex Media Server, manage users
-Copyright (C) 2019 Nathan Harris
+Copyright (C) 2020 Nathan Harris
 """
-
-import discord
-from discord.ext import tasks
-import requests
-import asyncio
+import json
 import time
 from typing import Union
 from datetime import datetime
-import plexapi
-from helper.db_commands import DB
-from discord.ext import commands
-from media_server.plex import settings as settings
-from media_server.plex import plex_api as px
+import asyncio
+
+import requests
+import discord
+from discord.ext import commands, tasks
+
+import settings as arca_settings
 import helper.discord_helper as discord_helper
-
-plex_connections = px.PlexConnections(plex_credentials=settings.PLEX_SERVERS)
-
-db = DB(SQLITE_FILE=settings.SQLITE_FILE, SERVER_TYPE='plex', TRIAL_LENGTH=(settings.TRIAL_LENGTH * 3600),
-        MULTI_PLEX=settings.MULTI_PLEX, USE_DROPBOX=settings.USE_DROPBOX)
-
-
-def trial_message(startOrStop, serverNumber=None):
-    if startOrStop == 'start':
-        return "Hello, welcome to {}! You have been granted a {}-hour trial!".format(
-            settings.PLEX_SERVER_NAME[serverNumber] if serverNumber else settings.PLEX_SERVER_NAME[0],
-            str(settings.TRIAL_LENGTH))
-    else:
-        return "Hello, your {}-hour trial of {} has ended".format(settings.TRIAL_LENGTH, settings.PLEX_SERVER_NAME[
-            serverNumber] if serverNumber else settings.PLEX_SERVER_NAME[0])
+import helper.utils as utils
+from media_server.database import DiscordMediaServerConnectorDatabase
+from media_server.plex import settings as plex_settings
+from media_server.plex import plex_api as px_api
 
 
-async def add_to_plex(plexname, discordId, note, serverNumber=None):
-    if settings.ENABLE_BLACKLIST:
-        if db.check_blacklist(plexname):
-            return ['blacklist', 'username']
-        if db.check_blacklist(discordId):
-            return ['blacklist', 'id']
-    tempPlex = px.getTempServer()
+def get_discord_server_database(ctx: commands.Context):
+    server_id = discord_helper.server_id(ctx=ctx)
+    db_file_path = f"{arca_settings.ROOT_FOLDER}/databases/media_server/{server_id}.db"
+    return DiscordMediaServerConnectorDatabase(sqlite_file=db_file_path,
+                                               encrypted=False,
+                                               media_server_type="plex",
+                                               trial_length=plex_settings.TRIAL_LENGTH,
+                                               multi_plex=False)
+
+
+def get_plex_credentials(ctx: commands.Context):
+    server_id = discord_helper.server_id(ctx=ctx)
+    plex_credentials_path = f"{arca_settings.ROOT_FOLDER}/credentials/plex/admin/{server_id}.json"
+    with open(plex_credentials_path) as f:
+        return json.load(f)
+
+
+def get_plex_api(ctx: commands.Context):
+    database = get_discord_server_database(ctx=ctx)
+    creds = get_plex_credentials(ctx=ctx)
+    return px_api.PlexConnections(plex_credentials=creds, database=database)
+
+
+async def add_to_plex(ctx: commands.Context, plex_username: str, discord_id: int, note: str, serverNumber: int = None) -> utils.StatusResponse:
+    plex_api = get_plex_api(ctx=ctx)
+    if plex_settings.ENABLE_BLACKLIST:
+        if plex_api.database.on_blacklist(names_and_ids=[plex_username, discord_id]):
+            return utils.StatusResponse(success=False, issue="BLACKLIST")
     try:
-        if db.add_user_to_db(discordId=discordId, username=plexname, note=note, serverNumber=serverNumber):
-            px.add_to_plex(server=tempPlex, plexname=plexname)
+        if plex_api.database.add_user_to_db(discord_id=discord_id,
+                                            username=plex_username,
+                                            note=note,
+                                            serverNumber=serverNumber):
+            plex_server = plex_api.get_plex_instance(server_number=serverNumber)
+            plex_server.add_user(plex_username=plex_username)
             await asyncio.sleep(30)
-            px.refresh_tautulli(serverNumber)
+            plex_server.refresh_tautulli_users()
             if note != 't':  # Trial members do not have access to Ombi
-                px.refresh_ombi()
-            return [True, None]
+                plex_server.refresh_ombi_users()
+            return utils.StatusResponse(success=True)
         else:
-            print("{} could not be added to the database.".format(plexname))
-            return [False, None]
+            print(f"{plex_username} could not be added to the database.")
+            return utils.StatusResponse(success=False, issue="DATABASE")
     except Exception as e:
         print(e)
-        return [False, None]
+        return utils.StatusResponse(success=False, issue=e.__str__())
 
 
-def delete_from_plex(id):
+def delete_from_plex(ctx: commands.Context, discord_id: int, server_number: int = None) -> utils.StatusResponse:
     """
-    Remove a Discord user from Plex
-    Returns:
-    200 - user found and removed successfully
-    400 - user found in database, but not found on Plex
-    600 - user found, but not removed
-    700 - user not found in database
-    500 - unknown error
+    Remove a Discord user from one or all Plex server(s)
     """
-    serverNumber = None
+    plex_api = get_plex_api(ctx=ctx)
     try:
-        results = db.find_user_in_db(ServerOrDiscord="Plex", data=id)
-        if not results:
-            return 700, serverNumber  # user not found
-        plexname = results[0]
-        note = results[1]
-        if settings.MULTI_PLEX:
-            serverNumber = results[2]
-        tempPlex = px.getTempServer(server_number=serverNumber)
-        if not plexname:
-            return 700, serverNumber  # user not found
-        else:
+        user = plex_api.database.find_user_in_db(value=discord_id, discord=False)
+        if not user:
+            return utils.StatusResponse(success=False, issue="NOT FOUND IN DATABASE")
+        plex_servers = []
+        if server_number: # delete from a specific server
+            plex_servers.append(plex_api.get_plex_instance(server_number=server_number))
+        else: # delete from all servers
+            plex_servers.extend(plex_api.get_all_plex_instances())
+        for server in plex_servers:
             try:
-                px.delete_from_plex(server=tempPlex, plexname=plexname)
-                if note != 't':
-                    px.delete_from_ombi(plexname)  # Error if trying to remove trial user that doesn't exist in Ombi?
-                px.delete_from_tautulli(plexname, serverNumber)
-                db.remove_user_from_db_by_discord(id)
-                return 200, serverNumber
-            except plexapi.exceptions.NotFound:
-                return 500, serverNumber  # user not found on Plex
-            except Exception as e:
-                print(e)
-                return 400, serverNumber  # user not removed completely
-    except plexapi.exceptions.NotFound:
-        # print("Not found")
-        return 400, serverNumber  # user not found on Plex
+                server.remove_user(plex_username=user.username)
+                server.delete_user_from_tautulli(plex_username=user.username)
+                if user.user_type != 't':
+                    server.delete_user_from_ombi(username=user.username)
+            except px_api.exceptions.NotFound:
+                print(f"Could not remove {user.username} from server {server.name}")
+        plex_api.database.remove_user_from_db(user_id=discord_id)
+        return utils.StatusResponse(success=True)
     except Exception as e:
-        print(e)
-        return 500, serverNumber  # unknown error
+        return utils.StatusResponse(success=False, issue=e.__str__())
 
 
-def remove_nonsub(memberID):
-    if memberID not in settings.EXEMPT_SUBS:
-        print("Ending sub for {}".format(memberID))
-        return delete_from_plex(memberID)
-
-
-async def backup_database():
-    db.backup(file=settings.SQLITE_FILE,
-              rename='backup/discordConnector.db.bk-{}'.format(datetime.now().strftime("%m-%d-%y")))
+def remove_non_subscriber(ctx: commands.Context, discord_id: int):
+    if discord_id not in plex_settings.EXEMPT_SUBS:
+        print(f"Ending sub for {discord_id}")
+        return delete_from_plex(ctx=ctx, discord_id=discord_id)
 
 
 class PlexManager(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    async def purge_winners(self, ctx):
+    async def purge_winners(self, ctx: commands.Context):
+        plex_api = get_plex_api(ctx=ctx)
         try:
-            results = db.get_winners()
-            monitorlist = []
-            for u in results:
-                monitorlist.append(u[0])
-            print("Winners: ")
-            print(monitorlist)
+            winners = plex_api.database.get_winners()
+
             data = px.t_request("get_users_table", "length=1000")
             removed_list = ""
             error_message = ""
@@ -381,7 +370,7 @@ class PlexManager(commands.Cog):
                 response = response + "\n" + (u[0])
             await ctx.send(response)
         except Exception as e:
-            await ctx.send("Error pulling winners from database.")
+            await ctx.send("Error pulling winners from database_handler.")
 
     @pm.command(name="purge", pass_context=True)
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
@@ -431,10 +420,10 @@ class PlexManager(commands.Cog):
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
     async def pm_cleandb(self, ctx: commands.Context):
         """
-        Remove old users from database
+        Remove old users from database_handler
         If you delete a user from Plex directly,
         run this to remove the user's entry in the
-        Plex user database.
+        Plex user database_handler.
         """
         existingUsers = [u.username.lower() for u in px.getPlexFriends()]
         dbEntries = db.get_all_entries_in_db()
@@ -444,14 +433,14 @@ class PlexManager(commands.Cog):
                 if entry[1].lower() not in existingUsers:  # entry[1] is PlexUsername, compare lowercase to
                     # existingUsers (returned as lowercase)
                     deletedUsers += entry[1] + "\n"
-                    print("Deleting " + str(entry[1]) + " from the Plex database...")
+                    print("Deleting " + str(entry[1]) + " from the Plex database_handler...")
                     # db.remove_user_from_db_by_discord(entry[0])  # entry[0] is DiscordID
             if deletedUsers:
-                await ctx.send("The following users were deleted from the database:\n" + deletedUsers[:-1])
+                await ctx.send("The following users were deleted from the database_handler:\n" + deletedUsers[:-1])
             else:
-                await ctx.send("No old users found and removed from database.")
+                await ctx.send("No old users found and removed from database_handler.")
         else:
-            await ctx.send("An error occurred when grabbing users from the database.")
+            await ctx.send("An error occurred when grabbing users from the database_handler.")
 
     @pm_cleandb.error
     async def pm_cleandb_error(self, ctx, error):
@@ -462,7 +451,7 @@ class PlexManager(commands.Cog):
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
     async def pm_backupdb(self, ctx: commands.Context):
         """
-        Backup the database to Dropbox.
+        Backup the database_handler to Dropbox.
         This is automatically done every 24 hours.
         """
         await backup_database()
@@ -625,7 +614,7 @@ class PlexManager(commands.Cog):
                                                                                                       )
                                    )
                 else:
-                    if px.update_plex_share(server=tempPlex, plexname=username, sections_to_share=category_settings):
+                    if px.update_plex_share(server=tempPlex, plex_username=username, sections_to_share=category_settings):
                         await ctx.send(f"{username} can now only access those libraries.")
                     else:
                         await ctx.send(f"Sorry, I couldn't update the library restrictions for {username}.")
@@ -636,7 +625,7 @@ class PlexManager(commands.Cog):
                         "Available movie ratings (case sensitive): '{}'".format("', '".join(px.all_movie_ratings)))
                 else:
                     rating_limit = {'Movie': category_settings[0]}
-                    if px.update_plex_share(server=tempPlex, plexname=username, rating_limit=rating_limit):
+                    if px.update_plex_share(server=tempPlex, plex_username=username, rating_limit=rating_limit):
                         await ctx.send(f"{username} is now restricted to {category_settings} and below movie ratings.")
                     else:
                         await ctx.send(f"Sorry, I couldn't update the movie rating restrictions for {username}.")
@@ -646,18 +635,18 @@ class PlexManager(commands.Cog):
                     await ctx.send("Available tv ratings (case sensitive): '{}'".format("', '".join(px.all_tv_ratings)))
                 else:
                     rating_limit = {'TV': category_settings[0]}
-                    if px.update_plex_share(server=tempPlex, plexname=username, rating_limit=rating_limit):
+                    if px.update_plex_share(server=tempPlex, plex_username=username, rating_limit=rating_limit):
                         await ctx.send(f"{username} is now restricted to {category_settings} and below TV ratings.")
                     else:
                         await ctx.send(f"Sorry, I couldn't update the TV rating restrictions for {username}.")
             elif category == 'sync':
                 if category_settings[0].lower() in ['yes', 'true', 'on', 'enable']:
-                    if px.update_plex_share(server=tempPlex, plexname=username, allow_sync=True):
+                    if px.update_plex_share(server=tempPlex, plex_username=username, allow_sync=True):
                         await ctx.send(f"Sync is now enabled for {username}.")
                     else:
                         await ctx.send(f"Could not enable sync for {username}.")
                 elif category_settings[0].lower() in ['no', 'false', 'off', 'disable']:
-                    if px.update_plex_share(server=tempPlex, plexname=username, allow_sync=False):
+                    if px.update_plex_share(server=tempPlex, plex_username=username, allow_sync=False):
                         await ctx.send(f"Sync is now disabled for {username}.")
                     else:
                         await ctx.send(f"Could not disable sync for {username}.")
@@ -741,7 +730,7 @@ class PlexManager(commands.Cog):
             else:
                 username = results[0]
         if not error_finding_name:
-            details = px.get_plex_restrictions(plexname=username)
+            details = px.get_plex_restrictions(plex_username=username)
             if details:
                 embed = discord.Embed(title=f"Plex settings for {username}")
                 if details.get('sections'):
@@ -779,11 +768,11 @@ class PlexManager(commands.Cog):
     async def pm_import(self, ctx: commands.Context, user: discord.Member, PlexUsername: str, subType: str,
                         serverNumber: int = None):
         """
-        Add existing Plex users to the database.
+        Add existing Plex users to the database_handler.
         user - tag a Discord user
         PlexUsername - Plex username or email of the Discord user
         subType - custom note for tracking subscriber type; MUST be less than 5 letters.
-        Default in database: 's' for Subscriber, 'w' for Winner, 't' for Trial.
+        Default in database_handler: 's' for Subscriber, 'w' for Winner, 't' for Trial.
         NOTE: subType 't' will make a new 24-hour timestamp for the user.
         """
         if len(subType) > 4:
@@ -791,21 +780,21 @@ class PlexManager(commands.Cog):
         elif serverNumber is not None and serverNumber > len(settings.PLEX_SERVER_URL):
             await ctx.send("That server number does not exist.")
         else:
-            new_entry = db.add_user_to_db(discordId=user.id, username=PlexUsername, note=subType,
+            new_entry = db.add_user_to_db(discord_id=user.id, username=PlexUsername, note=subType,
                                           serverNumber=serverNumber)
             if new_entry:
                 if subType == 't':
                     await ctx.send("Trial user was added/new timestamp issued.")
                 else:
-                    await ctx.send("User added to the database.")
+                    await ctx.send("User added to the database_handler.")
             else:
-                await ctx.send("User already exists in the database.")
+                await ctx.send("User already exists in the database_handler.")
 
     @pm_import.error
     async def pm_import_error(self, ctx, error):
         print(error)
         await ctx.send(
-            "Please mention the Discord user to add to the database, including their Plex username and sub type.")
+            "Please mention the Discord user to add to the database_handler, including their Plex username and sub type.")
 
     @pm.group(name="find", aliases=["id"], pass_context=True)
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
@@ -853,7 +842,7 @@ class PlexManager(commands.Cog):
     @pm.group(name="info")
     async def pm_info(self, ctx: commands.Context):
         """
-        Get database entry for a user
+        Get database_handler entry for a user
         """
         if ctx.invoked_subcommand is None:
             await ctx.send("What subcommand?")
@@ -862,7 +851,7 @@ class PlexManager(commands.Cog):
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
     async def pm_info_plex(self, ctx, PlexUsername: str):
         """
-        Get database entry for Plex username
+        Get database_handler entry for Plex username
         """
         embed = discord.Embed(title=("Info for " + str(PlexUsername)))
         n = db.describe_table(file=settings.SQLITE_FILE, table="plex")
@@ -880,13 +869,13 @@ class PlexManager(commands.Cog):
                     embed.add_field(name=str(n[i][1]), value=val, inline=False)
             await ctx.send(embed=embed)
         else:
-            await ctx.send("That user is not in the database.")
+            await ctx.send("That user is not in the database_handler.")
 
     @pm_info.command(name="discord", aliases=["d"])
     @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
     async def pm_info_discord(self, ctx, user: discord.Member):
         """
-        Get database entry for Discord user
+        Get database_handler entry for Discord user
         """
         embed = discord.Embed(title=("Info for " + user.name))
         n = db.describe_table(file=settings.SQLITE_FILE, table="plex")
@@ -905,7 +894,7 @@ class PlexManager(commands.Cog):
                     embed.add_field(name=str(n[i][1]), value=val, inline=False)
             await ctx.send(embed=embed)
         else:
-            await ctx.send("That user is not in the database.")
+            await ctx.send("That user is not in the database_handler.")
 
     @pm_info.error
     async def pm_info_error(self, ctx, error):
@@ -921,25 +910,25 @@ class PlexManager(commands.Cog):
                     await u.add_roles(tempWinner, reason="Winner - access winner invite channel")
             if message.channel.id == settings.WINNER_CHANNEL and discord.utils.get(message.guild.roles,
                                                                                    name=settings.TEMP_WINNER_ROLE_NAME) in message.author.roles:
-                plexname = message.content.strip()  # Only include username, nothing else
+                plex_username = message.content.strip()  # Only include username, nothing else
                 await message.channel.send(
-                    "Adding " + plexname + ". Please wait about 30 seconds...\n"
+                    "Adding " + plex_username + ". Please wait about 30 seconds...\n"
                                            "Be aware, you will be removed from this channel once you are added "
                                            "successfully.")
                 try:
                     serverNumber = None
                     if settings.MULTI_PLEX:
                         serverNumber = px.getSmallestServer()
-                    await add_to_plex(plexname, message.author.id, 'w', serverNumber)
+                    await add_to_plex(plex_username, message.author.id, 'w', serverNumber)
                     await message.channel.send(
-                        message.author.mention + " You've been invited, " + plexname + ". Welcome to " +
+                        message.author.mention + " You've been invited, " + plex_username + ". Welcome to " +
                         settings.PLEX_SERVER_NAME[serverNumber] + "!")
                     await message.author.remove_roles(
                         discord.utils.get(message.guild.roles, name=settings.TEMP_WINNER_ROLE_NAME),
                         reason="Winner was processed successfully.")
                 except plexapi.exceptions.BadRequest:
                     await message.channel.send(
-                        message.author.mention + ", " + plexname + " is not a valid Plex username.")
+                        message.author.mention + ", " + plex_username + " is not a valid Plex username.")
 
     @commands.Cog.listener()
     async def on_ready(self):

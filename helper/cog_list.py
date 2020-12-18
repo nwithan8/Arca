@@ -1,5 +1,5 @@
 nicks_to_paths = {
-    'plex': "media_server.plex.plex",
+    'plex_tools': "media_server.plex.plex_tools",
     'plex_manager': "media_server.plex.plex_manager",
     'plex_manager_nodb': "media_server.plex.plex_namanger_nodb",
     'jellyfin': 'media_server.jellyfin.jellyfin',
