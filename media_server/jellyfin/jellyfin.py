@@ -3,24 +3,11 @@ Interact with a Jellyfin Media Server, manage users
 Copyright (C) 2019 Nathan Harris
 """
 
-import discord
-from discord.ext import commands, tasks
-import json
-import random
-import string
-import csv
-from datetime import datetime
-from collections import defaultdict
-import datetime
-from decimal import *
+from discord.ext import commands
 import asyncio
 from media_server.jellyfin import settings as settings
 from media_server.jellyfin import jellyfin_api as jf
-from media_server.jellyfin import jellyfin_stats as js
 from media_server.jellyfin import jellyfin_recs as jr
-from helper.database import Database
-from helper.pastebin import hastebin, privatebin
-import helper.discord_helper as discord_helper
 
 live_session_ids = []
 emoji_numbers = [u"1\u20e3", u"2\u20e3", u"3\u20e3", u"4\u20e3", u"5\u20e3", u"6\u20e3", u"7\u20e3", u"8\u20e3",

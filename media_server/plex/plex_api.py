@@ -5,159 +5,26 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict
 
 import requests
-from plexapi import exceptions
 from plexapi.myplex import MyPlexUser
 from plexapi.server import PlexServer
+from plexapi import exceptions as plex_exceptions
 
 import helper.utils as utils
 from helper.encryption import Encryption
 from media_server.connectors.ombi import OmbiConnector
 from media_server.connectors.tautulli import TautulliConnector
-from media_server.database import DiscordMediaServerConnectorDatabase
+from media_server.database.database import DiscordMediaServerConnectorDatabase
 
 all_movie_ratings = ['12', 'Approved', 'Passed', 'G', 'GP', 'PG', 'PG-13', 'M', 'R', 'NC-17', 'Unrated', 'Not Rated',
                      'NR', 'None']
 all_tv_ratings = ['TV-Y', 'TV-Y7', 'TV-G', 'TV-PG', 'TV-14', 'TV-MA', 'NR']
 
 
-class PlexConnections:
-    def __init__(self, plex_credentials: dict, database: DiscordMediaServerConnectorDatabase):
-        """
-        :param plex_credentials: {1: {'url', 'token', 'name', 'altname', 'credsfolder', 'tautulli': {'url', 'api_key'}, 'ombi': {'url', 'api_key'}}, 'libraries': {'movies': [1], 'shows': [2, 3]}}
-        """
-        self.plex_connectors = {}
-        for server_number, info in plex_credentials.items():
-            self.plex_connectors[server_number] = PlexInstance(url=info.get('server_url'),
-                                                               token=info.get('server_token'),
-                                                               server_name=info.get('server_name'),
-                                                               server_alt_name=info.get('alternate_server_name'),
-                                                               server_number=server_number,
-                                                               credentials_folder=info.get('user_credentials_folder'),
-                                                               tautulli_info=info.get('tautulli'),
-                                                               ombi_info=info.get('ombi'),
-                                                               libraries=info.get('libraries')
-                                                               )
-        self.database = database
-
-
-    def get_plex_instance(self, server_number: int = None):
-        if server_number:
-            return self.plex_connectors[server_number]
-        return self.plex_connectors[0]
-
-
-    def get_all_plex_instances(self):
-        return self.plex_connectors
-
-
-    def get_smallest_server(self):
-        smallest_count = 100
-        smallest_server = self.plex_connectors[0]
-        for server_number, plex_connection in self.plex_connectors.items():
-            user_count = plex_connection.sub_count
-            if user_count < smallest_count:
-                smallest_count = user_count
-                smallest_server = plex_connection
-        return smallest_server
-
-
-    def add_user_to_smallest_server(self, plex_username: str) -> bool:
-        smallest_server = self.get_smallest_server()
-        return smallest_server.add_user_to_plex(plex_username=plex_username)
-
-
-    def add_user_to_specific_server(self, plex_username: str, server_number: int = 0, plex_connection = None) -> bool:
-        if not plex_connection:
-            plex_connection = self.plex_connectors[server_number]
-        if plex_connection.add_user_to_plex(plex_username=plex_username):
-            return True
-        return False
-
-
-    def add_user_to_all_servers(self, plex_username: str) -> bool:
-        for server_number, plex_connection in self.plex_connectors.items():
-            plex_connection.add_user_to_plex(plex_username=plex_username)
-        return True
-
-
-    def remove_user_from_specific_server(self, plex_username: str, server_number: int = 0, plex_connection = None) -> bool:
-        if not plex_connection:
-            plex_connection = self.plex_connectors[server_number]
-        if plex_connection.remove_user_from_plex(plex_username=plex_username):
-            return True
-        return False
-
-
-    def remove_user_from_all_servers(self, plex_username: str) -> bool:
-        for server_number, plex_connection in self.plex_connectors.items():
-            plex_connection.remove_user_from_plex(plex_username=plex_username)
-        return True
-
-
-    def refresh_specific_tautulli(self, server_number: int, plex_connection = None) -> bool:
-        if not plex_connection:
-            plex_connection = self.plex_connectors[server_number]
-        if plex_connection.use_tautulli:
-            plex_connection.refresh_tautulli_users()
-        return True
-
-
-    def refresh_all_tautullis(self) -> bool:
-        for server_number, plex_connection in self.plex_connectors.items():
-            if plex_connection.use_tautulli:
-                plex_connection.refresh_tautulli_users()
-        return True
-
-
-    def remove_user_from_specific_tautulli(self, plex_username: str, server_number: int = 0, plex_connection = None) -> bool:
-        if not plex_connection:
-            plex_connection = self.plex_connectors[server_number]
-        if plex_connection.use_tautulli:
-            return plex_connection.delete_user_from_tautulli(plex_username=plex_username)
-        return False
-
-
-    def remove_user_from_all_tautullis(self, plex_username: str) -> bool:
-        for server_number, plex_connection in self.plex_connectors.items():
-            if plex_connection.use_tautulli:
-                plex_connection.delete_user_from_tautulli(plex_username=plex_username)
-        return True
-
-
-    def refresh_specific_ombi(self, server_number: int, plex_connection = None) -> bool:
-        if not plex_connection:
-            plex_connection = self.plex_connectors[server_number]
-        if plex_connection.use_ombi:
-            return plex_connection.refresh_ombi_users()
-        return False
-
-
-    def refresh_all_ombis(self) -> bool:
-        for server_number, plex_connection in self.plex_connectors.items():
-            if plex_connection.use_ombi:
-                plex_connection.refresh_ombi_users()
-        return True
-
-
-    def remove_user_from_specific_ombi(self, plex_username: str, server_number: int = 0, plex_connection = None) -> bool:
-        if not plex_connection:
-            plex_connection = self.plex_connectors[server_number]
-        if plex_connection.use_ombi:
-            return plex_connection.delete_user_from_ombi(username=plex_username)
-        return False
-
-
-    def remove_user_from_all_ombis(self, plex_username: str) -> bool:
-        for server_number, plex_connection in self.plex_connectors.items():
-            if plex_connection.use_ombi:
-                plex_connection.delete_user_from_ombi(username=plex_username)
-        return True
-
-
 class PlexInstance:
     def __init__(self,
                  url: str,
                  token: str,
+                 api,
                  server_name: str = None,
                  server_alt_name: str = None,
                  server_number: int = 0,
@@ -168,8 +35,9 @@ class PlexInstance:
         # Server info
         self.url = url
         self.token = token
-        if not url and not token:
+        if not url or not token:
             raise Exception("Must include Plex Media Server url and token")
+        self._api = api
         self.server = PlexServer(self.url, self.token)
         self.name = server_name if server_name else self.server.friendlyName
         self.alt_name = server_alt_name if server_alt_name else self.server.friendlyName
@@ -222,6 +90,11 @@ class PlexInstance:
             return creds_dict
         return {}
 
+    def ping(self) -> bool:
+        response = requests.get(f"{self.url}/identity", timeout=10)
+        if response:
+            return True
+        return False
 
     def save_user_creds(self, user_id, username, password) -> bool:
         if self.crypt:
@@ -343,8 +216,14 @@ class PlexInstance:
                 friends.append(user)
         return friends
 
+    def user_has_access(self, plex_username: str) -> bool:
+        for user in self.users:
+            if user.username == plex_username:
+                return True
+        return False
 
-    def add_user(self, plex_username: str) -> bool:
+
+    def add_user(self, plex_username: str) -> utils.StatusResponse:
         try:
             self.server.myPlexAccount().inviteFriend(user=plex_username, server=self.server,
                                                      sections=None,
@@ -354,18 +233,21 @@ class PlexInstance:
                                                      filterMovies=None,
                                                      filterTelevision=None,
                                                      filterMusic=None)
-            return True
+            return utils.StatusResponse(success=True)
+        except plex_exceptions.NotFound:
+            return utils.StatusResponse(success=False, issue="Invalid Plex username")
         except Exception as e:
-            print(f"Error in add_to_plex: {e}")
-        return False
+            return utils.StatusResponse(success=False, issue=e.__str__())
 
 
-    def remove_user(self, plex_username: str) -> bool:
+    def remove_user(self, plex_username: str) -> utils.StatusResponse:
         try:
             self.server.myPlexAccount().removeFriend(user=plex_username)
-            return True
-        except:
-            return False
+            return utils.StatusResponse(success=True)
+        except plex_exceptions.NotFound:
+            return utils.StatusResponse(success=False, issue="Invalid Plex username")
+        except Exception as e:
+            return utils.StatusResponse(success=False, issue=e.__str__())
 
 
     def refresh_tautulli_users(self) -> bool:
@@ -486,7 +368,7 @@ class PlexInstance:
             for v in vs:
                 if v not in ids:
                     ids.append(str(v))
-        return {'Names': names, 'IDs': ids}
+        return {'names': names, 'IDs': ids}
 
 
     def get_plex_share(self, share_name_or_number):
@@ -527,7 +409,7 @@ class PlexInstance:
             raise Exception(f"Could not locate Plex user: {plex_username}")
 
 
-    def update_user_restrictions(self, plex_username, sections_to_share=[], rating_limit={}, allow_sync: bool = None):
+    def update_user_restrictions(self, plex_username, sections_to_share=[], rating_limit={}, allow_sync: bool = None) -> bool:
         """
         :param plex_username:
         :param sections_to_share:
@@ -575,7 +457,150 @@ class PlexInstance:
                                                      filterMusic=None)
             return True
         except:
-            raise Exception(f"Could not update restrictions for Plex user: {plex_username}")
+            print(f"Could not update restrictions for Plex user: {plex_username}")
+            return False
+
+
+class PlexConnections:
+    def __init__(self, plex_credentials: dict, database: DiscordMediaServerConnectorDatabase):
+        """
+        :param plex_credentials: {1: {'url', 'token', 'name', 'altname', 'credsfolder', 'tautulli': {'url', 'api_key'}, 'ombi': {'url', 'api_key'}}, 'libraries': {'movies': [1], 'shows': [2, 3]}}
+        """
+        self._credentials = plex_credentials
+        self.database = database
+
+    @property
+    def plex_connectors(self) -> dict:
+        connectors = {}
+        for server_number, info in self._credentials.items():
+            connectors[int(server_number)] = PlexInstance(url=info.get('server_url'),
+                                                          token=info.get('server_token'),
+                                                          api=self,
+                                                          server_name=info.get('server_name'),
+                                                          server_alt_name=info.get('alternate_server_name'),
+                                                          server_number=server_number,
+                                                          credentials_folder=info.get('user_credentials_folder'),
+                                                          tautulli_info=info.get('tautulli'),
+                                                          ombi_info=info.get('ombi'),
+                                                          libraries=info.get('libraries')
+                                                          )
+        return connectors
+
+
+    def get_plex_instance(self, server_number: int = None) -> Union[PlexInstance, None]:
+        if server_number:
+            return self.plex_connectors.get(server_number, None)
+        return self.all_plex_instances[0]
+
+
+    @property
+    def all_plex_instances(self) -> List[PlexInstance]:
+        return [connector for _, connector in self.plex_connectors.items()]
+
+
+    @property
+    def smallest_server(self) -> PlexInstance:
+        smallest_count = 100
+        smallest_server = self.plex_connectors[0]
+        for server_number, plex_connection in self.plex_connectors.items():
+            user_count = plex_connection.sub_count
+            if user_count < smallest_count:
+                smallest_count = user_count
+                smallest_server = plex_connection
+        return smallest_server
+
+
+    def add_user_to_smallest_server(self, plex_username: str) -> bool:
+        smallest_server = self.smallest_server
+        return smallest_server.add_user(plex_username=plex_username)
+
+
+    def add_user_to_specific_server(self, plex_username: str, server_number: int = 0, plex_connection = None) -> bool:
+        if not plex_connection:
+            plex_connection = self.plex_connectors[server_number]
+        if plex_connection.add_user_to_plex(plex_username=plex_username):
+            return True
+        return False
+
+
+    def add_user_to_all_servers(self, plex_username: str) -> bool:
+        for server_number, plex_connection in self.plex_connectors.items():
+            plex_connection.add_user(plex_username=plex_username)
+        return True
+
+
+    def remove_user_from_specific_server(self, plex_username: str, server_number: int = 0, plex_connection = None) -> bool:
+        if not plex_connection:
+            plex_connection = self.plex_connectors[server_number]
+        if plex_connection.remove_user_from_plex(plex_username=plex_username):
+            return True
+        return False
+
+
+    def remove_user_from_all_servers(self, plex_username: str) -> bool:
+        for server_number, plex_connection in self.plex_connectors.items():
+            plex_connection.remove_user(plex_username=plex_username)
+        return True
+
+
+    def refresh_specific_tautulli(self, server_number: int, plex_connection = None) -> bool:
+        if not plex_connection:
+            plex_connection = self.plex_connectors[server_number]
+        if plex_connection.use_tautulli:
+            plex_connection.refresh_tautulli_users()
+        return True
+
+
+    def refresh_all_tautullis(self) -> bool:
+        for server_number, plex_connection in self.plex_connectors.items():
+            if plex_connection.use_tautulli:
+                plex_connection.refresh_tautulli_users()
+        return True
+
+
+    def remove_user_from_specific_tautulli(self, plex_username: str, server_number: int = 0, plex_connection = None) -> bool:
+        if not plex_connection:
+            plex_connection = self.plex_connectors[server_number]
+        if plex_connection.use_tautulli:
+            return plex_connection.delete_user_from_tautulli(plex_username=plex_username)
+        return False
+
+
+    def remove_user_from_all_tautullis(self, plex_username: str) -> bool:
+        for server_number, plex_connection in self.plex_connectors.items():
+            if plex_connection.use_tautulli:
+                plex_connection.delete_user_from_tautulli(plex_username=plex_username)
+        return True
+
+
+    def refresh_specific_ombi(self, server_number: int, plex_connection = None) -> bool:
+        if not plex_connection:
+            plex_connection = self.plex_connectors[server_number]
+        if plex_connection.use_ombi:
+            return plex_connection.refresh_ombi_users()
+        return False
+
+
+    def refresh_all_ombis(self) -> bool:
+        for server_number, plex_connection in self.plex_connectors.items():
+            if plex_connection.use_ombi:
+                plex_connection.refresh_ombi_users()
+        return True
+
+
+    def remove_user_from_specific_ombi(self, plex_username: str, server_number: int = 0, plex_connection = None) -> bool:
+        if not plex_connection:
+            plex_connection = self.plex_connectors[server_number]
+        if plex_connection.use_ombi:
+            return plex_connection.delete_user_from_ombi(username=plex_username)
+        return False
+
+
+    def remove_user_from_all_ombis(self, plex_username: str) -> bool:
+        for server_number, plex_connection in self.plex_connectors.items():
+            if plex_connection.use_ombi:
+                plex_connection.delete_user_from_ombi(username=plex_username)
+        return True
 
 
 class Channel:

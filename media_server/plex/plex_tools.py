@@ -2,41 +2,51 @@
 Parse Plex Media Server statistics via Tautulli's API
 Copyright (C) 2019 Nathan Harris
 """
-
-import discord
-from discord.ext import commands, tasks
+import json
 from collections import defaultdict
-import datetime
-from decimal import *
-import asyncio
-import media_server.plex.plex_api as px
-import media_server.connectors.tautulli as tautulli
-from helper.database import Database
-from media_server.plex import settings as settings
-from media_server.plex import plex_recs as pr
-from helper.utils import filesize
-import helper.discord_helper as discord_styling
 
-plex_connections = px.PlexConnections()
-current_plex_instance = plex_connections.get_plex_instance()
+from discord.ext import commands, tasks
 
-owner_players = []
-session_ids = []
+import settings as arca_settings
+import helper.discord_helper as discord_helper
+import helper.utils as utils
+from media_server.database.database import DiscordMediaServerConnectorDatabase, EmbyUser, PlexUser, JellyfinUser
+from media_server.plex import settings as plex_settings
+from media_server.plex import plex_api as px_api
 
 shows = defaultdict(list)
 movies = defaultdict(list)
 
 
-def switch_plex_server(server_number):
-    global current_plex_instance
-    server_number -= 1
-    new_instance = plex_connections.get_plex_instance(server_number=server_number)
-    if new_instance:
-        current_plex_instance = new_instance
-        return True
-    return False
+def get_discord_server_database(ctx: commands.Context):
+    server_id = discord_helper.server_id(ctx=ctx)
+    db_file_path = f"{arca_settings.ROOT_FOLDER}/databases/media_server/{server_id}.db"
+    return DiscordMediaServerConnectorDatabase(sqlite_file=db_file_path,
+                                               encrypted=False,
+                                               media_server_type="plex",
+                                               trial_length=plex_settings.TRIAL_LENGTH,
+                                               multi_plex=False)
+
+
+def get_plex_credentials(ctx: commands.Context):
+    server_id = discord_helper.server_id(ctx=ctx)
+    plex_credentials_path = f"{arca_settings.ROOT_FOLDER}/credentials/plex/admin/{server_id}.json"
+    with open(plex_credentials_path) as f:
+        return json.load(f)
+
+
+def get_plex_api(ctx: commands.Context):
+    database = get_discord_server_database(ctx=ctx)
+    creds = get_plex_credentials(ctx=ctx)
+    return px_api.PlexConnections(plex_credentials=creds, database=database)
+
 
 class PlexTools(commands.Cog):
+
+    def __init__(self, bot):
+        self.bot = bot
+        print("Plex Tools - updating libraries...")
+        self.makeLibraries.start()
 
     @tasks.loop(minutes=60.0)  # update library every hour
     async def makeLibraries(self):
@@ -70,7 +80,7 @@ class PlexTools(commands.Cog):
         Movie, show or artist recommendation from Plex
 
         Say 'movie', 'show' or 'artist'
-        Use 'plexrec <mediaType> new <PlexUsername>' for an unwatched recommendation.
+        Use 'plexrec <mediaType> new <plex_username>' for an unwatched recommendation.
         """
         if ctx.invoked_subcommand is None:
             mediaType = mediaType.lower()
@@ -129,7 +139,7 @@ class PlexTools(commands.Cog):
         await ctx.send("Sorry, something went wrong while looking for a recommendation.")
 
     @plex_rec.command(name="new", aliases=["unseen"])
-    async def plex_rec_new(self, ctx: commands.Context, PlexUsername: str):
+    async def plex_rec_new(self, ctx: commands.Context, plex_username: str):
         """
         Get a new movie, show or artist recommendation
         Include your Plex username
@@ -145,7 +155,7 @@ class PlexTools(commands.Cog):
         else:
             holdMessage = await ctx.send("Looking for a new {}...".format(mediaType))
             async with ctx.typing():
-                response, embed, mediaItem = pr.makeRecommendation(mediaType, True, PlexUsername)
+                response, embed, mediaItem = pr.makeRecommendation(mediaType, True, plex_username)
             await holdMessage.delete()
             if embed is not None:
                 recMessage = await ctx.send(response, embed=embed)
@@ -205,19 +215,19 @@ class PlexTools(commands.Cog):
         await message.edit(content="Plex libraries updated.")
 
     @plex.command(name="stats", aliases=["statistics"], pass_context=True)
-    async def plex_stats(self, ctx: commands.Context, PlexUsername: str):
+    async def plex_stats(self, ctx: commands.Context, plex_username: str):
         """
         Watch time statistics for a user
         """
         user_id = None
         for user in current_plex_instance.tautulli.get_user_names(remove_response=True):
-            if user['friendly_name'] == PlexUsername:
+            if user['friendly_name'] == plex_username:
                 user_id = user['user_id']
                 break
         if not user_id:
             await ctx.send("User not found.")
         else:
-            embed = discord.Embed(title=f"{PlexUsername}'s Total Plex Watch Time")
+            embed = discord.Embed(title=f"{plex_username}'s Total Plex Watch Time")
             for user in current_plex_instance.tautulli.get_user_watch_time_stats(user_id=user_id, remove_response=True):
                 embed.add_field(name=f"{datetime.timedelta(seconds=int(user['total_time']))}, {user['total_plays']} plays",
                                 value=f"Last {user['query_days']} Day{('s' if int(user['query_days']) > 1 else '')}"
@@ -480,11 +490,6 @@ class PlexTools(commands.Cog):
                                 "Sorry, something went wrong when trying to add this item to your playlist.")
                     else:
                         await reaction.message.channel.send("Sorry, I can't find that item.")
-
-    def __init__(self, bot):
-        self.bot = bot
-        print("Plex - updating libraries...")
-        self.makeLibraries.start()
 
 
 def setup(bot):

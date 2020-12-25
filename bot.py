@@ -35,7 +35,8 @@ async def on_ready():
     print(f'Successfully logged in and booted...!\n')
 
 
-print("Arca Copyright (C) 2020  Nathan Harris\nThis program comes with ABSOLUTELY NO WARRANTY\nThis is free "
-      "software, and you are welcome to redistribute it\nunder certain conditions.")
+print("Arca Copyright (C) 2020  Nathan Harris\n"
+      "This program comes with ABSOLUTELY NO WARRANTY\n"
+      "This is free software, and you are welcome to redistribute it under certain conditions.")
 
 bot.run(settings.BOT_TOKEN)

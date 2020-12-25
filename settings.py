@@ -2,8 +2,8 @@ import os
 
 extensions = [
     # 'plex_tools',
-    # 'plex_manager',
-    'jellyfin'
+    'plex_manager',
+    # 'jellyfin'
     # 'jellyfin_manager',
     # 'emby_manager',
     # 'olaris_manager',
@@ -24,8 +24,8 @@ extensions = [
 
 ROOT_FOLDER = "./"
 
-PREFIX = "*"
-BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN")
+PREFIX = ")"
+BOT_TOKEN = "NzkxNzgxNjQzMzAzOTExNDI0.X-UKHg.C9URjLU5ZOlp1V2cH1tZsTjjbuM"  # Arca dev
 
 USE_DROPBOX = False
 # True: Can download/upload cogs from Dropbox

@@ -1,53 +1,3 @@
-import os
-
-# Plex settings
-PLEX_SERVERS = {
-    1: {
-        'url': '',
-        'token': '',
-        'server_name': '',
-        'server_alt_name': '',
-        'credentials_folder'
-        'tautulli': {
-            'url': '',
-            'api_key': ''
-        },
-        'ombi': {
-            'url': '',
-            'api_key': ''
-        },
-        'libraries': {
-            'movie': [1],
-            'show': [2],
-            'artist': [3, 6],
-            '4kmovie': [4]
-        }
-    }
-}
-
-# PLEASE KEEP THE []. This is a Python list!
-# If you want to use multiple servers, complete these lists as, ex. ['url1', 'url2', 'url3'], and set MULTI_PLEX = True
-# If you only want to use one server, complete these lists as, ex. ['url1'] and set MULTI_PLEX = False
-PLEX_SERVER_URL = []
-PLEX_SERVER_TOKEN = []
-PLEX_SERVER_ID = []  # after "/server/" in browser UI URL
-PLEX_SERVER_NAME = []
-PLEX_SERVER_ALT_NAME = []
-MULTI_PLEX = False
-
-# Plex Libraries (can use for shorthand reference to individual libraries or a group of libraries, such as when setting share restrictions)
-# Because of Discord, please use one-word names for each library
-# ex. 'oneWordLowercaseNicknameForGroup': [libraryNumber, libraryNumber]
-# Separate each group listing by a , like below
-# http://[PMS_IP_Address]:32400/library/sections?X-Plex-Token=YourTokenGoesHere
-# Use the above link to find the number for each library: composite="/library/sections/NUMBER/composite/..."
-PLEX_LIBRARIES = {
-    'movie': [1],
-    'show': [2],
-    'artist': [3, 6],
-    '4kmovie': [4]
-}
-
 # Plex playing settings
 TERMINATE_MESSAGE = "Please direct message @Nate in the Discord server."
 
@@ -55,53 +5,29 @@ TERMINATE_MESSAGE = "Please direct message @Nate in the Discord server."
 SUBSCRIBER_WATCHLIST_TITLE = "{}'s Watchlist"
 SUBSCRIBER_PLAYLIST_TITLE = "{}'s Playlist"
 
-# Tautulli settings
-USE_TAUTULLI = True
-TAUTULLI_URL = []
-TAUTULLI_API_KEY = []
-MULTI_TAUTULLI = False
-
-# Ombi settings
-USE_OMBI = True
-OMBI_URL = ''
-OMBI_API_KEY = ''
-
-# Discord-to-Plex database_handler (SQLite3)
-SQLITE_FILE = 'media_server/discordConnector.db'  # File path + name + extension (i.e. "/root/Arca/media_server/discordConnector.db"
-'''
-0|DiscordID|VARCHAR(100)|1||0
-1|PlexUsername|VARCHAR(100)|1||0
-2|email|VARCHAR(100)|0||0
-3|ExpirationStamp|INT(11)|0||0
-4|whichPlexServer|INT(11)|0||0
-5|whichTautServer|INT(11)|0||0
-6|method|VARCHAR(5)|0||0
-7|Note|VARCHAR(5)|0||0
-'''
 ENABLE_BLACKLIST = True
 
-USE_DROPBOX = False  # Store database_handler in Dropbox, download and upload dynamically
-
 # Discord settings
-DISCORD_SERVER_ID = ''
-DISCORD_ADMIN_ID = ''
-DISCORD_ADMIN_ROLE_NAME = ''
-AFTER_APPROVED_ROLE_NAME = ''  # Role given after someone is added to Plex
+DISCORD_SERVER_ID = '472537215457689601'
+DISCORD_ADMIN_ID = '233771307555094528'
+DISCORD_ADMIN_ROLE_NAME = 'Admin 👑'
 
+
+# Subscriber settings
+INVITED_ROLE = "Invited" # Role given after someone is added to Plex
 AUTO_CHECK_SUBS = False
-SUB_ROLES = ["Monthly Subscriber", "Yearly Subscriber", "Winner",
-             "Bot"]  # Users with any of these roles is exempt from removal
+SUB_ROLES = ["Monthly Subscriber 🕒", "Yearly Subscriber 📅", "Winner 🏆", "Lifetime Subscriber ⛰️", "Bot"]  # Users with any of these roles is exempt from removal
 EXEMPT_SUBS = [DISCORD_ADMIN_ID]  # Discord IDs for users exempt from subscriber checks/deletion, separated by commas
 SUB_CHECK_TIME = 7  # days
 CURRENTLY_PLAYING_ROLE_NAME = 'Watching'
 
 # Trial settings
-TRIAL_ROLE_NAME = "Trial Member"  # Role given to a trial user
+TRIAL_ROLE_NAME = "Trial ⏰"  # Role given to a trial user
 TRIAL_LENGTH = 24 * 60 * 60  # (seconds) How long a trial lasts
 TRIAL_CHECK_FREQUENCY = 15  # (minutes) How often the bot checks for trial expirations
 
 # Winner settings
-WINNER_ROLE_NAME = "Winner"  # Role given to a winner
+WINNER_ROLE_NAME = "Winner 🏆"  # Role given to a winner
 WINNER_THRESHOLD = 7200  # (seconds) How long a winner has to use every WEEK to keep access
 AUTO_WINNERS = False
 # True: Messages from the indicated GIVEAWAY_BOT_ID user will be scanned for mentioned Discord users (winners). The

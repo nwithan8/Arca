@@ -3,18 +3,7 @@ Interact with a Olaris Media Server, manage users
 Copyright (C) 2020 Nathan Harris
 """
 
-import discord
-from discord.ext import commands, tasks
-import json
-import random
-import string
-import csv
-from datetime import datetime
-from media_server.olaris import settings as settings
-from media_server.olaris import olaris_api as olaris
-from helper.database import Database
-from helper.pastebin import hastebin, privatebin
-import helper.discord_helper as discord_helper
+from discord.ext import commands
 
 
 class OlarisManager(commands.Cog):

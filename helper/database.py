@@ -2,6 +2,10 @@ import sqlite3
 import time
 from typing import List, Union
 
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
 import helper.dropbox_handler as dbx
 import helper.encryption as encryption
 
@@ -246,3 +250,34 @@ class Database:
             for table_name in results:
                 self._tables.append(Table(name=table_name, database_connection=self))
         return self._tables
+
+
+class SQLAlchemyDatabase:
+    def __init__(self,
+                 sqlite_file: str,
+                 encrypted: bool = False,
+                 key_file: str = None,
+                 use_dropbox: bool = False):
+        self.sqlite_file = sqlite_file
+        self.use_dropbox = use_dropbox
+        self.encrypted = encrypted
+        self.key_file = key_file
+        if self.encrypted and not self.key_file:
+            raise Exception("Missing KEY_FILE to unlock encrypted database_handler.")
+
+        self.engine = None
+        self.base = None
+        self.session = None
+
+        if self.encrypted and self.key_file:
+            key = encryption.get_raw_key(self.key_file)
+            self.engine = create_engine(f'sqlite+pysqlcipher://:{key}@/{sqlite_file}?cipher=aes-256-cfb&kdf_iter=64000')
+        else:
+            self.engine = create_engine(f'sqlite:///{sqlite_file}')
+        self.base = declarative_base(bind=self.engine)
+        Session = sessionmaker()
+        Session.configure(bind=self.engine)
+        self.session = Session()
+
+    def commit(self):
+        self.session.commit()

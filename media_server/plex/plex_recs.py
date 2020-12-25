@@ -150,11 +150,11 @@ def findRec(username, mediaType, unwatched=False):
         return False
 
 
-def makeRecommendation(mediaType, unwatched, PlexUsername):
+def makeRecommendation(mediaType, unwatched, plex_username):
     if unwatched:
-        if not PlexUsername:
+        if not plex_username:
             return "Please include a Plex username"
-        recommendation = findRec(PlexUsername, mediaType, True)
+        recommendation = findRec(plex_username, mediaType, True)
         if not recommendation:
             return "I couldn't find that Plex username"
         if recommendation == 'All':

@@ -55,3 +55,6 @@ class StatusResponse:
         self.code = code
         self.issue = issue
         self.attachment = attachment
+
+    def __bool__(self):
+        return self.success

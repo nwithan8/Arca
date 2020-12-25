@@ -3,7 +3,7 @@ BEGIN TRANSACTION;
 ATTACH DATABASE 'plex/PlexDiscord.db' AS old_plex;
 CREATE TABLE IF NOT EXISTS plex (
 DiscordID VARCHAR(100) NOT NULL,
-PlexUsername VARCHAR(100) NOT NULL,
+plex_username VARCHAR(100) NOT NULL,
 Email VARCHAR(100),
 ExpirationStamp INT(11),
 WhichPlexServer INT(11),
@@ -11,7 +11,7 @@ WhichTautServer INT(11),
 PayMethod VARCHAR(5),
 SubType VARCHAR(5)
 );
-INSERT INTO plex(DiscordID, PlexUsername, Email, ExpirationStamp, WhichPlexServer, WhichTautServer, PayMethod, SubType) SELECT DiscordID, PlexUsername, email, ExpirationStamp, whichPlexServer, whichTautServer, method, Note FROM old_plex.users;
+INSERT INTO plex(DiscordID, plex_username, Email, ExpirationStamp, WhichPlexServer, WhichTautServer, PayMethod, SubType) SELECT DiscordID, plex_username, email, ExpirationStamp, whichPlexServer, whichTautServer, method, Note FROM old_plex.users;
 
 ATTACH DATABASE 'jellyfin/JellyfinDiscord.db' AS old_jellyfin;
 CREATE TABLE IF NOT EXISTS jellyfin (
