@@ -72,13 +72,15 @@ class PlexInstance:
 
 
     def set_tautulli_connection(self, tautulli_info):
-        self.use_tautulli = True
-        self.tautulli = TautulliConnector(url=tautulli_info.get('url'), api_key=tautulli_info.get('api_key'))
+        self.use_tautulli = tautulli_info.get('enable', False)
+        if self.use_tautulli:
+            self.tautulli = TautulliConnector(url=tautulli_info.get('url'), api_key=tautulli_info.get('api_key'))
 
 
     def set_ombi_connection(self, ombi_info):
-        self.use_ombi = True
-        self.ombi = OmbiConnector(url=ombi_info.get('url'), api_key=ombi_info.get('api_key'))
+        self.use_ombi = ombi_info.get('enable', False)
+        if self.use_ombi:
+            self.ombi = OmbiConnector(url=ombi_info.get('url'), api_key=ombi_info.get('api_key'))
 
 
     def get_user_creds(self, user_id) -> dict:
