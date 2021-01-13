@@ -214,10 +214,51 @@ async def add_to_database_add_to_plex_add_role_send_dm(ctx: commands.Context,
     if not discord_user:
         return utils.StatusResponse(success=False, issue="Could not load Discord user to modify roles.")
 
-    if not discord_helper.add_user_role(user=discord_user, role_name=role_name, reason=role_reason):
+    if not await discord_helper.add_user_role(user=discord_user, role_name=role_name, reason=role_reason):
         return utils.StatusResponse(success=False, issue=f"Could not add {role_name} role to Discord user.")
 
     await discord_helper.send_direct_message(user=discord_user, message=dm_message)
+
+    return utils.StatusResponse(success=True)
+
+
+async def add_to_database_add_role(ctx: commands.Context,
+                                   plex_username: str,
+                                   discord_id: int,
+                                   user_type: str,
+                                   role_name: str,
+                                   role_reason: str,
+                                   plex_server_number: int = None,
+                                   pay_method: str = None):
+    if check_blacklist(ctx=ctx, discord_id=discord_id, plex_username=plex_username):
+        return utils.StatusResponse(success=False, status_code=utils.StatusCodes.USER_ON_BLACKLIST)
+
+    plex_api = get_plex_api(ctx)
+
+    servers_with_access = []
+    for plex_server in plex_api.all_plex_instances:
+        if plex_server.user_has_access(plex_username=plex_username):
+            servers_with_access.append(plex_server.name)
+    if not servers_with_access:
+        return utils.StatusResponse(success=False, status_code=utils.StatusCodes.USER_NOT_ON_PLEX)
+
+    new_database_entry = plex_api.database.make_user(plex_username=plex_username,
+                                                     discord_id=discord_id,
+                                                     user_type=user_type,
+                                                     pay_method=pay_method,
+                                                     which_plex_server=(
+                                                         plex_server_number if plex_server_number else None))
+
+    response = plex_api.database.add_user_to_database(new_database_entry)
+    if not response:
+        return response
+
+    discord_user = await discord_helper.get_user(user_id=discord_id, ctx=ctx)
+    if not discord_user:
+        return utils.StatusResponse(success=False, issue="Could not load Discord user to modify roles.")
+
+    if not await discord_helper.add_user_role(user=discord_user, role_name=role_name, reason=role_reason):
+        return utils.StatusResponse(success=False, issue=f"Could not add {role_name} role to Discord user.")
 
     return utils.StatusResponse(success=True)
 
@@ -247,7 +288,7 @@ async def remove_from_plex_remove_from_database_remove_role_send_dm(ctx: command
     if not discord_user:
         return utils.StatusResponse(success=False, issue="Could not load Discord user to modify roles.")
 
-    if not discord_helper.remove_user_role(user=discord_user, role_name=role_name, reason=role_reason):
+    if not await discord_helper.remove_user_role(user=discord_user, role_name=role_name, reason=role_reason):
         return utils.StatusResponse(success=False, issue=f"Could not remove {role_name} role from Discord user.")
 
     await discord_helper.send_direct_message(user=discord_user, message=dm_message)
@@ -694,6 +735,33 @@ class PlexManager(commands.Cog):
     async def pm_remove_error(self, ctx, error):
         print(error)
         await ctx.send("Please mention the Discord user to remove from Plex.")
+
+    @pm.command(name="import")
+    @commands.has_role(plex_settings.DISCORD_ADMIN_ROLE_NAME)
+    async def pm_import(self, ctx: commands.Context, user: discord.Member, plex_username: str,
+                        server_number: int = None):
+        """
+        Import an existing Plex-Discord user to the database (does not support Trials or Winners)
+        Mention the Discord user and their Plex username
+        Include optional server number (if using multiple Plex servers)
+        """
+        await ctx.send(f"Importing {plex_username} to database...")
+        response = await add_to_database_add_role(ctx=ctx,
+                                                  plex_username=plex_username,
+                                                  discord_id=user.id,
+                                                  user_type='Subscriber',
+                                                  role_name=plex_settings.INVITED_ROLE,
+                                                  role_reason='Imported existing user',
+                                                  plex_server_number=server_number)
+        if not response:
+            await ctx.send(response.issue)
+        else:
+            await ctx.send(f"{discord_helper.mention_user(user_id=user.id)} has been imported to the database.")
+
+    @pm_import.error
+    async def pm_import_error(self, ctx, error):
+        print(error)
+        await ctx.send("Please mention the Discord user to import to the database.")
 
 
     @pm.command(name='edit', aliases=['update', 'change'])
