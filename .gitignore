@@ -60,3 +60,5 @@ target/
 config.json
 config.txt
 *oauth2.json
+credentials/
+databases/
