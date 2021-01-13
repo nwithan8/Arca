@@ -49,11 +49,24 @@ def is_positive_int(n):
     return n.isdigit()
 
 
+class StatusCode:
+    def __init__(self, message: str, number: int):
+        self.message = message
+        self.code = number
+
+class StatusCodes:
+    USER_ON_BLACKLIST = StatusCode("User is on the blacklist", 999)
+    USER_NOT_ON_PLEX = StatusCode("User does not exist on Plex", 700)
+
 class StatusResponse:
-    def __init__(self, success: bool = None, code: int = None, issue: str = None, attachment = None):
+    def __init__(self, success: bool = None, code: int = None, issue: str = None, attachment = None, status_code: StatusCode = None):
         self.success = success
-        self.code = code
-        self.issue = issue
+        if status_code:
+            self.code = status_code.code
+            self.issue = status_code.message
+        else:
+            self.code = code
+            self.issue = issue
         self.attachment = attachment
 
     def __bool__(self):
