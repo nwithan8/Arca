@@ -61,9 +61,13 @@ DISCORD_ADMIN_ID = ''  # Presumably you, or whoever is the administrator of the 
 DISCORD_ADMIN_ROLE_NAME = "Admin"  # Only users with this role can call most administrative commands
 AFTER_APPROVED_ROLE_NAME = "Invited"  # Role given after someone is added to Jellyfin
 
-SUB_ROLES = ["Monthly Subscriber", "Yearly Subscriber", "Winner", "Bot"]  # Users with any of these roles is exempt from removal
+# Subscriber settings
+INVITED_ROLE = "Invited" # Role given after someone is added to Plex
+AUTO_CHECK_SUBS = False
+SUB_ROLES = ["Monthly Subscriber 🕒", "Yearly Subscriber 📅", "Winner 🏆", "Lifetime Subscriber ⛰️", "Bot"]  # Users with any of these roles is exempt from removal
 EXEMPT_SUBS = [DISCORD_ADMIN_ID]  # Discord IDs for users exempt from subscriber checks/deletion, separated by commas
 SUB_CHECK_TIME = 7  # days
+CURRENTLY_PLAYING_ROLE_NAME = 'Watching'
 
 # Trial settings
 TRIAL_ROLE_NAME = "Trial Member"  # Role given to a trial user

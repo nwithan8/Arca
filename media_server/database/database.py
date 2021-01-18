@@ -118,6 +118,17 @@ class JellyfinUser(MediaServerUserTable, Base):
                          user_type=user_type,
                          expiration_stamp=expiration_stamp)
 
+class ServerSettings(Base):
+    __tablename__ = "settings"
+    MediaServerType = Column(String(100), primary_key=True)
+    DefaultNumber = Column(Integer)
+
+    def __init__(self,
+                 server_type: str,
+                 default_server_number: int):
+        self.MediaServerType = server_type
+        self.DefaultNumber = default_server_number
+
 
 class DiscordMediaServerConnectorDatabase(db.SQLAlchemyDatabase):
     def __init__(self,
@@ -144,6 +155,20 @@ class DiscordMediaServerConnectorDatabase(db.SQLAlchemyDatabase):
         elif self.platform == "jellyfin":
             return JellyfinUser
         return None
+
+
+    def get_server_settings(self, media_server_type: str):
+        return self.session.query(ServerSettings).filter(ServerSettings.MediaServerType == media_server_type)
+
+
+    def get_default_server_number(self, media_server_type: str):
+        return self.get_server_settings(media_server_type=media_server_type).DefaultNumber
+
+
+    def update_default_server_number(self, media_server_type: str, server_number: int):
+        settings = self.get_server_settings(media_server_type=media_server_type)
+        settings.DefaultNumber = server_number
+        self.commit()
 
 
     def make_user(self, **kwargs):

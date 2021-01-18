@@ -1,9 +1,14 @@
-import requests
 import socket
 import json
 import os
+from typing import List
 from urllib.parse import urlencode
-from media_server.jellyfin import settings as settings
+
+import requests
+
+import helper.utils as utils
+from helper.encryption import Encryption
+from media_server.database.database import DiscordMediaServerConnectorDatabase
 
 
 def _save_token_id(file, credentials):
@@ -27,24 +32,32 @@ class JellyfinUser:
     def __init__(self, data):
         self.id = data['Id']
         self.name = data['Name']
+        self.password = data.get('Password')
 
 
 class JellyfinInstance:
-    def __init__(self, url, api_key, admin_username, admin_password, default_policy, server_name,
-                 token_file='.jellyfin_token'):
-        self.url = url
-        self.api_key = api_key
-        self.admin_username = admin_username
-        self.admin_password = admin_password
+    def __init__(self,
+                 jellyfin_credentials: dict,
+                 jellyfin_token_file_path: str,
+                 database: DiscordMediaServerConnectorDatabase):
+        self.url = jellyfin_credentials.get('server_url')
+        self.api_key = jellyfin_credentials.get('server_api_key')
+        self.admin_username = jellyfin_credentials.get('admin_username')
+        self.admin_password = jellyfin_credentials.get('admin_password')
+
+        self.default_policy = jellyfin_credentials.get('default_user_policy')
+        self.server_name = jellyfin_credentials.get('server_name')
+        self.libraries = jellyfin_credentials.get('libraries')
+
+        self._session = requests.Session()
+        self.database = database
+
+        self.token_file = jellyfin_token_file_path
         self.admin_id = None
-
-        self.default_policy = default_policy
-        self.server_name = server_name
-
         self.token_header = None
-        self.authenticate(token_file=token_file)
+        self.authenticate(force_new_auth=True, token_file=jellyfin_token_file_path)
 
-    def _load_token_id(self, file):
+    def _load_token_id(self, file: str):
         if os.path.exists(file):
             with open(file, 'r') as f:
                 lines = f.readlines()
@@ -53,71 +66,87 @@ class JellyfinInstance:
             return True
         return False
 
-    def authenticate(self, force_new_auth: bool = False, token_file=None):
-        if force_new_auth or not self._load_token_id(token_file):
-            xEmbyAuth = {
-                'X-Emby-Authorization': 'Emby UserId="{UserId}", Client="{Client}", Device="{Device}", '
-                                        'DeviceId="{DeviceId}", Version="{Version}", Token="{Token}'.format(
-                    UserId="",  # not required, if it was we would have to first request the UserId from the username
-                    Client='Arca',
-                    Device=socket.gethostname(),
-                    DeviceId=hash(socket.gethostname()),
-                    Version=1,
-                    Token=""  # not required
-                )}
-            data = {'Username': self.admin_username, 'Password': self.admin_password,
+    def authenticate(self, force_new_auth: bool = False, token_file: str = None):
+        if force_new_auth or not self.token_header:
+            x_emby_auth = {
+                'X-Emby-Authorization': f'Emby UserId="", '
+                                        f'Client="Arca", '
+                                        f'Device="{socket.gethostname()}", '
+                                        f'DeviceId="{hash(socket.gethostname())}", '
+                                        f'Version="1", '
+                                        f'Token=""'}
+            data = {'Username': self.admin_username,
+                    'Password': self.admin_password,
                     'Pw': self.admin_password}
             try:
-                res = self._post_request_with_token(hdr=xEmbyAuth, cmd='/Users/AuthenticateByName', data=data).json()
-                self.token_header = {'X-Emby-Token': '{}'.format(res['AccessToken'])}
+                res = self._post_request_with_body(hdr=x_emby_auth,
+                                                    cmd='/Users/AuthenticateByName',
+                                                    data=data).json()
+                self.token_header = {'X-Emby-Token': f"{res['AccessToken']}"}
                 self.admin_id = res['User']['Id']
-                _save_token_id(file=token_file, credentials=[res['AccessToken'], res['User']['Id']])
+                _save_token_id(file=token_file,
+                               credentials=[res['AccessToken'], res['User']['Id']])
             except Exception as e:
                 raise Exception('Could not log into Jellyfin.\n{}'.format(e))
 
-    def _get_request(self, cmd, params=None):
+    def _make_url(self, cmd: str, params: dict = {}, include_api_key: bool = False):
+        self.authenticate()
+        if not cmd.startswith("/"):
+            cmd = f"/{cmd}"
+        url = f"{self.url}{cmd}"
+        if include_api_key:
+            params['api_key'] = self.api_key
+        if params or include_api_key:
+            url += f"?{urlencode(params)}"
+        return url
+
+
+    def _get_request(self, cmd: str, params: dict = None):
         try:
-            res = requests.get(f'{self.url}{cmd}?api_key={self.api_key}{("&" + params if params else "")}')
+            url = self._make_url(cmd=cmd, params=params, include_api_key=True)
+            res = self._session.get(url=url)
             if res:
                 return res.json()
         except:
             pass
         return {}
 
-    def _get_request_with_token(self, hdr, cmd, data=None):
+    def _get_request_with_body(self, hdr: dict, cmd: str, data: dict = None):
         try:
+            url = self._make_url(cmd=cmd, include_api_key=False)
             hdr = {'accept': 'application/json', **hdr}
-            res = requests.get(f'{self.url}{cmd}', headers=hdr, data=(json.dumps(data) if data else None))
+            res = self._session.get(url=url, headers=hdr, data=(json.dumps(data) if data else None))
             if res:
                 return res.json()
         except:
             pass
         return {}
 
-    def _post_request(self, cmd, params=None, payload=None):
+    def _post_request(self, cmd: str, params: dict = None, payload: dict = None):
         try:
-            res = requests.post(
-                f'{self.url}{cmd}?api_key={self.api_key}{("&" + params if params is not None else "")}', json=payload)
+            url = self._make_url(cmd=cmd, params=params, include_api_key=True)
+            res = self._session.post(url=url, json=payload)
             if res:
                 return res
         except:
             pass
         return None
 
-    def _post_request_with_token(self, hdr, cmd, data=None):
+    def _post_request_with_body(self, hdr: dict, cmd: str, data: dict = None):
         try:
+            url = self._make_url(cmd=cmd, include_api_key=False)
             hdr = {'accept': 'application/json', 'Content-Type': 'application/json', **hdr}
-            res = requests.post(f'{self.url}{cmd}', headers=hdr, data=(json.dumps(data) if data else None))
+            res = self._session.post(url=url, headers=hdr, data=(json.dumps(data) if data else None))
             if res:
                 return res
         except:
             pass
         return None
 
-    def _delete_request(self, cmd, params=None):
+    def _delete_request(self, cmd: str, params: dict = None):
         try:
-            res = requests.delete(
-                f'{self.url}{cmd}?api_key={self.api_key}{("&" + params if params is not None else "")}')
+            url = self._make_url(cmd=cmd, params=params, include_api_key=True)
+            res = self._session.delete(url=url)
             if res:
                 return res.json()
         except:
@@ -131,56 +160,59 @@ class JellyfinInstance:
         }
         res = self._post_request(cmd=cmd, params=None, payload=data)
         if res:
-            return JellyfinUser(data=res.json()), None
-        return None, res.content.decode("utf-8")
+            return utils.StatusResponse(success=True, attachment=JellyfinUser(data=res.json()))
+        return utils.StatusResponse(success=False, issue=res.content.decode("utf-8"))
 
-    def disable_user(self, userId, enable=False):
+    def add_user(self, username):
+        return self.make_user(username=username)
+
+    def disable_user(self, user_id, enable=False):
         payload = {
             "IsDisabled": True,
         }
         if enable:
             payload['IsDisabled'] = False
-        return self.update_policy(userId, policy=payload)
+        return self.update_policy(user_id, policy=payload)
 
-    def delete_user(self, userId):
-        cmd = f'/Users/{userId}'
+    def delete_user(self, user_id):
+        cmd = f'/Users/{user_id}'
         return self._delete_request(cmd=cmd, params=None)
 
-    def reset_password(self, userId):
-        cmd = f'/Users/{userId}/Password'
+    def reset_password(self, user_id):
+        cmd = f'/Users/{user_id}/Password'
         data = {
-            'Id': str(userId),
+            'Id': str(user_id),
             'ResetPassword': 'true'
         }
-        res = self._post_request_with_token(hdr=self.token_header, cmd=cmd, data=data)
+        res = self._post_request_with_body(hdr=self.token_header, cmd=cmd, data=data)
         if res:
-            return True
-        return False
+            return utils.StatusResponse(success=True)
+        return utils.StatusResponse(success=False)
 
-    def set_user_password(self, userId, currentPass, newPass):
-        cmd = f'/Users/{userId}/Password'
+    def set_user_password(self, user_id, currentPass, newPass):
+        cmd = f'/Users/{user_id}/Password'
         data = {
-            'Id': userId,
+            'Id': user_id,
             'CurrentPw': currentPass,
             'NewPw': newPass
         }
-        res = self._post_request_with_token(hdr=self.token_header, cmd=cmd, data=data)
+        res = self._post_request_with_body(hdr=self.token_header, cmd=cmd, data=data)
         if res:
-            return True
-        return False
+            return utils.StatusResponse(success=True)
+        return utils.StatusResponse(success=False)
 
-    def update_policy(self, userId, policy=None):
+    def update_policy(self, user_id, policy=None):
         if not policy:
             policy = self.default_policy
-        cmd = f'/Users/{userId}/Policy'
-        res = self._post_request_with_token(hdr=self.token_header, cmd=cmd, data=policy)
+        cmd = f'/Users/{user_id}/Policy'
+        res = self._post_request_with_body(hdr=self.token_header, cmd=cmd, data=policy)
         if res:
-            return True
-        return False
+            return utils.StatusResponse(success=True)
+        return utils.StatusResponse(success=False)
 
     def search(self, keyword):
         cmd = f'/Search/Hints?{urlencode({"SearchTerm": keyword})}'
-        res = self._get_request_with_token(hdr=self.token_header, cmd=cmd)
+        res = self._get_request_with_body(hdr=self.token_header, cmd=cmd)
         if not res:
             return []
         res = res['SearchHints']
@@ -189,15 +221,22 @@ class JellyfinInstance:
             items.append(JellyfinItem(data=item))
         return items
 
+    def ping(self):
+        cmd = "/Users"
+        url = self._make_url(cmd=cmd, include_api_key=True)
+        if self._session.get(url=url):
+            return True
+        return False
+
     def get_all_libraries(self):
         cmd = '/Library/MediaFolders'
-        return self._get_request_with_token(hdr=self.token_header, cmd=cmd)
+        return self._get_request_with_body(hdr=self.token_header, cmd=cmd)
 
     def get_user_libraries(self, user_id=None):
         if not user_id:
             user_id = self.admin_id
         cmd = '/Users/{}/Items'.format(str(user_id))
-        return self._get_request_with_token(hdr=self.token_header, cmd=cmd)
+        return self._get_request_with_body(hdr=self.token_header, cmd=cmd)
 
     def get_users(self):
         # cmd = '/user_usage_stats/user_list'
@@ -249,7 +288,7 @@ class JellyfinInstance:
             }
             policy = details.get('Policy')
             if policy:
-                policyDetails = {
+                policy_details = {
                     'Admin': policy.get('IsAdministrator'),
                     'Hidden': policy.get('IsHidden'),
                     'Disabled': policy.get('IsDisabled'),
@@ -284,16 +323,16 @@ class JellyfinInstance:
                 folder_names = []
                 if user_folders and user_folders.get('Items'):
                     folder_names = [folder['Name'] for folder in user_folders.get('Items')]
-                policyDetails['EnabledFolderNames'] = folder_names
-                simplified_details.update(policyDetails)
+                policy_details['EnabledFolderNames'] = folder_names
+                simplified_details.update(policy_details)
             return simplified_details
         except Exception as e:
             print(f"Error in getUserDetailsSimplified: {e}")
         return None
 
-    def update_rating(self, itemId, upvote, userId):
-        cmd = f'/Users/{userId}/Items/{itemId}/Rating?Likes={upvote}'
-        res = self._post_request_with_token(hdr=self.token_header, cmd=cmd)
+    def update_rating(self, itemId, upvote, user_id):
+        cmd = f'/Users/{user_id}/Items/{itemId}/Rating?Likes={upvote}'
+        res = self._post_request_with_body(hdr=self.token_header, cmd=cmd)
         if res:
             return True
         return False
@@ -306,18 +345,20 @@ class JellyfinInstance:
             playlists.append(JellyfinPlaylist(data=playlist))
         return playlists
 
-    def make_playlists(self, name, userId):
+    def make_playlists(self, name, user_id):
         cmd = f'/Playlists'
-        params = f'{urlencode({"Name": name})}&UserId={userId}'
+        params = {"Name": name,
+                  "UserId": user_id}
         res = self._post_request(cmd=cmd, params=params)
         if res:
             return JellyfinPlaylist(data=res.json())
         return None
 
-    def add_to_playlist(self, playlistId, itemIds, userId):
+    def add_to_playlist(self, playlistId, itemIds, user_id):
         item_list = ','.join(itemIds)
         cmd = f'/Playlists/{playlistId}/Items'
-        params = f'Ids={item_list}&UserId={userId}'
+        params = {"Ids": item_list,
+                  "UserId": user_id}
         res = self._post_request(cmd=cmd, params=params)
         if res:
             return True
@@ -334,7 +375,7 @@ class JellyfinInstance:
         return self._get_request(cmd='/System/Info')
 
     def get_all_sessions(self, params=None):
-        return self._get_request_with_token(hdr=self.token_header, cmd='/Sessions', data=params)
+        return self._get_request_with_body(hdr=self.token_header, cmd='/Sessions', data=params)
 
     def get_live_sessions(self):
         live_sessions = []
@@ -346,11 +387,11 @@ class JellyfinInstance:
 
     def send_play_state_command(self, session_id, command):
         cmd = f'/Sessions/{session_id}/Playing/{command}'
-        return self._post_request_with_token(hdr=self.token_header, cmd=cmd)
+        return self._post_request_with_body(hdr=self.token_header, cmd=cmd)
 
     def send_message_to_client(self, session_id, message):
         cmd = f'/Sessions/{session_id}/Message'
-        return self._post_request_with_token(hdr=self.token_header, cmd=cmd, data={'Text': str(message)})
+        return self._post_request_with_body(hdr=self.token_header, cmd=cmd, data={'Text': str(message)})
 
     def stop_stream(self, stream_id, message_to_viewer=None):
         if message_to_viewer:
@@ -372,9 +413,9 @@ class JellyfinInstance:
         return None
 
     def get_defined_libraries(self):
-        nicknames = [name for name in settings.JELLYFIN_LIBRARIES.keys()]
+        nicknames = [name for name in self.libraries.keys()]
         names = []
-        for _, v in settings.JELLYFIN_LIBRARIES.items():
+        for _, v in self.libraries.items():
             if v not in names:
                 names.append(v)
         return {'Nicknames': nicknames, 'Full Names': names}
@@ -397,8 +438,8 @@ class JellyfinInstance:
         """
         ONLY WORKS FOR CURRENTLY-AUTHENTICATED USER
         """
-        return self._get_request_with_token(hdr=self.token_header,
-                                            cmd=f"/Users/{user_id}/Suggestions?type={media}&limit={limit}")
+        return self._get_request_with_body(hdr=self.token_header,
+                                           cmd=f"/Users/{user_id}/Suggestions?type={media}&limit={limit}")
 
 
 class NowPlayingItem:

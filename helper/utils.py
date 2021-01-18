@@ -1,3 +1,7 @@
+import string
+import random
+
+
 def humanbitrate(B, d=1):
     # 'Return the given kilobytes as a human friendly kbps, mbps, gbps, or tbps string'
     # Next line altered so that this takes in kilobytes instead of bytes, as it was originally written
@@ -47,6 +51,13 @@ def filesize(size):
 
 def is_positive_int(n):
     return n.isdigit()
+
+
+def password(length):
+    """
+    Generate a random string of letters and digits
+    """
+    return ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(length))
 
 
 class StatusCode:

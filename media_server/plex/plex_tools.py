@@ -14,31 +14,10 @@ from media_server.database.database import DiscordMediaServerConnectorDatabase, 
 from media_server.plex import settings as plex_settings
 from media_server.plex import plex_api as px_api
 
+from media_server import multi_server_handler
+
 shows = defaultdict(list)
 movies = defaultdict(list)
-
-
-def get_discord_server_database(ctx: commands.Context):
-    server_id = discord_helper.server_id(ctx=ctx)
-    db_file_path = f"{arca_settings.ROOT_FOLDER}/databases/media_server/{server_id}.db"
-    return DiscordMediaServerConnectorDatabase(sqlite_file=db_file_path,
-                                               encrypted=False,
-                                               media_server_type="plex",
-                                               trial_length=plex_settings.TRIAL_LENGTH,
-                                               multi_plex=False)
-
-
-def get_plex_credentials(ctx: commands.Context):
-    server_id = discord_helper.server_id(ctx=ctx)
-    plex_credentials_path = f"{arca_settings.ROOT_FOLDER}/credentials/plex/admin/{server_id}.json"
-    with open(plex_credentials_path) as f:
-        return json.load(f)
-
-
-def get_plex_api(ctx: commands.Context):
-    database = get_discord_server_database(ctx=ctx)
-    creds = get_plex_credentials(ctx=ctx)
-    return px_api.PlexConnections(plex_credentials=creds, database=database)
 
 
 class PlexTools(commands.Cog):
@@ -46,8 +25,9 @@ class PlexTools(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         print("Plex Tools - updating libraries...")
-        self.makeLibraries.start()
+        # self.makeLibraries.start()
 
+    """
     @tasks.loop(minutes=60.0)  # update library every hour
     async def makeLibraries(self):
         pr.cleanLibraries()
@@ -55,6 +35,7 @@ class PlexTools(commands.Cog):
             pr.makeLibrary(groupName)
         print("Libraries updated.")
         print("Plex ready.")
+    """
 
     @commands.group(name="plex", aliases=["Plex"], pass_context=True)
     async def plex(self, ctx: commands.Context):
@@ -69,150 +50,26 @@ class PlexTools(commands.Cog):
         """
         Change current/default Plex Media Server
         """
-        if switch_plex_server(server_number=server_number):
-            await ctx.send(f"Now using Plex Server #{server_number}")
-        else:
-            await ctx.send(f"Could not switch to Plex Server #{server_number}")
+        plex_api = multi_server_handler.get_plex_api(ctx=ctx)
+        plex_api.database.update_default_server_number(media_server_type="plex", server_number=server_number)
+        await ctx.send(f"Now using Plex Server #{server_number}")
 
-    @plex.group(name="rec", aliases=["sug", "recommend", "suggest"], pass_context=True)
-    async def plex_rec(self, ctx: commands.Context, mediaType: str):
-        """
-        Movie, show or artist recommendation from Plex
-
-        Say 'movie', 'show' or 'artist'
-        Use 'plexrec <mediaType> new <plex_username>' for an unwatched recommendation.
-        """
-        if ctx.invoked_subcommand is None:
-            mediaType = mediaType.lower()
-            if mediaType.lower() not in pr.libraries.keys():
-                await ctx.send(f"Please try again, indicating '{', '.join(pr.libraries.keys())}'")
-            else:
-                holdMessage = await ctx.send(
-                    "Looking for a{} {}...".format("n" if (mediaType[0] in ['a', 'e', 'i', 'o', 'u']) else "",
-                                                   mediaType))
-                async with ctx.typing():
-                    response, embed, mediaItem = pr.makeRecommendation(mediaType, False, None)
-                await holdMessage.delete()
-                if embed is not None:
-                    recMessage = await ctx.send(response, embed=embed)
-                else:
-                    await ctx.send(response)
-                if mediaItem.type not in ['artist', 'album', 'track']:
-                    await recMessage.add_reaction('🎞️')
-                    try:
-                        def check(trailerReact, trailerReactUser):
-                            return trailerReact.emoji == '🎞️' and trailerReactUser.id != self.bot.user.id
-
-                        showTrailer, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
-                        if showTrailer:
-                            await ctx.send(pr.getTrailerURL(mediaItem))
-                    except asyncio.TimeoutError:
-                        await recMessage.clear_reactions()
-                if str(ctx.message.author.id) == str(settings.DISCORD_ADMIN_ID):
-                    response, numberOfPlayers = pr.getPlayers(mediaType)
-                    if response:
-                        askAboutPlayer = True
-                        while askAboutPlayer:
-                            try:
-                                def check(react, reactUser, numPlayers):
-                                    return str(react.emoji) in discord_styling.emoji_numbers[
-                                                               :numberOfPlayers] and reactUser.id == settings.DISCORD_ADMIN_ID
-
-                                playerQuestion = await ctx.send(response)
-                                await discord_styling.add_emoji_number_reactions(message=playerQuestion, count=numberOfPlayers)
-                                reaction, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
-                                if reaction:
-                                    playerNumber = discord_styling.emoji_numbers.index(str(reaction.emoji))
-                                    mediaItem = pr.getFullMediaItem(mediaItem)
-                                    if mediaItem:
-                                        pr.playMedia(playerNumber, mediaItem)
-                                    else:
-                                        await ctx.send(
-                                            "Sorry, something went wrong while loading that {}.".format(mediaType))
-                            except asyncio.TimeoutError:
-                                await playerQuestion.delete()
-                                askAboutPlayer = False
-
-    @plex_rec.error
-    async def plex_rec_error(self, ctx, error):
+    @plex_switch.error
+    async def plex_switch_error(self, ctx, error):
         print(error)
-        await ctx.send("Sorry, something went wrong while looking for a recommendation.")
+        await discord_helper.something_went_wrong(ctx=ctx)
 
-    @plex_rec.command(name="new", aliases=["unseen"])
-    async def plex_rec_new(self, ctx: commands.Context, plex_username: str):
-        """
-        Get a new movie, show or artist recommendation
-        Include your Plex username
-        """
-        mediaType = None
-        for group in pr.libraries.keys():
-            if group in ctx.message.content.lower():
-                mediaType = group
-                break
-        if not mediaType:
-            acceptedTypes = "', '".join(pr.libraries.keys())
-            await ctx.send("Please try again, indicating '{}'".format(acceptedTypes))
-        else:
-            holdMessage = await ctx.send("Looking for a new {}...".format(mediaType))
-            async with ctx.typing():
-                response, embed, mediaItem = pr.makeRecommendation(mediaType, True, plex_username)
-            await holdMessage.delete()
-            if embed is not None:
-                recMessage = await ctx.send(response, embed=embed)
-            else:
-                await ctx.send(response)
-            if mediaItem.type not in ['artist', 'album', 'track']:
-                await recMessage.add_reaction('🎞️')
-                try:
-                    def check(trailerReact, trailerReactUser):
-                        return trailerReact.emoji == '🎞️' and trailerReactUser.id != self.bot.user.id
-
-                    showTrailer, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
-                    if showTrailer:
-                        await ctx.send(pr.getTrailerURL(mediaItem))
-                except asyncio.TimeoutError:
-                    await recMessage.clear_reactions()
-            if str(ctx.message.author.id) == str(settings.DISCORD_ADMIN_ID):
-                response, numberOfPlayers = pr.getPlayers(mediaType)
-                if response:
-                    askAboutPlayer = True
-                    while askAboutPlayer:
-                        try:
-                            def check(react, reactUser, numPlayers):
-                                return str(react.emoji) in discord_styling.emoji_numbers[
-                                                           :numberOfPlayers] and reactUser.id == settings.DISCORD_ADMIN_ID
-
-                            playerQuestion = await ctx.send(response)
-
-                            await discord_styling.add_emoji_number_reactions(message=playerQuestion, count=numberOfPlayers)
-                            reaction, user = await self.bot.wait_for('reaction_add', timeout=60.0, check=check)
-                            if reaction:
-                                playerNumber = discord_styling.emoji_numbers.index(str(reaction.emoji))
-                                mediaItem = pr.getFullMediaItem(mediaItem)
-                                if mediaItem:
-                                    pr.playMedia(playerNumber, mediaItem)
-                                else:
-                                    await ctx.send(
-                                        "Sorry, something went wrong while loading that {}.".format(mediaType))
-                        except asyncio.TimeoutError:
-                            await playerQuestion.delete()
-                            askAboutPlayer = False
-
-    @plex_rec_new.error
-    async def plex_rec_new_error(self, ctx, error):
-        print(error)
-        await ctx.send("Sorry, something went wrong while looking for a new recommendation.")
-
+    """
     @plex.command(name="update", aliases=["refresh"], pass_context=True)
     async def plex_update(self, ctx: commands.Context):
-        """
-        Update Plex libraries for Plex Recs
-        """
+        # Update Plex libraries for Plex Recs
         message = await ctx.send("Updating Plex libraries...")
         pr.cleanLibraries()
         for groupName in pr.libraries.keys():
             pr.makeLibrary(groupName)
         await message.edit(content="Plex libraries updated.")
+        
+    """
 
     @plex.command(name="stats", aliases=["statistics"], pass_context=True)
     async def plex_stats(self, ctx: commands.Context, plex_username: str):

@@ -10,40 +10,18 @@ import asyncio
 import discord
 from discord.ext import commands, tasks
 
-import settings as arca_settings
 import helper.discord_helper as discord_helper
 import helper.utils as utils
 from media_server.database.database import DiscordMediaServerConnectorDatabase, EmbyUser, PlexUser, JellyfinUser
 from media_server.plex import settings as plex_settings
 from media_server.plex import plex_api as px_api
-
-def get_discord_server_database(ctx: commands.Context):
-    server_id = discord_helper.server_id(ctx=ctx)
-    db_file_path = f"{arca_settings.ROOT_FOLDER}/databases/media_server/{server_id}.db"
-    return DiscordMediaServerConnectorDatabase(sqlite_file=db_file_path,
-                                               encrypted=False,
-                                               media_server_type="plex",
-                                               trial_length=plex_settings.TRIAL_LENGTH,
-                                               multi_plex=False)
-
-
-def get_plex_credentials(ctx: commands.Context):
-    server_id = discord_helper.server_id(ctx=ctx)
-    plex_credentials_path = f"{arca_settings.ROOT_FOLDER}/credentials/plex/admin/{server_id}.json"
-    with open(plex_credentials_path) as f:
-        return json.load(f)
-
-
-def get_plex_api(ctx: commands.Context):
-    database = get_discord_server_database(ctx=ctx)
-    creds = get_plex_credentials(ctx=ctx)
-    return px_api.PlexConnections(plex_credentials=creds, database=database)
+from media_server import multi_server_handler
 
 def get_user_entries_from_database(ctx: commands.Context, discord_id: int = None, plex_username: str = None, first_only: bool = False) -> Union[List[Union[PlexUser, EmbyUser, JellyfinUser, utils.StatusResponse]], utils.StatusResponse]:
     if not discord_id and not plex_username:
         raise Exception("Must provide either plex_username or discord_id")
 
-    plex_api = get_plex_api(ctx=ctx)
+    plex_api = multi_server_handler.get_plex_api(ctx=ctx)
 
     database_user_entries = plex_api.database.get_user(discord_id=discord_id, media_server_username=plex_username, first_match_only=first_only)
     if not database_user_entries:
@@ -55,7 +33,7 @@ def remove_user_from_database(ctx: commands.Context, user = None, discord_id: in
     if not user and not discord_id and not plex_username:
         raise Exception("Must provide either user, plex_username or discord_id")
 
-    plex_api = get_plex_api(ctx=ctx)
+    plex_api = multi_server_handler.get_plex_api(ctx=ctx)
 
     if not user:
         user = plex_api.database.make_user(discord_id=discord_id, plex_username=plex_username)
@@ -73,7 +51,7 @@ def check_blacklist(ctx: commands.Context, discord_id: int = None, plex_username
     if not to_check:
         return utils.StatusResponse(success=False)
 
-    plex_api = get_plex_api(ctx)
+    plex_api = multi_server_handler.get_plex_api(ctx)
 
     if plex_settings.ENABLE_BLACKLIST and plex_api.database.on_blacklist(names_and_ids=to_check):
         return utils.StatusResponse(success=True, issue="User is on blacklist")
@@ -99,7 +77,7 @@ async def add_user_to_single_plex_et_al(ctx: commands.Context,
     :rtype:
     """
 
-    plex_api = get_plex_api(ctx=ctx)
+    plex_api = multi_server_handler.get_plex_api(ctx=ctx)
 
     try:
         plex_server = plex_api.get_plex_instance(server_number=server_number)
@@ -130,7 +108,7 @@ async def _remove_user_from_single_plex_et_al(ctx: commands.Context,
     :return:
     :rtype:
     """
-    plex_api = get_plex_api(ctx)
+    plex_api = multi_server_handler.get_plex_api(ctx)
 
     try:
         plex_server = plex_api.get_plex_instance(server_number=server_nummber)
@@ -179,18 +157,18 @@ def get_server_numbers_user_is_on(ctx: commands.Context,
 
 
 async def add_to_database_add_to_plex_add_role_send_dm(ctx: commands.Context,
-                                                 plex_username: str,
-                                                 discord_id: int,
-                                                 user_type: str,
-                                                 role_name: str,
-                                                 role_reason: str,
-                                                 dm_message: str,
-                                                 plex_server_number: int = None,
-                                                 pay_method: str = None):
+                                                       plex_username: str,
+                                                       discord_id: int,
+                                                       user_type: str,
+                                                       role_name: str,
+                                                       role_reason: str,
+                                                       dm_message: str,
+                                                       plex_server_number: int = None,
+                                                       pay_method: str = None):
     if check_blacklist(ctx=ctx, discord_id=discord_id, plex_username=plex_username):
         return utils.StatusResponse(success=False, issue="USER ON BLACKLIST", code=999)
 
-    plex_api = get_plex_api(ctx)
+    plex_api = multi_server_handler.get_plex_api(ctx)
 
     expiration_stamp = None
     if user_type == 'Trial':
@@ -233,7 +211,7 @@ async def add_to_database_add_role(ctx: commands.Context,
     if check_blacklist(ctx=ctx, discord_id=discord_id, plex_username=plex_username):
         return utils.StatusResponse(success=False, status_code=utils.StatusCodes.USER_ON_BLACKLIST)
 
-    plex_api = get_plex_api(ctx)
+    plex_api = multi_server_handler.get_plex_api(ctx)
 
     servers_with_access = []
     for plex_server in plex_api.all_plex_instances:
@@ -297,7 +275,7 @@ async def remove_from_plex_remove_from_database_remove_role_send_dm(ctx: command
 
 
 async def check_trials(ctx: commands.Context):
-    plex_api = get_plex_api(ctx=ctx)
+    plex_api = multi_server_handler.get_plex_api(ctx=ctx)
 
     for trial_database_user in plex_api.database.expired_trials:
         await remove_from_plex_remove_from_database_remove_role_send_dm(ctx=ctx,
@@ -309,7 +287,7 @@ async def check_trials(ctx: commands.Context):
 
 # TODO Start here with new Tautulli library
 async def check_winners(ctx: commands.Context):
-    plex_api = get_plex_api(ctx=ctx)
+    plex_api = multi_server_handler.get_plex_api(ctx=ctx)
     try:
         number_removed = 0
         winners_usernames = [winner.MediaServerUsername for winner in plex_api.database.winners]
@@ -426,7 +404,7 @@ class PlexManager(commands.Cog):
             else:
                 _plex_username = database_user[0].MediaServerUsername
 
-        plex_api = get_plex_api(ctx)
+        plex_api = multi_server_handler.get_plex_api(ctx)
 
         if _plex_username:
             servers_with_access = []
@@ -453,7 +431,7 @@ class PlexManager(commands.Cog):
         """
         Blacklist a Plex username or Discord ID
         """
-        plex_api = get_plex_api(ctx=ctx)
+        plex_api = multi_server_handler.get_plex_api(ctx=ctx)
 
         if isinstance(discord_user_or_plex_username, (discord.Member, discord.User)):
             _id = discord_user_or_plex_username.id
@@ -488,7 +466,7 @@ class PlexManager(commands.Cog):
         """
         Check if the Plex server(s) is/are online
         """
-        plex_api = get_plex_api(ctx=ctx)
+        plex_api = multi_server_handler.get_plex_api(ctx=ctx)
 
         status_messages = []
         for plex_server in plex_api.all_plex_instances:
@@ -512,7 +490,7 @@ class PlexManager(commands.Cog):
         """
         List trials' Plex usernames
         """
-        plex_api = get_plex_api(ctx=ctx)
+        plex_api = multi_server_handler.get_plex_api(ctx=ctx)
         trials = plex_api.database.trials
         if trials:
             await ctx.send("Trials:\n" + "\n".join(trial.MediaServerUsername for trial in trials))
@@ -532,7 +510,7 @@ class PlexManager(commands.Cog):
         """
         List winners' Plex usernames
         """
-        plex_api = get_plex_api(ctx=ctx)
+        plex_api = multi_server_handler.get_plex_api(ctx=ctx)
         winners = plex_api.database.winners
         if winners:
             await ctx.send("Winners:\n" + "\n".join(winner.MediaServerUsername for winner in winners))
@@ -552,7 +530,7 @@ class PlexManager(commands.Cog):
         """
         List users' Plex usernames
         """
-        plex_api = get_plex_api(ctx=ctx)
+        plex_api = multi_server_handler.get_plex_api(ctx=ctx)
         users = plex_api.database.users
         if users:
             await ctx.send("Users:\n" + "\n".join(user.MediaServerUsername for user in users))
@@ -623,7 +601,7 @@ class PlexManager(commands.Cog):
         run this to remove the user's entry in the
         Plex database.
         """
-        plex_api = get_plex_api(ctx=ctx)
+        plex_api = multi_server_handler.get_plex_api(ctx=ctx)
 
         existing_users = []
         for plex_server in plex_api.all_plex_instances:
@@ -669,7 +647,7 @@ class PlexManager(commands.Cog):
         """
         Check Plex share count
         """
-        plex_api = get_plex_api(ctx=ctx)
+        plex_api = multi_server_handler.get_plex_api(ctx=ctx)
 
         count_messages = []
         for plex_server in plex_api.all_plex_instances:
@@ -788,7 +766,7 @@ class PlexManager(commands.Cog):
             plex_server_number = get_server_numbers_user_is_on(ctx=ctx, plex_username=database_user.MediaServerUsername)
             if plex_server_number:
                 plex_server_number = plex_server_number[0]
-                plex_api = get_plex_api(ctx)
+                plex_api = multi_server_handler.get_plex_api(ctx)
                 plex_server = plex_api.get_plex_instance(server_number=plex_server_number)
                 if category == 'share':
                     if 'help' in category_settings:
@@ -960,7 +938,7 @@ class PlexManager(commands.Cog):
             plex_server_number = get_server_numbers_user_is_on(ctx=ctx, plex_username=database_user.MediaServerUsername)
             if plex_server_number:
                 plex_server_number = plex_server_number[0]
-                plex_api = get_plex_api(ctx)
+                plex_api = multi_server_handler.get_plex_api(ctx)
                 plex_server = plex_api.get_plex_instance(server_number=plex_server_number)
                 details = plex_server.get_user_restrictions(plex_username=database_user.MediaServerUsername)
                 if details:

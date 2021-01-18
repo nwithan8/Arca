@@ -464,7 +464,9 @@ class PlexInstance:
 
 
 class PlexConnections:
-    def __init__(self, plex_credentials: dict, database: DiscordMediaServerConnectorDatabase):
+    def __init__(self,
+                 plex_credentials: dict,
+                 database: DiscordMediaServerConnectorDatabase):
         """
         :param plex_credentials: {1: {'url', 'token', 'name', 'altname', 'credsfolder', 'tautulli': {'url', 'api_key'}, 'ombi': {'url', 'api_key'}}, 'libraries': {'movies': [1], 'shows': [2, 3]}}
         """
