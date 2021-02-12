@@ -4,7 +4,7 @@
 import discord
 from discord.ext import commands
 import helper.cog_handler as cog_handler
-import settings as settings
+from settings import settings as settings
 
 bot = commands.Bot(command_prefix=settings.PREFIX)
 

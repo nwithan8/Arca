@@ -1,13 +1,11 @@
 import json
 
-import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 
-from media_server.database.database import DiscordMediaServerConnectorDatabase, EmbyUser, PlexUser, JellyfinUser
+from media_server.database.database import DiscordMediaServerConnectorDatabase
 
-import settings as arca_settings
+from settings import settings as arca_settings
 import helper.discord_helper as discord_helper
-import helper.utils as utils
 from media_server.plex import settings as plex_settings
 from media_server.plex import plex_api as px_api
 from media_server.jellyfin import jellyfin_api as jf_api
