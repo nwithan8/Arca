@@ -4,24 +4,17 @@ Copyright (C) 2019 Nathan Harris
 """
 import time
 from typing import Union, List
-import json
-import string
-import random
 import csv
-from datetime import datetime
 
-import asyncio
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 
 from media_server import multi_server_handler
 import helper.discord_helper as discord_helper
 import helper.utils as utils
-from media_server.database.database import PlexUser, JellyfinUser, EmbyUser
+from media_server.database import PlexUser, JellyfinUser, EmbyUser
 from media_server.jellyfin import settings as settings
 from media_server.jellyfin import jellyfin_api as jf
-from media_server.jellyfin import jellyfin_stats as js
-from helper.pastebin import hastebin, privatebin
 from media_server.jellyfin import settings as jellyfin_settings
 
 def get_user_entries_from_database(ctx: commands.Context, discord_id: int = None, jellyfin_username: str = None, first_only: bool = False) -> Union[List[Union[PlexUser, EmbyUser, JellyfinUser, utils.StatusResponse]], utils.StatusResponse]:
@@ -467,7 +460,7 @@ class JellyfinManager(commands.Cog):
 
 
     @jellyfin.command(name="winners", pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def jellyfin_winners(self, ctx: commands.Context):
         """
         List winners' Jellyfin usernames
@@ -480,7 +473,7 @@ class JellyfinManager(commands.Cog):
             await ctx.send("Error pulling winners from database_handler.")
 
     @jellyfin.command(name="purge", pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def jellyfin_purge(self, ctx: commands.Context):
         """
         Remove inactive winners
@@ -489,7 +482,7 @@ class JellyfinManager(commands.Cog):
         await self.purge_winners(ctx)
 
     @jellyfin.command(name="subcheck")
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def jellyfin_subs(self, ctx: commands.Context):
         """
         Find and removed lapsed subscribers
@@ -504,7 +497,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Something went wrong.")
 
     @jellyfin.command(name="trialcheck")
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def jellyfin_trial_check(self, ctx: commands.Context):
         """
         Find and remove lapsed trials
@@ -519,7 +512,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Something went wrong.")
 
     @jellyfin.command(name="cleandb", aliases=['clean', 'scrub', 'syncdb'], pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def jellyfin_cleandb(self, ctx: commands.Context):
         """
         Remove old users from database_handler
@@ -548,7 +541,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Something went wrong.")
 
     @jellyfin.command(name="backupdb")
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def jellyfin_backupdb(self, ctx: commands.Context):
         """
         Backup the database_handler to Dropbox.
@@ -563,7 +556,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Something went wrong.")
 
     @jellyfin.command(name="count", aliases=["subs", "number"], pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def jellyfin_count(self, ctx: commands.Context):
         """
         Get the number of enabled Jellyfin users
@@ -580,7 +573,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Something went wrong. Please try again later.")
 
     @jellyfin.command(name="add", aliases=["new", "join"], pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def jellyfin_add(self, ctx: commands.Context, user: discord.Member, username: str):
         """
         Add a Discord user to Jellyfin
@@ -604,7 +597,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Please mention the Discord user to add to Jellyfin, as well as their Jellyfin username.")
 
     @jellyfin.command(name="remove", aliases=["delete", "rem"], pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def jellyfin_remove(self, ctx: commands.Context, user: discord.Member):
         """
         Delete a Discord user from Jellyfin
@@ -625,7 +618,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Please mention the Discord user to remove from Jellyfin.")
 
     @jellyfin.command(name="trial", pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def jellyfin_trial(self, ctx: commands.Context, user: discord.Member, JellyfinUsername: str):
         """
         Start a trial of Jellyfin
@@ -648,7 +641,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Please mention the Discord user to add to Jellyfin, as well as their Jellyfin username.")
 
     @jellyfin.command(name='edit', aliases=['update', 'change'])
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def jellyfin_edit(self, ctx: commands.Context, username: Union[discord.Member, str], category: str, *,
                             category_settings: str):
         """
@@ -777,7 +770,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Sorry, something went wrong.")
 
     @jellyfin.command(name='details', aliases=['restrictions'], pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def jellyfin_details(self, ctx: commands.Context, username: Union[discord.Member, str]):
         error_finding_name = False
         jellyfinId = 0
@@ -822,7 +815,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Sorry, something went wrong.")
 
     @jellyfin.command(name="import", pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def jellyfin_import(self, ctx: commands.Context, user: discord.Member, JellyfinUsername: str, subType: str,
                               serverNumber: int = None):
         """
@@ -858,7 +851,7 @@ class JellyfinManager(commands.Cog):
             "Please mention the Discord user to add to the database_handler, including their Jellyfin username and sub type.")
 
     @jellyfin.group(name="find", aliases=["id"], pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def jellyfin_find(self, ctx: commands.Context):
         """
         Find Discord or Jellyfin user
@@ -895,7 +888,7 @@ class JellyfinManager(commands.Cog):
         print(error)
 
     @jellyfin.group(name="info")
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def jellyfin_info(self, ctx: commands.Context):
         """
         Get database_handler entry for a user

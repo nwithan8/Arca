@@ -2,17 +2,11 @@
 Parse Plex Media Server statistics via Tautulli's API
 Copyright (C) 2019 Nathan Harris
 """
-import json
 from collections import defaultdict
 
-from discord.ext import commands, tasks
+from discord.ext import commands
 
-import settings as arca_settings
 import helper.discord_helper as discord_helper
-import helper.utils as utils
-from media_server.database.database import DiscordMediaServerConnectorDatabase, EmbyUser, PlexUser, JellyfinUser
-from media_server.plex import settings as plex_settings
-from media_server.plex import plex_api as px_api
 
 from media_server import multi_server_handler
 
@@ -153,7 +147,7 @@ class PlexTools(commands.Cog):
         await ctx.send("Please include <movies|shows|artists|users> <timeFrame>")
 
     @plex.command(name="current", aliases=["now"], hidden=True, pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def plex_now(self, ctx: commands.Context):
         """
         Current Plex activity

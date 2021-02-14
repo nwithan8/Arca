@@ -122,7 +122,7 @@ class Jellyfin(commands.Cog):
         await ctx.send("Sorry, something went wrong while looking for a new recommendation.")
 
     @jellyfin.command(name="current", aliases=["now"], hidden=True, pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def jellyfin_now(self, ctx: commands.Context):
         """
         Current Jellyfin activity

@@ -1,14 +1,12 @@
 import socket
 import json
 import os
-from typing import List
 from urllib.parse import urlencode
 
 import requests
 
 import helper.utils as utils
-from helper.encryption import Encryption
-from media_server.database.database import DiscordMediaServerConnectorDatabase
+from media_server.database import DiscordMediaServerConnectorDatabase
 
 
 def _save_token_id(file, credentials):

@@ -54,7 +54,7 @@ class Booksonic(commands.Cog):
             await ctx.send("What subcommand?")
 
     @booksonic.command(name="add", aliases=["new"], pass_context=True)
-    @commands.has_role(ADMIN_ROLE_NAME)
+    @has_admin_role
     async def booksonic_add(self, ctx: commands.Context, user: discord.Member, booksonicUsername: str):
         """
         Add a Discord user to Booksonic

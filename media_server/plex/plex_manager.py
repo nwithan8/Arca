@@ -2,34 +2,38 @@
 Interact with a Plex Media Server, manage users
 Copyright (C) 2020 Nathan Harris
 """
-import json
 import time
 from typing import Union, List
 import asyncio
 
 import discord
-from discord.ext import commands, tasks
+from discord.ext import commands
 
 import helper.discord_helper as discord_helper
 import helper.utils as utils
-from media_server.database.database import DiscordMediaServerConnectorDatabase, EmbyUser, PlexUser, JellyfinUser
+from media_server.database import EmbyUser, PlexUser, JellyfinUser
 from media_server.plex import settings as plex_settings
 from media_server.plex import plex_api as px_api
 from media_server import multi_server_handler
 
-def get_user_entries_from_database(ctx: commands.Context, discord_id: int = None, plex_username: str = None, first_only: bool = False) -> Union[List[Union[PlexUser, EmbyUser, JellyfinUser, utils.StatusResponse]], utils.StatusResponse]:
+
+def get_user_entries_from_database(ctx: commands.Context, discord_id: int = None, plex_username: str = None,
+                                   first_only: bool = False) -> Union[
+    List[Union[PlexUser, EmbyUser, JellyfinUser, utils.StatusResponse]], utils.StatusResponse]:
     if not discord_id and not plex_username:
         raise Exception("Must provide either plex_username or discord_id")
 
     plex_api = multi_server_handler.get_plex_api(ctx=ctx)
 
-    database_user_entries = plex_api.database.get_user(discord_id=discord_id, media_server_username=plex_username, first_match_only=first_only)
+    database_user_entries = plex_api.database.get_user(discord_id=discord_id, media_server_username=plex_username,
+                                                       first_match_only=first_only)
     if not database_user_entries:
         return utils.StatusResponse(success=False, issue="User not found in database")
     return database_user_entries
 
 
-def remove_user_from_database(ctx: commands.Context, user = None, discord_id: int = None, plex_username: str = None) -> utils.StatusResponse:
+def remove_user_from_database(ctx: commands.Context, user=None, discord_id: int = None,
+                              plex_username: str = None) -> utils.StatusResponse:
     if not user and not discord_id and not plex_username:
         raise Exception("Must provide either user, plex_username or discord_id")
 
@@ -93,6 +97,7 @@ async def add_user_to_single_plex_et_al(ctx: commands.Context,
         print(e)
         return utils.StatusResponse(success=False, issue=e.__str__())
 
+
 async def _remove_user_from_single_plex_et_al(ctx: commands.Context,
                                               plex_username: str,
                                               server_nummber: int = None) -> utils.StatusResponse:
@@ -121,14 +126,16 @@ async def _remove_user_from_single_plex_et_al(ctx: commands.Context,
     except Exception as e:
         return utils.StatusResponse(success=False, issue=e.__str__())
 
+
 async def remove_user_from_plex_et_al(ctx: commands.Context,
-                                plex_username: str,
-                                plex_servers_numbers: List[int] = [None]) -> utils.StatusResponse:
+                                      plex_username: str,
+                                      plex_servers_numbers: List[int] = [None]) -> utils.StatusResponse:
     """
     Remove a user from one or all Plex server(s) ( + Ombi/Tautulli)
     """
     for server_number in plex_servers_numbers:
-        status = await _remove_user_from_single_plex_et_al(ctx=ctx, plex_username=plex_username, server_nummber=server_number)
+        status = await _remove_user_from_single_plex_et_al(ctx=ctx, plex_username=plex_username,
+                                                           server_nummber=server_number)
         if not status:
             return status
     return utils.StatusResponse(success=True)
@@ -149,9 +156,10 @@ def get_server_numbers_user_is_on(ctx: commands.Context,
     :return:
     :rtype:
     """
-    database_user_entries = get_user_entries_from_database(ctx=ctx, discord_id=discord_id, plex_username=plex_username, first_only=False)
+    database_user_entries = get_user_entries_from_database(ctx=ctx, discord_id=discord_id, plex_username=plex_username,
+                                                           first_only=False)
     if not database_user_entries:
-        return database_user_entries # error message
+        return database_user_entries  # error message
 
     return [entry.WhichPlexServer for entry in database_user_entries]
 
@@ -177,14 +185,16 @@ async def add_to_database_add_to_plex_add_role_send_dm(ctx: commands.Context,
                                                      discord_id=discord_id,
                                                      user_type=user_type,
                                                      pay_method=pay_method,
-                                                     which_plex_server=(plex_server_number if plex_server_number else None),
+                                                     which_plex_server=(
+                                                         plex_server_number if plex_server_number else None),
                                                      expiration_stamp=expiration_stamp)
 
     response = plex_api.database.add_user_to_database(new_database_entry)
     if not response:
         return response
 
-    response = await add_user_to_single_plex_et_al(ctx=ctx, plex_username=plex_username, user_type=user_type, server_number=plex_server_number)
+    response = await add_user_to_single_plex_et_al(ctx=ctx, plex_username=plex_username, user_type=user_type,
+                                                   server_number=plex_server_number)
     if not response:
         return response
 
@@ -247,10 +257,9 @@ async def remove_from_plex_remove_from_database_remove_role_send_dm(ctx: command
                                                                     dm_message: str,
                                                                     plex_username: str = None,
                                                                     discord_id: int = None):
-
     database_user_entries = get_user_entries_from_database(ctx=ctx, discord_id=discord_id, plex_username=plex_username)
     if not database_user_entries:
-        return database_user_entries # error message
+        return database_user_entries  # error message
 
     response = await remove_user_from_plex_et_al(ctx=ctx, plex_username=plex_username)
     if not response:
@@ -285,6 +294,7 @@ async def check_trials(ctx: commands.Context):
                                                                         plex_username=trial_database_user.MediaServerUsername,
                                                                         discord_id=trial_database_user.DiscordID)
 
+
 # TODO Start here with new Tautulli library
 async def check_winners(ctx: commands.Context):
     plex_api = multi_server_handler.get_plex_api(ctx=ctx)
@@ -296,7 +306,8 @@ async def check_winners(ctx: commands.Context):
             tautulli_users = server.tautulli.users
             for tautulli_user in tautulli_users:
                 if tautulli_user.username in winners_usernames:
-                    if server.tautulli.get_last_time_user_seen(user_id=tautulli_user.username) < (int(time.time()) - (14 * 24 * 60 * 60)): # user not seen in 14 days
+                    if server.tautulli.get_last_time_user_seen(user_id=tautulli_user.username) < (
+                            int(time.time()) - (14 * 24 * 60 * 60)):  # user not seen in 14 days
                         if remove_from_plex_remove_from_database_remove_role_send_dm(ctx=ctx,
                                                                                      plex_username=tautulli_user.username,
                                                                                      role_name=plex_settings.WINNER_ROLE_NAME,
@@ -339,6 +350,7 @@ class PlexManager(commands.Cog):
                                                                                 role_name=plex_settings.INVITED_ROLE,
                                                                                 role_reason="Subscription ended.",
                                                                                 dm_message=f"You have been removed from Plex because your subscription has ended.")
+
     """
     @tasks.loop(hours=24)
     async def backup_database_timer(self):
@@ -387,7 +399,6 @@ class PlexManager(commands.Cog):
         if ctx.invoked_subcommand is None:
             await ctx.send("What subcommand?")
 
-
     @pm.command(name="access", pass_context=True)
     # Anyone can use this command
     async def pm_access(self, ctx: commands.Context, plex_username: str = None):
@@ -413,21 +424,22 @@ class PlexManager(commands.Cog):
                     servers_with_access.append(plex_server.name)
 
             if servers_with_access:
-                message = ("You have " if not plex_username else f"{_plex_username} has ") + f"access to {len(servers_with_access)} Plex server(s)."
+                message = (
+                              "You have " if not plex_username else f"{_plex_username} has ") + f"access to {len(servers_with_access)} Plex server(s)."
             else:
-                message = ("You do not have " if not plex_username else f"{_plex_username} does not have ") + "access to any of the Plex servers."
+                message = (
+                              "You do not have " if not plex_username else f"{_plex_username} does not have ") + "access to any of the Plex servers."
         await ctx.send(message)
-
 
     @pm_access.error
     async def pm_access_error(self, ctx: commands.Context, error):
         print(error)
         await discord_helper.something_went_wrong(ctx=ctx)
 
-
     @pm.command(name="blacklist", aliases=['block'], pass_context=True)
-    @commands.has_role(plex_settings.DISCORD_ADMIN_ROLE_NAME)
-    async def pm_blacklist(self, ctx: commands.Context, add_or_remove: str, discord_user_or_plex_username: Union[discord.Member, discord.User, str]):
+    @has_admin_role
+    async def pm_blacklist(self, ctx: commands.Context, add_or_remove: str,
+                           discord_user_or_plex_username: Union[discord.Member, discord.User, str]):
         """
         Blacklist a Plex username or Discord ID
         """
@@ -449,16 +461,15 @@ class PlexManager(commands.Cog):
             else:
                 await ctx.send("Something went wrong while removing user from the blacklist.")
         elif add_or_remove.lower() == 'list':
-            await ctx.send("Blacklist entries:\n" + '\n'.join([entry.IDorUsername for entry in plex_api.database.blacklist]))
+            await ctx.send(
+                "Blacklist entries:\n" + '\n'.join([entry.IDorUsername for entry in plex_api.database.blacklist]))
         else:
             await ctx.send("Invalid blacklist action.")
-
 
     @pm_blacklist.error
     async def pm_blacklist_error(self, ctx: commands.Context, error):
         print(error)
         await discord_helper.something_went_wrong(ctx=ctx)
-
 
     @pm.command(name="status", aliases=['ping', 'up', 'online'], pass_context=True)
     # Anyone can use this command
@@ -477,15 +488,13 @@ class PlexManager(commands.Cog):
         message = '\n'.join(status_messages)
         await ctx.send(message)
 
-
     @pm_status.error
     async def pm_status_error(self, ctx: commands.Context, error):
         print(error)
         await discord_helper.something_went_wrong(ctx=ctx)
 
-
     @pm.command(name="trials", pass_context=True)
-    @commands.has_role(plex_settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def pm_trials(self, ctx: commands.Context):
         """
         List trials' Plex usernames
@@ -497,15 +506,13 @@ class PlexManager(commands.Cog):
         else:
             await ctx.send("No current trials.")
 
-
     @pm_trials.error
     async def pm_trials_error(self, ctx: commands.Context, error):
         print(error)
         await ctx.send("Error pulling trial users from the database.")
 
-
     @pm.command(name="winners", pass_context=True)
-    @commands.has_role(plex_settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def pm_winners(self, ctx: commands.Context):
         """
         List winners' Plex usernames
@@ -517,15 +524,13 @@ class PlexManager(commands.Cog):
         else:
             await ctx.send("No current winners.")
 
-
     @pm_winners.error
     async def pm_winners_error(self, ctx: commands.Context, error):
         print(error)
         await ctx.send("Error pulling winners from the database.")
 
-
     @pm.command(name="users", pass_context=True)
-    @commands.has_role(plex_settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def pm_users(self, ctx: commands.Context):
         """
         List users' Plex usernames
@@ -537,15 +542,13 @@ class PlexManager(commands.Cog):
         else:
             await ctx.send("No current users.")
 
-
     @pm_users.error
     async def pm_users_error(self, ctx: commands.Context, error):
         print(error)
         await ctx.send("Error pulling users from the database.")
 
-
     @pm.command(name="purge", pass_context=True)
-    @commands.has_role(plex_settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def pm_purge(self, ctx: commands.Context):
         """
         Remove inactive winners
@@ -553,15 +556,13 @@ class PlexManager(commands.Cog):
         await ctx.send("Purging winners...")
         await check_winners(ctx=ctx)
 
-
     @pm_purge.error
     async def pm_purge_error(self, ctx: commands.Context, error):
         print(error)
         await discord_helper.something_went_wrong(ctx=ctx)
 
-
     @pm.command(name="subcheck")
-    @commands.has_role(plex_settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def pm_subs(self, ctx: commands.Context):
         """
         Find and removed lapsed subscribers
@@ -569,15 +570,13 @@ class PlexManager(commands.Cog):
         await self.check_subs(ctx=ctx)
         await ctx.send("Subscriber check complete.")
 
-
     @pm_subs.error
     async def pm_subs_error(self, ctx: commands.Context, error):
         print(error)
         await discord_helper.something_went_wrong(ctx=ctx)
 
-
     @pm.command(name="trialcheck")
-    @commands.has_role(plex_settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def pm_trial_check(self, ctx: commands.Context):
         """
         Find and remove lapsed trials
@@ -585,15 +584,13 @@ class PlexManager(commands.Cog):
         await check_trials(ctx=ctx)
         await ctx.send("Trial check complete.")
 
-
     @pm_trial_check.error
     async def pm_trial_check_error(self, ctx, error):
         print(error)
         await discord_helper.something_went_wrong(ctx=ctx)
 
-
     @pm.command(name="cleandb", aliases=["clean", "scrub", "syncdb"], pass_context=True)
-    @commands.has_role(plex_settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def pm_cleandb(self, ctx: commands.Context):
         """
         Remove old users from database_handler
@@ -622,7 +619,6 @@ class PlexManager(commands.Cog):
         else:
             await ctx.send("An error occurred when grabbing data from the database.")
 
-
     @pm_cleandb.error
     async def pm_cleandb_error(self, ctx: commands.Context, error):
         print(error)
@@ -630,7 +626,7 @@ class PlexManager(commands.Cog):
 
     """
     @pm.command(name="backupdb")
-    @commands.has_role(plex_settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def pm_backupdb(self, ctx: commands.Context):
         await backup_database()
         await ctx.send("Backup complete.")
@@ -642,7 +638,7 @@ class PlexManager(commands.Cog):
     """
 
     @pm.command(name="count")
-    @commands.has_role(plex_settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def pm_count(self, ctx: commands.Context):
         """
         Check Plex share count
@@ -655,15 +651,13 @@ class PlexManager(commands.Cog):
         message = "\n".join(count_messages)
         await ctx.send(message)
 
-
     @pm_count.error
     async def pm_count_error(self, ctx: commands.Context, error):
         print(error)
         await discord_helper.something_went_wrong(ctx=ctx)
 
-
     @pm.command(name="add", aliases=["invite", "new"], pass_context=True)
-    @commands.has_role(plex_settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def pm_add(self, ctx: commands.Context, user: discord.Member, plex_username: str, server_number: int = None):
         """
         Add a Discord user to Plex
@@ -684,15 +678,13 @@ class PlexManager(commands.Cog):
         else:
             await ctx.send(f"{discord_helper.mention_user(user_id=user.id)}. You've been invited, {plex_username}!")
 
-
     @pm_add.error
     async def pm_add_error(self, ctx, error):
         print(error)
         await ctx.send("Please mention the Discord user to add to Plex, as well as their Plex username.")
 
-
     @pm.command(name="remove", aliases=["uninvite", "delete", "rem"])
-    @commands.has_role(plex_settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def pm_remove(self, ctx: commands.Context, user: discord.Member):
         """
         Remove a Discord user from Plex
@@ -708,14 +700,13 @@ class PlexManager(commands.Cog):
         else:
             await ctx.send(f"{discord_helper.mention_user(user_id=user.id)}, you have been removed from Plex.")
 
-
     @pm_remove.error
     async def pm_remove_error(self, ctx, error):
         print(error)
         await ctx.send("Please mention the Discord user to remove from Plex.")
 
     @pm.command(name="import")
-    @commands.has_role(plex_settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def pm_import(self, ctx: commands.Context, user: discord.Member, plex_username: str,
                         server_number: int = None):
         """
@@ -741,10 +732,10 @@ class PlexManager(commands.Cog):
         print(error)
         await ctx.send("Please mention the Discord user to import to the database.")
 
-
     @pm.command(name='edit', aliases=['update', 'change'])
-    @commands.has_role(plex_settings.DISCORD_ADMIN_ROLE_NAME)
-    async def pm_edit(self, ctx: commands.Context, username: Union[discord.Member, discord.User, str], category: str, *, category_settings: str):
+    @has_admin_role
+    async def pm_edit(self, ctx: commands.Context, username: Union[discord.Member, discord.User, str], category: str, *,
+                      category_settings: str):
         """
         Update an existing Plex user's restrictions. Can edit library access, ratings and sync ability
         Does not currently support multiple Plex servers per user (defaults to first server)
@@ -771,67 +762,82 @@ class PlexManager(commands.Cog):
                 if category == 'share':
                     if 'help' in category_settings:
                         names_and_ids = plex_server.get_defined_libraries()
-                        await ctx.send(f"Include the numbers or names of the libraries you want {database_user.MediaServerUsername} to have access to. "
-                                       "Available values (case sensitive):\n" + '\n'.join(names_and_ids['names']) + '\n' + '\n'.join(names_and_ids['IDs']))
+                        await ctx.send(
+                            f"Include the numbers or names of the libraries you want {database_user.MediaServerUsername} to have access to. "
+                            "Available values (case sensitive):\n" + '\n'.join(
+                                names_and_ids['names']) + '\n' + '\n'.join(names_and_ids['IDs']))
                     else:
-                        if plex_server.update_user_restrictions(plex_username=database_user.MediaServerUsername, sections_to_share=category_settings):
+                        if plex_server.update_user_restrictions(plex_username=database_user.MediaServerUsername,
+                                                                sections_to_share=category_settings):
                             await ctx.send(f"{database_user.MediaServerUsername} can now only access those libraries.")
                         else:
-                            await ctx.send(f"Sorry, I could not update the library restrictions for {database_user.MediaServerUsername}.")
+                            await ctx.send(
+                                f"Sorry, I could not update the library restrictions for {database_user.MediaServerUsername}.")
                 elif category == 'movie':
                     # case matters for ratings
                     if 'help' in category_settings or category_settings[0] not in px_api.all_movie_ratings:
-                        await ctx.send(f"Available movie ratings (case sensitive): {', '.join(px_api.all_movie_ratings)}")
+                        await ctx.send(
+                            f"Available movie ratings (case sensitive): {', '.join(px_api.all_movie_ratings)}")
                     else:
-                        if plex_server.update_user_restrictions(plex_username=database_user.MediaServerUsername, rating_limit={'Movie': category_settings[0]}):
-                            await ctx.send(f"{database_user.MediaServerUsername} is now restricted to {category_settings} and below movie ratings.")
+                        if plex_server.update_user_restrictions(plex_username=database_user.MediaServerUsername,
+                                                                rating_limit={'Movie': category_settings[0]}):
+                            await ctx.send(
+                                f"{database_user.MediaServerUsername} is now restricted to {category_settings} and below movie ratings.")
                         else:
-                            await ctx.send(f"Sorry, I could not update the movie rating restrictions for {database_user.MediaServerUsername}.")
+                            await ctx.send(
+                                f"Sorry, I could not update the movie rating restrictions for {database_user.MediaServerUsername}.")
                 elif category in ['tv', 'show']:
                     # case matters for ratings
                     if 'help' in category_settings or category_settings[0] not in px_api.all_tv_ratings:
-                        await ctx.send(f"Available TV show ratings (case sensitive): {', '.join(px_api.all_tv_ratings)}")
+                        await ctx.send(
+                            f"Available TV show ratings (case sensitive): {', '.join(px_api.all_tv_ratings)}")
                     else:
-                        if plex_server.update_user_restrictions(plex_username=database_user.MediaServerUsername, rating_limit={'TV': category_settings[0]}):
-                            await ctx.send(f"{database_user.MediaServerUsername} is now restricted to {category_settings} and below movie ratings.")
+                        if plex_server.update_user_restrictions(plex_username=database_user.MediaServerUsername,
+                                                                rating_limit={'TV': category_settings[0]}):
+                            await ctx.send(
+                                f"{database_user.MediaServerUsername} is now restricted to {category_settings} and below movie ratings.")
                         else:
-                            await ctx.send(f"Sorry, I could not update the TV rating restrictions for {database_user.MediaServerUsername}.")
+                            await ctx.send(
+                                f"Sorry, I could not update the TV rating restrictions for {database_user.MediaServerUsername}.")
                 elif category == 'sync':
                     if category_settings[0].lower() in ['yes', 'true', 'on', 'enable']:
-                        if plex_server.update_user_restrictions(plex_username=database_user.MediaServerUsername, allow_sync=True):
+                        if plex_server.update_user_restrictions(plex_username=database_user.MediaServerUsername,
+                                                                allow_sync=True):
                             await ctx.send(f"Sync is now enabled for {database_user.MediaServerUsername}.")
                         else:
                             await ctx.send(f"Could not enable sync for {database_user.MediaServerUsername}.")
                     elif category_settings[0].lower() in ['no', 'false', 'off', 'disable']:
-                        if plex_server.update_user_restrictions(plex_username=database_user.MediaServerUsername, allow_sync=False):
+                        if plex_server.update_user_restrictions(plex_username=database_user.MediaServerUsername,
+                                                                allow_sync=False):
                             await ctx.send(f"Sync is now disabled for {database_user.MediaServerUsername}.")
                         else:
                             await ctx.send(f"Could not disable sync for {database_user.MediaServerUsername}.")
                     else:
                         await ctx.send("Please indicate 'on' or 'off' for sync setting.")
                 else:
-                    await ctx.send("That's not a valid option. Please indicate 'share', 'movie', 'show' or 'sync'. See help for more details.")
+                    await ctx.send(
+                        "That's not a valid option. Please indicate 'share', 'movie', 'show' or 'sync'. See help for more details.")
             else:
                 await ctx.send("User does not have access to any Plex servers.")
         else:
             await ctx.send("Could not find user in the database.")
-
 
     @pm_edit.error
     async def pm_edit_error(self, ctx, error):
         print(error)
         await discord_helper.something_went_wrong(ctx=ctx)
 
-
     @pm.command(name="winner")
-    @commands.has_role(plex_settings.DISCORD_ADMIN_ROLE_NAME)
-    async def pm_winner(self, ctx: commands.Context, user: discord.Member, plex_username: str, server_number: int = None):
+    @has_admin_role
+    async def pm_winner(self, ctx: commands.Context, user: discord.Member, plex_username: str,
+                        server_number: int = None):
         """
         Add a winner to Plex
         Mention the Discord user and their Plex username
         Include optional server_number to add to a specific server (if using multiple Plex servers)
         """
-        await ctx.send(f"Adding {plex_username} as a winner on Plex {f' (Server {server_number})' if server_number else ''}")
+        await ctx.send(
+            f"Adding {plex_username} as a winner on Plex {f' (Server {server_number})' if server_number else ''}")
         response = await add_to_database_add_to_plex_add_role_send_dm(ctx=ctx,
                                                                       plex_username=plex_username,
                                                                       discord_id=user.id,
@@ -843,24 +849,25 @@ class PlexManager(commands.Cog):
         if not response:
             await ctx.send(response.issue)
         else:
-            await ctx.send(f"{discord_helper.mention_user(user_id=user.id)}. Congratulations {plex_username}, you've been invited!")
-
+            await ctx.send(
+                f"{discord_helper.mention_user(user_id=user.id)}. Congratulations {plex_username}, you've been invited!")
 
     @pm_winner.error
     async def pm_winner_error(self, ctx, error):
         print(error)
         await ctx.send("Please mention the Discord user to add to Plex, as well as their Plex username.")
 
-
     @pm.command(name="trial")
-    @commands.has_role(plex_settings.DISCORD_ADMIN_ROLE_NAME)
-    async def pm_trial(self, ctx: commands.Context, user: discord.Member, plex_username: str, server_number: int = None):
+    @has_admin_role
+    async def pm_trial(self, ctx: commands.Context, user: discord.Member, plex_username: str,
+                       server_number: int = None):
         """
         Start a Plex trial
         Mention the Discord user and their Plex username
         Include optional server_number to add to a specific server (if using multiple Plex servers)
         """
-        await ctx.send(f"Starting trial for {plex_username} on Plex {f' (Server {server_number})' if server_number else ''}")
+        await ctx.send(
+            f"Starting trial for {plex_username} on Plex {f' (Server {server_number})' if server_number else ''}")
         response = await add_to_database_add_to_plex_add_role_send_dm(ctx=ctx,
                                                                       plex_username=plex_username,
                                                                       discord_id=user.id,
@@ -874,15 +881,13 @@ class PlexManager(commands.Cog):
         else:
             await ctx.send(f"{discord_helper.mention_user(user_id=user.id)}. Your trial has begun, {plex_username}!")
 
-
     @pm_trial.error
     async def pm_trial_error(self, ctx, error):
         print(error)
         await ctx.send("Please mention the Discord user to add to Plex, as well as their Plex username.")
 
-
     @pm.command(name="whois", aliases=["id", "find", "info"], pass_context=True)
-    @commands.has_role(plex_settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def pm_whois(self, ctx: commands.Context, user: Union[discord.Member, discord.User, str]):
         """
         Find Discord or Plex user
@@ -907,15 +912,13 @@ class PlexManager(commands.Cog):
         else:
             await ctx.send("User not found.")
 
-
     @pm_whois.error
     async def pm_whois_error(self, ctx, error):
         print(error)
         await discord_helper.something_went_wrong(ctx=ctx)
 
-
     @pm.command(name='details', aliases=['restrictions'], pass_context=True)
-    @commands.has_role(plex_settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def pm_details(self, ctx: commands.Context, user: Union[discord.Member, discord.User, str]):
         """
         Get Plex restrictions for a user
@@ -944,25 +947,27 @@ class PlexManager(commands.Cog):
                 if details:
                     embed_details = {
                         "Shared Sections": ', '.join(details['sections']) if details.get('sections') else "None",
-                        "Allowed Movie Ratings": ', '.join(details['filterMovies']) if details.get('filterMovies') else "All",
-                        "Allowed TV Show Ratings": ', '.join(details['filterShows']) if details.get('filterShows') else "All",
+                        "Allowed Movie Ratings": ', '.join(details['filterMovies']) if details.get(
+                            'filterMovies') else "All",
+                        "Allowed TV Show Ratings": ', '.join(details['filterShows']) if details.get(
+                            'filterShows') else "All",
                         "Sync": details.get('allowSync', 'Disabled')
                     }
-                    embed = discord_helper.generate_embed(title=f"Plex settings for {database_user.MediaServerUsername}", **embed_details)
+                    embed = discord_helper.generate_embed(
+                        title=f"Plex settings for {database_user.MediaServerUsername}", **embed_details)
                     await ctx.send(embed=embed)
                 else:
-                    await ctx.send(f"Sorry, I could not find the share settings for {database_user.MediaServerUsername}.")
+                    await ctx.send(
+                        f"Sorry, I could not find the share settings for {database_user.MediaServerUsername}.")
             else:
                 await ctx.send("User does not have access to any Plex servers.")
         else:
             await ctx.send("User not found.")
 
-
     @pm_details.error
     async def pm_details_error(self, ctx, error):
         print(error)
         await discord_helper.something_went_wrong(ctx=ctx)
-
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -970,6 +975,7 @@ class PlexManager(commands.Cog):
         # self.check_subs_timer.start()
         # self.check_playing.start()
         pass
+
 
 def setup(bot):
     bot.add_cog(PlexManager(bot))

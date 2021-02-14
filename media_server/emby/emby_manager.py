@@ -278,7 +278,7 @@ class EmbyManager(commands.Cog):
         await ctx.send("Sorry, something went wrong.")
 
     @emby.command(name="blacklist", aliases=['block'], pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def emby_blacklist(self, ctx: commands.Context, AddOrRemove: str, DiscordUserOrEmbyUsername=None):
         """
         Blacklist a Emby username or Discord ID
@@ -328,7 +328,7 @@ class EmbyManager(commands.Cog):
         await ctx.send("Sorry, I couldn't test the connection.")
 
     @emby.command(name="winners", pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def emby_winners(self, ctx: commands.Context):
         """
         List winners' Emby usernames
@@ -341,7 +341,7 @@ class EmbyManager(commands.Cog):
             await ctx.send("Error pulling winners from database_handler.")
 
     @emby.command(name="purge", pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def emby_purge(self, ctx: commands.Context):
         """
         Remove inactive winners
@@ -350,7 +350,7 @@ class EmbyManager(commands.Cog):
         await self.purge_winners(ctx)
 
     @emby.command(name="subcheck")
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def emby_subs(self, ctx: commands.Context):
         """
         Find and removed lapsed subscribers
@@ -365,7 +365,7 @@ class EmbyManager(commands.Cog):
         await ctx.send("Something went wrong.")
 
     @emby.command(name="trialcheck")
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def emby_trial_check(self, ctx: commands.Context):
         """
         Find and remove lapsed trials
@@ -380,7 +380,7 @@ class EmbyManager(commands.Cog):
         await ctx.send("Something went wrong.")
 
     @emby.command(name="cleandb", aliases=['clean', 'scrub', 'syncdb'], pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def emby_cleandb(self, ctx: commands.Context):
         """
         Remove old users from database_handler
@@ -409,7 +409,7 @@ class EmbyManager(commands.Cog):
         await ctx.send("Something went wrong.")
 
     @emby.command(name="backupdb")
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def emby_backupdb(self, ctx: commands.Context):
         """
         Backup the database_handler to Dropbox.
@@ -424,7 +424,7 @@ class EmbyManager(commands.Cog):
         await ctx.send("Something went wrong.")
 
     @emby.command(name="count", aliases=["subs", "number"], pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def emby_count(self, ctx: commands.Context):
         """
         Get the number of enabled Emby users
@@ -441,7 +441,7 @@ class EmbyManager(commands.Cog):
         await ctx.send("Something went wrong. Please try again later.")
 
     @emby.command(name="add", aliases=["new", "join"], pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def emby_add(self, ctx: commands.Context, user: discord.Member, username: str, useEmbyConnect: str = False):
         """
         Add a Discord user to Emby
@@ -465,7 +465,7 @@ class EmbyManager(commands.Cog):
         await ctx.send("Please mention the Discord user to add to Emby, as well as their Emby username.")
 
     @emby.command(name="connect", pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def emby_connect(self, ctx: commands.Context, user: discord.Member, embyConnectUsername: str):
         """
         Connect a local Emby user to an Emby Connect user
@@ -487,7 +487,7 @@ class EmbyManager(commands.Cog):
         await ctx.send("Please mention the Discord user and their Emby Connect username to link the accounts.")
 
     @emby.command(name="remove", aliases=["delete", "rem"], pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def emby_remove(self, ctx: commands.Context, user: discord.Member):
         """
         Delete a Discord user from Emby
@@ -508,7 +508,7 @@ class EmbyManager(commands.Cog):
         await ctx.send("Please mention the Discord user to remove from Emby.")
 
     @emby.command(name="trial", pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def emby_trial(self, ctx: commands.Context, user: discord.Member, EmbyUsername: str):
         """
         Start a trial of Emby
@@ -530,7 +530,7 @@ class EmbyManager(commands.Cog):
         await ctx.send("Please mention the Discord user to add to Emby, as well as their Emby username.")
 
     @emby.command(name="import", pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def emby_import(self, ctx: commands.Context, user: discord.Member, EmbyUsername: str, subType: str,
                           serverNumber: int = None):
         """
@@ -565,7 +565,7 @@ class EmbyManager(commands.Cog):
             "Please mention the Discord user to add to the database_handler, including their Emby username and sub type.")
 
     @emby.group(name="find", aliases=["id"], pass_context=True)
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def emby_find(self, ctx: commands.Context):
         """
         Find Discord or Emby user
@@ -602,7 +602,7 @@ class EmbyManager(commands.Cog):
         print(error)
 
     @emby.group(name="info")
-    @commands.has_role(settings.DISCORD_ADMIN_ROLE_NAME)
+    @has_admin_role
     async def emby_info(self, ctx: commands.Context):
         """
         Get database_handler entry for a user

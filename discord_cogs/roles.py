@@ -87,7 +87,7 @@ class Roles(commands.Cog):
         roles = roles[:-2]
         await ctx.send("Available roles:\n" + roles)
 
-    @commands.has_role(ADMIN_ROLE_NAME)
+    @has_admin_role
     @roles.command(name="add", pass_context=True)
     async def roles_add(self, ctx: commands.Context, role: str, *, nicknames: str):
         """
