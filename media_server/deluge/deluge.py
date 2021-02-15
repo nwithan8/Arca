@@ -85,7 +85,7 @@ class Deluge(commands.Cog):
         torrents = "```Queue\t | Progress\t | Name\n"
         data = self.get_torrents()
         for k, v in data['result'].items():
-            if float(v['progress']) > 0.0 and float(v['progress']) < 100.0:
+            if 0.0 < float(v['progress']) < 100.0:
                 if len(torrents) > 1800:
                     await ctx.send(torrents + "```")
                     torrents = "```"

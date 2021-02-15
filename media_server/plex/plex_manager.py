@@ -11,6 +11,7 @@ from discord.ext import commands
 
 import helper.discord_helper as discord_helper
 import helper.utils as utils
+from helper.decorators import has_admin_role
 from media_server.database import EmbyUser, PlexUser, JellyfinUser
 from media_server.plex import settings as plex_settings
 from media_server.plex import plex_api as px_api

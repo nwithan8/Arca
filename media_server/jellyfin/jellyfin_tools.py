@@ -5,6 +5,8 @@ Copyright (C) 2019 Nathan Harris
 
 from discord.ext import commands
 import asyncio
+
+from helper.decorators import has_admin_role
 from media_server.jellyfin import settings as settings
 from media_server.jellyfin import jellyfin_api as jf
 from media_server.jellyfin import jellyfin_recs as jr

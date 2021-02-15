@@ -7,6 +7,7 @@ from collections import defaultdict
 from discord.ext import commands
 
 import helper.discord_helper as discord_helper
+from helper.decorators import has_admin_role
 
 from media_server import multi_server_handler
 

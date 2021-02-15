@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 import random
 import hashlib
 import media_server.booksonic.settings as settings
+from helper.decorators import has_admin_role
 
 BOOKSONIC_URL = settings.BOOKSONIC_URL
 BOOKSONIC_USER = settings.BOOKSONIC_USER
