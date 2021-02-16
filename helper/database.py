@@ -37,6 +37,7 @@ class Table:
         except:
             raise Exception
 
+
 class ColumnValuePair:
     def __init__(self, column_name: str, value, comparison: str = "="):
         self.column = column_name
@@ -51,12 +52,14 @@ class ColumnValuePair:
             self.value = f"'{self.value}'"
         return f"{self.column} {self.comparison} {self.value}"
 
+
 class InsertString:
     def __init__(self, insert_pairs: List[ColumnValuePair]):
         self.pairs = insert_pairs
 
     def __str__(self):
         return f"({','.join(pair.column for pair in self.pairs)}) VALUES ({','.join(pair.value for pair in self.pairs)})"
+
 
 class WhereString:
     def __init__(self, where_pairs: List[ColumnValuePair]):
@@ -65,12 +68,14 @@ class WhereString:
     def __str__(self):
         return " and ".join(pair.__str__() for pair in self.wheres)
 
+
 class UpdateString:
     def __init__(self, update_pairs: List[ColumnValuePair]):
         self.pairs = update_pairs
 
     def __str__(self):
         return ', '.join(pair.__str__() for pair in self.pairs)
+
 
 class SelectQuery:
     def __init__(self,
@@ -106,6 +111,7 @@ class SelectQuery:
     def __str__(self):
         return f"SELECT {', '.join(column for column in self.columns)} FROM {self.table} {self.where}"
 
+
 class DeleteQuery:
     def __init__(self,
                  database_connection,
@@ -133,6 +139,7 @@ class DeleteQuery:
 
     def __str__(self):
         return f"DELETE FROM {self.table} {self.where}"
+
 
 class InsertQuery:
     def __init__(self,
@@ -164,6 +171,7 @@ class InsertQuery:
 
     def __str__(self):
         return f"INSERT INTO {self.table} {self.values}"
+
 
 class UpdateQuery:
     def __init__(self,
@@ -214,7 +222,7 @@ class Database:
             raise Exception("Missing KEY_FILE to unlock encrypted database_handler.")
         self._tables = []
 
-    def _crypt_check(self, file = None):
+    def _crypt_check(self, file=None):
         if not file:
             file = self.sqlite_file
         if self.encrypted:
@@ -245,7 +253,8 @@ class Database:
         # only works on SQLite3
         if not self._tables:
             self._tables = []
-            command = SelectQuery(column_names=["name"], from_table="sqlite_master", where=[ColumnValuePair(column_name="type", value="table")], database_connection=self)
+            command = SelectQuery(column_names=["name"], from_table="sqlite_master",
+                                  where=[ColumnValuePair(column_name="type", value="table")], database_connection=self)
             results = command.execute(fetch_all=True)
             for table_name in results:
                 self._tables.append(Table(name=table_name, database_connection=self))

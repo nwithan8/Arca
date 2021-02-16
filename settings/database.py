@@ -131,7 +131,6 @@ class TautulliSettings(Base):
 class OmbiSettings(Base):
     EntryID = Column(Integer, autoincrement=True)
     DiscordServerID = Column(Integer)
-    ServerID = Column(Integer)
     ServerName = Column(String(200))
     ServerURL = Column(String(200))
     ServerAPIKey = Column(String(200))
@@ -139,12 +138,10 @@ class OmbiSettings(Base):
     @none_as_null
     def __init__(self,
                  discord_id: int,
-                 server_id: int,
                  server_name: str,
                  server_url: str,
                  server_api_key: str):
         self.DiscordServerID = discord_id
-        self.ServerID = server_id
         self.ServerName = server_name
         self.ServerURL = server_url
         self.ServerAPIKey = server_api_key
@@ -275,6 +272,44 @@ class SettingsDatabase(db.SQLAlchemyDatabase):
         return self.session.query(DiscordAdmins).filter(
             DiscordAdmins.DiscordServerID == discord_server_id).all()
 
+    def get_admin_users_ids(self, discord_server_id: int) -> List[int]:
+        all_roles_and_ids = self.get_admin_users_and_roles(discord_server_id=discord_server_id)
+        ids = []
+        for item in all_roles_and_ids:
+            if item.DiscordAdminID:
+                ids.append(item.DiscordAdminID)
+        return ids
+
+    def get_admin_roles_names(self, discord_server_id: int) -> List[str]:
+        all_roles_and_ids = self.get_admin_users_and_roles(discord_server_id=discord_server_id)
+        roles = []
+        for item in all_roles_and_ids:
+            if item.DiscordAdminRole:
+                roles.append(item.DiscordAdminRole)
+        return roles
+
+    def add_admin_user_or_role(self, discord_server_id: int, role: str = None, user_id: int = None) -> bool:
+        if not user_id and not role:
+            return False
+        new_entry = DiscordAdmins(discord_id=discord_server_id,
+                                  admin_role=role,
+                                  admin_id=user_id)
+        self.session.add(new_entry)
+        self.session.commit()
+        return True
+
+    def remove_admin_user_or_role(self, discord_server_id: int, role: str = None, user_id: int = None) -> bool:
+        if not user_id and not role:
+            return False
+        all_roles_and_ids = self.get_admin_users_and_roles(discord_server_id=discord_server_id)
+        for entry in all_roles_and_ids:
+            if user_id and entry.DiscordAdminID == user_id:
+                entry.delete()
+            elif role and entry.DiscordAdminRole == role:
+                entry.delete()
+        self.session.commit()
+        return True
+
     # Plex
     def get_plex_servers(self, discord_server_id: int) -> List[PlexSettings]:
         return self.session.query(PlexSettings).filter(
@@ -295,14 +330,7 @@ class SettingsDatabase(db.SQLAlchemyDatabase):
         return None
 
     def add_plex_server(self, discord_server_id: int, name: str, url: str, token: str, alt_name: str = None):
-        new_server_id = 1
-        current_servers = self.get_plex_servers(discord_server_id=discord_server_id)
-        if current_servers:
-            server_numbers = [server.ServerID for server in current_servers]
-            while True:
-                if new_server_id not in server_numbers:
-                    break
-                new_server_id += 1
+        new_server_id = self._get_new_media_server_number(current_servers=self.get_plex_servers(discord_server_id=discord_server_id))
         new_server = PlexSettings(discord_id=discord_server_id,
                                   server_id=new_server_id,
                                   server_name=name,
@@ -351,6 +379,17 @@ class SettingsDatabase(db.SQLAlchemyDatabase):
                 return server
         return None
 
+    def add_emby_server(self, discord_server_id: int, name: str, url: str, api_key: str, alt_name: str = None):
+        new_server_id = self._get_new_media_server_number(current_servers=self.get_emby_servers(discord_server_id=discord_server_id))
+        new_server = EmbySettings(discord_id=discord_server_id,
+                                  server_id=new_server_id,
+                                  server_name=name,
+                                  server_alt_name=alt_name,
+                                  server_url=url,
+                                  server_api_key=api_key)
+        self.session.add(new_server)
+        self.session.commit()
+
     def remove_emby_server(self, discord_server_id: int, server_number: int = None, server_name: str = None) -> bool:
         if not server_name and not server_number:
             return False
@@ -389,6 +428,17 @@ class SettingsDatabase(db.SQLAlchemyDatabase):
             if server_number and server.ServerID == server_number:
                 return server
         return None
+
+    def add_jellyfin_server(self, discord_server_id: int, name: str, url: str, api_key: str, alt_name: str = None):
+        new_server_id = self._get_new_media_server_number(current_servers=self.get_jellyfin_servers(discord_server_id=discord_server_id))
+        new_server = JellyfinSettings(discord_id=discord_server_id,
+                                      server_id=new_server_id,
+                                      server_name=name,
+                                      server_alt_name=alt_name,
+                                      server_url=url,
+                                      server_api_key=api_key)
+        self.session.add(new_server)
+        self.session.commit()
 
     def remove_jellyfin_server(self, discord_server_id: int, server_number: int = None,
                                server_name: str = None) -> bool:
@@ -467,9 +517,43 @@ class SettingsDatabase(db.SQLAlchemyDatabase):
             if plex_server:
                 plex_server.TautulliServerID = null()
                 self.session.commit()
+        return True
 
     # Ombi
     def get_ombi_server(self, discord_server_id: int) -> OmbiSettings:
-        return self.session.query(OmbiSettings).filter(OmbiSettings.DiscordServerID == discord_server_id)
+        return self.session.query(OmbiSettings).filter(OmbiSettings.DiscordServerID == discord_server_id).one()
         # Don't need to associate Ombi with Plex/Tautulli, since one Ombi can have multiple Plex/Tautulli pairs
         # Only one Ombi per Discord Server
+
+    def add_ombi_server(self, discord_server_id: int, name: str, url: str, api_key: str) -> bool:
+        current_server_exists = self.session.query(OmbiSettings).filter(OmbiSettings.DiscordServerID == discord_server_id).all()
+        if current_server_exists:
+            return False  # can't have more than one Ombi per Discord server
+
+        new_server = OmbiSettings(discord_server_id=discord_server_id,
+                                  server_name=name,
+                                  server_url=url,
+                                  server_api_key=api_key)
+        self.session.add(new_server)
+        self.session.commit()
+        return True
+
+    def remove_ombi_server(self, discord_server_id: int) -> bool:
+        current_servers = self.get_ombi_server(discord_server_id=discord_server_id).all()
+        if not current_servers:
+            return False
+        for server in current_servers:
+            server.delete()
+        self.session.commit()
+        return True
+
+    # Helpers
+    def _get_new_media_server_number(self, current_servers: List = None) -> int:
+        new_server_id = 1
+        if current_servers:
+            server_numbers = [server.ServerID for server in current_servers]
+            while True:
+                if new_server_id not in server_numbers:
+                    break
+                new_server_id += 1
+        return new_server_id

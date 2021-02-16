@@ -1,5 +1,4 @@
 import time
-from functools import wraps
 from typing import Union, List
 
 from sqlalchemy import Column, Integer, Unicode, UnicodeText, String, BigInteger, null
@@ -7,20 +6,10 @@ from sqlalchemy.ext.declarative import declarative_base
 
 import helper.database as db
 
+from helper.decorators import none_as_null
+
 Base = declarative_base()
 
-
-def none_as_null(func):
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        """
-        Replace None as null()
-        """
-        func(self, *args, **kwargs)
-        for k, v in self.__dict__.items():
-            if v is None:
-                setattr(self, k, null())
-    return wrapper
 
 class BlacklistEntry(Base):
     __tablename__ = "blacklist"
@@ -118,6 +107,7 @@ class JellyfinUser(MediaServerUserTable, Base):
                          user_type=user_type,
                          expiration_stamp=expiration_stamp)
 
+
 class ServerSettings(Base):
     __tablename__ = "settings"
     MediaServerType = Column(String(100), primary_key=True)
@@ -144,8 +134,6 @@ class DiscordMediaServerConnectorDatabase(db.SQLAlchemyDatabase):
         self.multi_plex = multi_plex
         super().__init__(sqlite_file=sqlite_file, encrypted=encrypted, key_file=key_file)
 
-
-
     @property
     def table(self):
         if self.platform == "plex":
@@ -156,20 +144,16 @@ class DiscordMediaServerConnectorDatabase(db.SQLAlchemyDatabase):
             return JellyfinUser
         return None
 
-
     def get_server_settings(self, media_server_type: str):
         return self.session.query(ServerSettings).filter(ServerSettings.MediaServerType == media_server_type)
 
-
     def get_default_server_number(self, media_server_type: str):
         return self.get_server_settings(media_server_type=media_server_type).DefaultNumber
-
 
     def update_default_server_number(self, media_server_type: str, server_number: int):
         settings = self.get_server_settings(media_server_type=media_server_type)
         settings.DefaultNumber = server_number
         self.commit()
-
 
     def make_user(self, **kwargs):
         if self.platform == "plex":
@@ -179,29 +163,28 @@ class DiscordMediaServerConnectorDatabase(db.SQLAlchemyDatabase):
         elif self.platform == "jellyfin":
             return JellyfinUser(**kwargs)
 
-
     @property
     def users(self) -> List[Union[PlexUser, JellyfinUser, EmbyUser]]:
         if not self.table:
             return []
         return self.session.query(self.table).all()
 
-
-    def get_user(self, discord_id = None, media_server_username = None, media_server_id = None, first_match_only: bool = False) -> List[Union[PlexUser, JellyfinUser, EmbyUser]]:
+    def get_user(self, discord_id=None, media_server_username=None, media_server_id=None,
+                 first_match_only: bool = False) -> List[Union[PlexUser, JellyfinUser, EmbyUser]]:
         users = []
         for user in self.users:
-            if (discord_id and user.DiscordID == discord_id) or (media_server_username and user.MediaServerUsername == media_server_username) or (media_server_id and user.MediaServerID == media_server_id):
+            if (discord_id and user.DiscordID == discord_id) or (
+                    media_server_username and user.MediaServerUsername == media_server_username) or (
+                    media_server_id and user.MediaServerID == media_server_id):
                 users.append(user)
         if first_match_only:
             return [users[0]] if users else []
         return users
 
-
     def add_user_to_database(self, user: Union[PlexUser, EmbyUser, JellyfinUser]) -> bool:
         self.session.add(user)
         self.commit()
         return True
-
 
     def remove_user_from_database(self, user: Union[PlexUser, EmbyUser, JellyfinUser]):
         if not self.table:
@@ -210,7 +193,6 @@ class DiscordMediaServerConnectorDatabase(db.SQLAlchemyDatabase):
         self.commit()
         return True
 
-
     def edit_user(self, user: Union[PlexUser, EmbyUser, JellyfinUser], **kwargs):
         user_attribute_names = dir(user)
         for k, v in kwargs.items():
@@ -218,13 +200,11 @@ class DiscordMediaServerConnectorDatabase(db.SQLAlchemyDatabase):
                 setattr(__obj=user, __name=k, __value=v)
         self.commit()
 
-
     @property
     def winners(self) -> List[Union[PlexUser, EmbyUser, JellyfinUser]]:
         if not self.table:
             return []
         return self.session.query(self.table).filter(self.table.SubType == 'Winner').all()
-
 
     @property
     def trials(self) -> List[Union[PlexUser, EmbyUser, JellyfinUser]]:
@@ -232,13 +212,12 @@ class DiscordMediaServerConnectorDatabase(db.SQLAlchemyDatabase):
             return []
         return self.session.query(self.table).filter(self.table.SubType == 'Trial').all()
 
-
     @property
     def expired_trials(self) -> List[Union[PlexUser, EmbyUser, JellyfinUser]]:
         if not self.table:
             return []
-        return self.session.query(self.table).filter(self.table.SubType == 'Trial').filter( self.table.ExpirationStamp <= int(time.time())).all()
-
+        return self.session.query(self.table).filter(self.table.SubType == 'Trial').filter(
+            self.table.ExpirationStamp <= int(time.time())).all()
 
     def on_blacklist(self, names_and_ids: List) -> bool:
         for elem in names_and_ids:
@@ -247,7 +226,6 @@ class DiscordMediaServerConnectorDatabase(db.SQLAlchemyDatabase):
                 return True
         return False
 
-
     def add_to_blacklist(self, name_or_id: Union[str, int]) -> bool:
         if isinstance(name_or_id, int):
             name_or_id = str(name_or_id)
@@ -255,14 +233,12 @@ class DiscordMediaServerConnectorDatabase(db.SQLAlchemyDatabase):
         self.session.add(new_entry)
         return True
 
-
     def remove_from_blacklist(self, name_or_id: Union[str, int]) -> bool:
         if isinstance(name_or_id, int):
             name_or_id = str(name_or_id)
         self.session.query(BlacklistEntry).filter(BlacklistEntry.IDorUsername == name_or_id).delete()
         self.commit()
         return True
-
 
     @property
     def blacklist(self) -> List[BlacklistEntry]:
