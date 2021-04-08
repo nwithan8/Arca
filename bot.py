@@ -4,27 +4,24 @@
 import discord
 from discord.ext import commands
 import helper.cog_handler as cog_handler
-from settings import settings as settings
+from settings import global_settings
+from settings.database import SettingsDatabase
+from settings import local_settings
 
-bot = commands.Bot(command_prefix=settings.PREFIX)
+bot = commands.Bot(command_prefix=global_settings.PREFIX)
+database = SettingsDatabase(sqlite_file=global_settings.SETTINGS_DATABASE_PATH, encrypted=False)
+setattr(bot, 'settings_database', database)
 
 formatter = commands.HelpCommand(show_check_failure=False)
 
-exts = settings.extensions
+extensions = local_settings.extensions
 
-if settings.USE_REMOTE_CONFIG:
-    settings.USE_DROPBOX = True
-    # You can only use cog_handler if you fill out the DROPBOX_API_KEY environmental variable
-    cog_handler.USE_REMOTE_CONFIG = True
-    exts = cog_handler.load_remote_config("cogs.txt")
-for ext in exts:
+for ext in extensions:
     path = cog_handler.find_cog_path_by_name(ext)
     if path:
         # log.info(f"Loading {path}...")
         print(f"Loading {path}...")
         bot.load_extension(path)
-if settings.USE_DROPBOX:
-    cog_handler.USE_DROPBOX = True  # USE_DROPBOX has to be enabled for remote config to work
 bot.load_extension("helper.cog_handler")  # Always enabled, never disabled
 
 
@@ -39,4 +36,4 @@ print("Arca Copyright (C) 2020  Nathan Harris\n"
       "This program comes with ABSOLUTELY NO WARRANTY\n"
       "This is free software, and you are welcome to redistribute it under certain conditions.")
 
-bot.run(settings.BOT_TOKEN)
+bot.run(local_settings.BOT_TOKEN)
