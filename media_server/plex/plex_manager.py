@@ -307,8 +307,7 @@ async def check_winners(ctx: commands.Context):
             tautulli_users = server.tautulli.users
             for tautulli_user in tautulli_users:
                 if tautulli_user.username in winners_usernames:
-                    if server.tautulli.get_last_time_user_seen(user_id=tautulli_user.username) < (
-                            int(time.time()) - (14 * 24 * 60 * 60)):  # user not seen in 14 days
+                    if server.tautulli.get_last_time_user_seen(user_id=tautulli_user.username) < utils.timestamp_x_days_from_now(-14):  # user not seen in 14 days
                         if remove_from_plex_remove_from_database_remove_role_send_dm(ctx=ctx,
                                                                                      plex_username=tautulli_user.username,
                                                                                      role_name=plex_settings.WINNER_ROLE_NAME,

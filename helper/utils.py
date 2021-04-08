@@ -1,5 +1,6 @@
 import string
 import random
+import time
 
 
 def humanbitrate(B, d=1):
@@ -60,17 +61,36 @@ def password(length):
     return ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(length))
 
 
+def timestamp_x_days_from_now(days: int):
+    return int(time.time()) + (days * 24 * 60 * 60)
+
+
+def timestamp_x_hours_from_now(hours: int):
+    return int(time.time()) + (hours * 60 * 60)
+
+
+def timestamp_x_minutes_from_now(minutes: int):
+    return int(time.time()) + (minutes * 60)
+
+
+def timestamp_x_seconds_from_now(seconds: int):
+    return int(time.time()) + seconds
+
+
 class StatusCode:
     def __init__(self, message: str, number: int):
         self.message = message
         self.code = number
 
+
 class StatusCodes:
     USER_ON_BLACKLIST = StatusCode("User is on the blacklist", 999)
     USER_NOT_ON_PLEX = StatusCode("User does not exist on Plex", 700)
 
+
 class StatusResponse:
-    def __init__(self, success: bool = None, code: int = None, issue: str = None, attachment = None, status_code: StatusCode = None):
+    def __init__(self, success: bool = None, code: int = None, issue: str = None, attachment=None,
+                 status_code: StatusCode = None):
         self.success = success
         if status_code:
             self.code = status_code.code
