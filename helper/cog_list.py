@@ -1,7 +1,6 @@
 nicks_to_paths = {
     'plex_tools': "media_server.plex.plex_tools",
     'plex_manager': "media_server.plex.plex_manager",
-    'plex_manager_nodb': "media_server.plex.plex_namanger_nodb",
     'jellyfin': 'media_server.jellyfin.jellyfin',
     'jellyfin_manager': "media_server.jellyfin.jellyfin_manager",
     'emby_manager': "media_server.emby.emby_manager",
@@ -10,7 +9,7 @@ nicks_to_paths = {
     'rclone': "media_server.rclone.rclone",
     'news': "news.news",
     'marta': "MARTA.marta",
-    'roles': "discord_cogs.roles",
+    'roles': "discord.roles",
     'espn': "sports.espn.espn",
     'yahoo_fantasy': "sports.yahoofantasy.yahoofantasy",
     'sengled': "smart_home.sengled_lights.sengled",
@@ -18,5 +17,5 @@ nicks_to_paths = {
     'wink': "smart_home.wink.wink",
     'coronavirus': "general.coronavirus",
     'speedtest': "general.speedtest",
-    'voice_channel': "discord_cogs.__init__"
+    'voice_channel': "voice.__init__"
 }
