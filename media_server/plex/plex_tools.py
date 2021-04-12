@@ -7,7 +7,8 @@ from collections import defaultdict
 from discord.ext import commands
 
 import helper.discord_helper as discord_helper
-from helper.decorators import has_admin_role
+from helper.cog import BasicCog
+from helper.basic_decorators import has_admin_role
 
 from media_server import multi_server_handler
 
@@ -15,11 +16,11 @@ shows = defaultdict(list)
 movies = defaultdict(list)
 
 
-class PlexTools(commands.Cog):
+class PlexTools(BasicCog):
 
     def __init__(self, bot):
-        self.bot = bot
         print("Plex Tools - updating libraries...")
+        super().__init__(bot)
         # self.makeLibraries.start()
 
     """
@@ -148,7 +149,7 @@ class PlexTools(commands.Cog):
         await ctx.send("Please include <movies|shows|artists|users> <timeFrame>")
 
     @plex.command(name="current", aliases=["now"], hidden=True, pass_context=True)
-    @has_admin_role
+
     async def plex_now(self, ctx: commands.Context):
         """
         Current Plex activity

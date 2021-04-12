@@ -1,6 +1,6 @@
 import dropbox
 import ntpath
-from settings.local_settings import settings as settings
+from settings import local_settings as settings
 
 DB_KEY = settings.DROPBOX_API_KEY
 if DB_KEY:

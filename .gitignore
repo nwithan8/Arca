@@ -62,3 +62,4 @@ config.txt
 *oauth2.json
 credentials/
 databases/
+settings/local_settings.py

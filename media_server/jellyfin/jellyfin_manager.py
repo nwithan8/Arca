@@ -2,6 +2,8 @@
 Interact with a Jellyfin Media Server, manage users
 Copyright (C) 2019 Nathan Harris
 """
+
+# TODO: Readd the HAS_ROLE decorators
 import time
 from typing import Union, List
 import csv
@@ -9,235 +11,13 @@ import csv
 import discord
 from discord.ext import commands
 
-from helper.decorators import has_admin_role
-from media_server import multi_server_handler
 import helper.discord_helper as discord_helper
 import helper.utils as utils
-from media_server.database import PlexUser, JellyfinUser, EmbyUser
+from media_server.media_server_cog import MediaServerCog
+from media_server.media_server_database import PlexUser, JellyfinUser, EmbyUser
 from media_server.jellyfin import settings as settings
 from media_server.jellyfin import jellyfin_api as jf
 from media_server.jellyfin import settings as jellyfin_settings
-
-def get_user_entries_from_database(ctx: commands.Context, discord_id: int = None, jellyfin_username: str = None, first_only: bool = False) -> Union[List[Union[PlexUser, EmbyUser, JellyfinUser, utils.StatusResponse]], utils.StatusResponse]:
-    if not discord_id and not jellyfin_username:
-        raise Exception("Must provide either jellyfin_username or discord_id")
-
-    jellyfin_api = multi_server_handler.get_jellyfin_api(ctx=ctx)
-
-    database_user_entries = jellyfin_api.database.get_user(discord_id=discord_id, media_server_username=jellyfin_username, first_match_only=first_only)
-    if not database_user_entries:
-        return utils.StatusResponse(success=False, issue="User not found in database")
-    return database_user_entries
-
-
-def remove_user_from_database(ctx: commands.Context, user = None, discord_id: int = None, jellyfin_username: str = None) -> utils.StatusResponse:
-    if not user and not discord_id and not jellyfin_username:
-        raise Exception("Must provide either user, jellyfin_username or discord_id")
-
-    jellyfin_api = multi_server_handler.get_jellyfin_api(ctx=ctx)
-
-    if not user:
-        user = jellyfin_api.database.make_user(discord_id=discord_id, jellyfin_username=jellyfin_username)
-    if not jellyfin_api.database.remove_user_from_database(user=user):
-        return utils.StatusResponse(success=False, issue="Could not remove user from database.")
-    return utils.StatusResponse(success=True)
-
-
-def check_blacklist(ctx: commands.Context, discord_id: int = None, jellyfin_username: str = None) -> utils.StatusResponse:
-    to_check = []
-    if discord_id:
-        to_check.append(discord_id)
-    if jellyfin_username:
-        to_check.append(jellyfin_username)
-    if not to_check:
-        return utils.StatusResponse(success=False)
-
-    jellyfin_api = multi_server_handler.get_jellyfin_api(ctx)
-
-    if jellyfin_settings.ENABLE_BLACKLIST and jellyfin_api.database.on_blacklist(names_and_ids=to_check):
-        return utils.StatusResponse(success=True, issue="User is on blacklist")
-    return utils.StatusResponse(success=False)
-
-
-async def add_user_to_jellyfin(ctx: commands.Context,
-                               jellyfin_username: str,
-                               user_type: str) -> utils.StatusResponse:
-    """
-    Add a user to a Jellyfin instance
-
-    :param user_type:
-    :type user_type:
-    :param ctx:
-    :type ctx:
-    :param jellyfin_username:
-    :type jellyfin_username:
-    :return:
-    :rtype:
-    """
-
-    jellyfin_server = multi_server_handler.get_jellyfin_api(ctx=ctx)
-
-    try:
-        response = jellyfin_server.add_user(jellyfin_username=jellyfin_username)
-        if not response:
-            return response
-        user = response.attachment
-        response = jellyfin_server.reset_password(user_id=user.id)
-        if not response:
-            return response
-        response = jellyfin_server.set_user_password(user_id=user.id, currentPass="", newPass=utils.password(10))
-        if not response:
-            return response
-        response = jellyfin_server.update_policy(user_id=user.id, policy=jellyfin_server.default_policy)
-        if not response:
-            return response
-        return utils.StatusResponse(success=True, attachment=user)
-    except Exception as e:
-        print(e)
-        return utils.StatusResponse(success=False, issue=e.__str__())
-
-
-async def remove_user_from_jellyfin(ctx: commands.Context,
-                                    jellyfin_username: str) -> utils.StatusResponse:
-    """
-    Remove a user from a single Plex instance ( + Ombi/Tautulli)
-
-    :param ctx:
-    :type ctx:
-    :param jellyfin_username:
-    :type jellyfin_username:
-    :return:
-    :rtype:
-    """
-    jellyfin_server = multi_server_handler.get_jellyfin_api(ctx)
-
-    try:
-        response = jellyfin_server.remove_user(jellyfin_username=jellyfin_username)
-        return response
-    except Exception as e:
-        return utils.StatusResponse(success=False, issue=e.__str__())
-
-
-async def add_to_database_add_to_jellyfin_add_role_send_dm(ctx: commands.Context,
-                                                           jellyfin_username: str,
-                                                           discord_id: int,
-                                                           user_type: str,
-                                                           role_name: str,
-                                                           role_reason: str,
-                                                           pay_method: str = None):
-    if check_blacklist(ctx=ctx, discord_id=discord_id, jellyfin_username=jellyfin_username):
-        return utils.StatusResponse(success=False, issue="USER ON BLACKLIST", code=999)
-
-    jellyfin_api = multi_server_handler.get_jellyfin_api(ctx)
-
-    expiration_stamp = None
-    if user_type == 'Trial':
-        expiration_stamp = int(time.time()) + jellyfin_settings.TRIAL_LENGTH
-    new_database_entry = jellyfin_api.database.make_user(jellyfin_username=jellyfin_username,
-                                                         discord_id=discord_id,
-                                                         user_type=user_type,
-                                                         pay_method=pay_method,
-                                                         expiration_stamp=expiration_stamp)
-
-    response = jellyfin_api.database.add_user_to_database(new_database_entry)
-    if not response:
-        return response
-
-    response_or_user = await add_user_to_jellyfin(ctx=ctx, jellyfin_username=jellyfin_username, user_type=user_type)
-    if not response_or_user:
-        return response_or_user
-
-    discord_user = await discord_helper.get_user(user_id=discord_id, ctx=ctx)
-    if not discord_user:
-        return utils.StatusResponse(success=False, issue="Could not load Discord user to modify roles.")
-
-    if not await discord_helper.add_user_role(user=discord_user, role_name=role_name, reason=role_reason):
-        return utils.StatusResponse(success=False, issue=f"Could not add {role_name} role to Discord user.")
-
-    dm_message = _create_dm_message(server_name=jellyfin_api.server_name,
-                                    server_url=jellyfin_api.url,
-                                    username=jellyfin_username,
-                                    password=response_or_user.attachment.password)
-
-    await discord_helper.send_direct_message(user=discord_user, message=dm_message)
-
-    return utils.StatusResponse(success=True)
-
-
-async def add_to_database_add_role(ctx: commands.Context,
-                                   jellyfin_username: str,
-                                   discord_id: int,
-                                   user_type: str,
-                                   role_name: str,
-                                   role_reason: str,
-                                   pay_method: str = None):
-    if check_blacklist(ctx=ctx, discord_id=discord_id, jellyfin_username=jellyfin_username):
-        return utils.StatusResponse(success=False, status_code=utils.StatusCodes.USER_ON_BLACKLIST)
-
-    jellyfin_api = multi_server_handler.get_jellyfin_api(ctx)
-
-    new_database_entry = jellyfin_api.database.make_user(jellyfin_username=jellyfin_username,
-                                                         discord_id=discord_id,
-                                                         user_type=user_type,
-                                                         pay_method=pay_method)
-
-    response = jellyfin_api.database.add_user_to_database(new_database_entry)
-    if not response:
-        return response
-
-    discord_user = await discord_helper.get_user(user_id=discord_id, ctx=ctx)
-    if not discord_user:
-        return utils.StatusResponse(success=False, issue="Could not load Discord user to modify roles.")
-
-    if not await discord_helper.add_user_role(user=discord_user, role_name=role_name, reason=role_reason):
-        return utils.StatusResponse(success=False, issue=f"Could not add {role_name} role to Discord user.")
-
-    return utils.StatusResponse(success=True)
-
-
-async def remove_from_jellyfin_remove_from_database_remove_role_send_dm(ctx: commands.Context,
-                                                                        role_name: str,
-                                                                        role_reason: str,
-                                                                        dm_message: str,
-                                                                        jellyfin_username: str = None,
-                                                                        discord_id: int = None):
-
-    database_user_entries = get_user_entries_from_database(ctx=ctx, discord_id=discord_id, jellyfin_username=jellyfin_username)
-    if not database_user_entries:
-        return database_user_entries # error message
-
-    response = await remove_user_from_jellyfin(ctx=ctx, jellyfin_username=jellyfin_username)
-    if not response:
-        return response
-
-    for entry in database_user_entries:
-        # delete all entries in database
-        response = remove_user_from_database(ctx=ctx, user=entry)
-        if not response:
-            return response
-
-    discord_user = await discord_helper.get_user(user_id=database_user_entries[0].DiscordID, ctx=ctx)
-    if not discord_user:
-        return utils.StatusResponse(success=False, issue="Could not load Discord user to modify roles.")
-
-    if not await discord_helper.remove_user_role(user=discord_user, role_name=role_name, reason=role_reason):
-        return utils.StatusResponse(success=False, issue=f"Could not remove {role_name} role from Discord user.")
-
-    await discord_helper.send_direct_message(user=discord_user, message=dm_message)
-
-    return utils.StatusResponse(success=True)
-
-
-async def check_trials(ctx: commands.Context):
-    jellyfin_api = multi_server_handler.get_jellyfin_api(ctx=ctx)
-
-    for trial_database_user in jellyfin_api.database.expired_trials:
-        await remove_from_jellyfin_remove_from_database_remove_role_send_dm(ctx=ctx,
-                                                                            role_name=jellyfin_settings.TRIAL_ROLE_NAME,
-                                                                            role_reason="Trial ended.",
-                                                                            dm_message="Your trial has ended.",
-                                                                            jellyfin_username=trial_database_user.MediaServerUsername,
-                                                                            discord_id=trial_database_user.DiscordID)
 
 
 def _create_dm_message(server_name: str, server_url: str, username: str, password: str = None):
@@ -248,18 +28,241 @@ def _create_dm_message(server_name: str, server_url: str, username: str, passwor
     return text
 
 
-class JellyfinManager(commands.Cog):
+class JellyfinManager(MediaServerCog):
     def __init__(self, bot):
-        self.bot = bot
-        print("Jellyfin Manager ready to go.")
+        super().__init__(bot)
 
+    async def check_trials(self, ctx: commands.Context):
+        api = self.get_api(ctx=ctx)
+
+        for trial_database_user in api.database.expired_trials:
+            await self.remove_from_jellyfin_remove_from_database_remove_role_send_dm(ctx=ctx,
+                                                                                role_name=jellyfin_settings.TRIAL_ROLE_NAME,
+                                                                                role_reason="Trial ended.",
+                                                                                dm_message="Your trial has ended.",
+                                                                                jellyfin_username=trial_database_user.MediaServerUsername,
+                                                                                discord_id=trial_database_user.DiscordID)
+
+    def get_user_entries_from_database(self,
+                                       ctx: commands.Context, discord_id: int = None, jellyfin_username: str = None,
+                                       first_only: bool = False) -> Union[
+        List[Union[PlexUser, EmbyUser, JellyfinUser, utils.StatusResponse]], utils.StatusResponse]:
+        if not discord_id and not jellyfin_username:
+            raise Exception("Must provide either jellyfin_username or discord_id")
+
+        api = self.get_api(ctx=ctx)
+
+        database_user_entries = api.database.get_user(discord_id=discord_id, media_server_username=jellyfin_username,
+                                                      first_match_only=first_only)
+        if not database_user_entries:
+            return utils.StatusResponse(success=False, issue="User not found in database")
+        return database_user_entries
+
+    def remove_user_from_database(self,
+                                  ctx: commands.Context, user=None, discord_id: int = None,
+                                  jellyfin_username: str = None) -> utils.StatusResponse:
+        if not user and not discord_id and not jellyfin_username:
+            raise Exception("Must provide either user, jellyfin_username or discord_id")
+
+        api = self.get_api(ctx=ctx)
+
+        if not user:
+            user = api.database.make_user(discord_id=discord_id, jellyfin_username=jellyfin_username)
+        if not api.database.remove_user_from_database(user=user):
+            return utils.StatusResponse(success=False, issue="Could not remove user from database.")
+        return utils.StatusResponse(success=True)
+
+    def check_blacklist(self,
+                        ctx: commands.Context, discord_id: int = None,
+                        jellyfin_username: str = None) -> utils.StatusResponse:
+        to_check = []
+        if discord_id:
+            to_check.append(discord_id)
+        if jellyfin_username:
+            to_check.append(jellyfin_username)
+        if not to_check:
+            return utils.StatusResponse(success=False)
+
+        api = self.get_api(ctx=ctx)
+
+        if jellyfin_settings.ENABLE_BLACKLIST and api.database.on_blacklist(names_and_ids=to_check):
+            return utils.StatusResponse(success=True, issue="User is on blacklist")
+        return utils.StatusResponse(success=False)
+
+    async def add_user_to_jellyfin(self,
+                                   ctx: commands.Context,
+                                   jellyfin_username: str,
+                                   user_type: str) -> utils.StatusResponse:
+        """
+        Add a user to a Jellyfin instance
+
+        :param user_type:
+        :type user_type:
+        :param ctx:
+        :type ctx:
+        :param jellyfin_username:
+        :type jellyfin_username:
+        :return:
+        :rtype:
+        """
+        api = self.get_api(ctx=ctx)
+
+        try:
+            response = api.add_user(jellyfin_username=jellyfin_username)
+            if not response:
+                return response
+            user = response.attachment
+            response = api.reset_password(user_id=user.id)
+            if not response:
+                return response
+            response = api.set_user_password(user_id=user.id, currentPass="", newPass=utils.password(10))
+            if not response:
+                return response
+            response = api.update_policy(user_id=user.id, policy=api.default_policy)
+            if not response:
+                return response
+            return utils.StatusResponse(success=True, attachment=user)
+        except Exception as e:
+            print(e)
+            return utils.StatusResponse(success=False, issue=e.__str__())
+
+    async def remove_user_from_jellyfin(self,
+                                        ctx: commands.Context,
+                                        jellyfin_username: str) -> utils.StatusResponse:
+        """
+        Remove a user from a single Plex instance ( + Ombi/Tautulli)
+
+        :param ctx:
+        :type ctx:
+        :param jellyfin_username:
+        :type jellyfin_username:
+        :return:
+        :rtype:
+        """
+        api = self.get_api(ctx=ctx)
+
+        try:
+            response = api.remove_user(jellyfin_username=jellyfin_username)
+            return response
+        except Exception as e:
+            return utils.StatusResponse(success=False, issue=e.__str__())
+
+    async def remove_from_jellyfin_remove_from_database_remove_role_send_dm(self,
+                                                                            ctx: commands.Context,
+                                                                            role_name: str,
+                                                                            role_reason: str,
+                                                                            dm_message: str,
+                                                                            jellyfin_username: str = None,
+                                                                            discord_id: int = None):
+        database_user_entries = self.get_user_entries_from_database(ctx=ctx, discord_id=discord_id,
+                                                               jellyfin_username=jellyfin_username)
+        if not database_user_entries:
+            return database_user_entries  # error message
+
+        response = await self.remove_user_from_jellyfin(ctx=ctx, jellyfin_username=jellyfin_username)
+        if not response:
+            return response
+
+        for entry in database_user_entries:
+            # delete all entries in database
+            response = self.remove_user_from_database(ctx=ctx, user=entry)
+            if not response:
+                return response
+
+        discord_user = await discord_helper.get_user(user_id=database_user_entries[0].DiscordID, ctx=ctx)
+        if not discord_user:
+            return utils.StatusResponse(success=False, issue="Could not load Discord user to modify roles.")
+
+        if not await discord_helper.remove_user_role(user=discord_user, role_name=role_name, reason=role_reason):
+            return utils.StatusResponse(success=False, issue=f"Could not remove {role_name} role from Discord user.")
+
+        await discord_helper.send_direct_message(user=discord_user, message=dm_message)
+
+        return utils.StatusResponse(success=True)
+
+    async def add_to_database_add_to_jellyfin_add_role_send_dm(self,
+                                                               ctx: commands.Context,
+                                                               jellyfin_username: str,
+                                                               discord_id: int,
+                                                               user_type: str,
+                                                               role_name: str,
+                                                               role_reason: str,
+                                                               pay_method: str = None):
+        if self.check_blacklist(ctx=ctx, discord_id=discord_id, jellyfin_username=jellyfin_username):
+            return utils.StatusResponse(success=False, issue="USER ON BLACKLIST", code=999)
+
+        api = self.get_api(ctx=ctx)
+
+        expiration_stamp = None
+        if user_type == 'Trial':
+            expiration_stamp = int(time.time()) + jellyfin_settings.TRIAL_LENGTH
+        new_database_entry = api.database.make_user(jellyfin_username=jellyfin_username,
+                                                    discord_id=discord_id,
+                                                    user_type=user_type,
+                                                    pay_method=pay_method,
+                                                    expiration_stamp=expiration_stamp)
+
+        response = api.database.add_user_to_database(new_database_entry)
+        if not response:
+            return response
+
+        response_or_user = await self.add_user_to_jellyfin(ctx=ctx, jellyfin_username=jellyfin_username, user_type=user_type)
+        if not response_or_user:
+            return response_or_user
+
+        discord_user = await discord_helper.get_user(user_id=discord_id, ctx=ctx)
+        if not discord_user:
+            return utils.StatusResponse(success=False, issue="Could not load Discord user to modify roles.")
+
+        if not await discord_helper.add_user_role(user=discord_user, role_name=role_name, reason=role_reason):
+            return utils.StatusResponse(success=False, issue=f"Could not add {role_name} role to Discord user.")
+
+        dm_message = _create_dm_message(server_name=api.server_name,
+                                        server_url=api.url,
+                                        username=jellyfin_username,
+                                        password=response_or_user.attachment.password)
+
+        await discord_helper.send_direct_message(user=discord_user, message=dm_message)
+
+        return utils.StatusResponse(success=True)
+
+    async def add_to_database_add_role(self,
+                                       ctx: commands.Context,
+                                       jellyfin_username: str,
+                                       discord_id: int,
+                                       user_type: str,
+                                       role_name: str,
+                                       role_reason: str,
+                                       pay_method: str = None):
+        if self.check_blacklist(ctx=ctx, discord_id=discord_id, jellyfin_username=jellyfin_username):
+            return utils.StatusResponse(success=False, status_code=utils.StatusCodes.USER_ON_BLACKLIST)
+
+        api = self.get_api(ctx=ctx)
+
+        new_database_entry = api.database.make_user(jellyfin_username=jellyfin_username,
+                                                    discord_id=discord_id,
+                                                    user_type=user_type,
+                                                    pay_method=pay_method)
+
+        response = api.database.add_user_to_database(new_database_entry)
+        if not response:
+            return response
+
+        discord_user = await discord_helper.get_user(user_id=discord_id, ctx=ctx)
+        if not discord_user:
+            return utils.StatusResponse(success=False, issue="Could not load Discord user to modify roles.")
+
+        if not await discord_helper.add_user_role(user=discord_user, role_name=role_name, reason=role_reason):
+            return utils.StatusResponse(success=False, issue=f"Could not add {role_name} role to Discord user.")
+
+        return utils.StatusResponse(success=True)
 
     async def check_subs(self, ctx: commands.Context):
         for discord_member in discord_helper.get_users_without_roles(bot=self.bot,
                                                                      role_names=jellyfin_settings.SUB_ROLES,
                                                                      guild=ctx.message.guild):
             if discord_member.id not in jellyfin_settings.EXEMPT_SUBS:
-                await remove_from_jellyfin_remove_from_database_remove_role_send_dm(ctx=ctx,
+                await self.remove_from_jellyfin_remove_from_database_remove_role_send_dm(ctx=ctx,
                                                                                     discord_id=discord_member.id,
                                                                                     role_name=jellyfin_settings.INVITED_ROLE,
                                                                                     role_reason="Subscription ended.",
@@ -378,59 +381,26 @@ class JellyfinManager(commands.Cog):
         """
         Check if you or another user has access to the Jellyfin server
         """
+        api = self.get_api(ctx=ctx)
+
         _jellyfin_username = jellyfin_username
 
         if not _jellyfin_username:
-            database_user = get_user_entries_from_database(ctx=ctx, discord_id=ctx.message.author.id, first_only=True)
+            database_user = self.get_user_entries_from_database(ctx=ctx, discord_id=ctx.message.author.id, first_only=True)
             if not database_user:
                 message = "Could not find your Jellyfin username in the database."
             else:
                 _jellyfin_username = database_user[0].MediaServerUsername
 
-        jellyfin_api = multi_server_handler.get_jellyfin_api(ctx=ctx)
-
         if _jellyfin_username:
-            if _jellyfin_username in [user.name for user in jellyfin_api.get_users()]:
-                message = f"You have access to {jellyfin_api.server_name}"
+            if _jellyfin_username in [user.name for user in api.get_users()]:
+                message = f"You have access to {api.server_name}"
             else:
-                message = f"You do not have access to {jellyfin_api.server_name}"
+                message = f"You do not have access to {api.server_name}"
         await ctx.send(message)
 
     @jellyfin_access.error
     async def jellyfin_access_error(self, ctx, error):
-        print(error)
-        await discord_helper.something_went_wrong(ctx=ctx)
-
-    @jellyfin.command(name="blacklist", aliases=['block'], pass_context=True)
-    @commands.has_role(jellyfin_settings.DISCORD_ADMIN_ROLE_NAME)
-    async def jellyfin_blacklist(self, ctx: commands.Context, add_or_remove: str, discord_user_or_jellyfin_username: Union[discord.Member, discord.User, str]):
-        """
-        Blacklist a Jellyfin username or Discord ID
-        """
-        jellyfin_api = multi_server_handler.get_jellyfin_api(ctx=ctx)
-
-        if isinstance(discord_user_or_jellyfin_username, (discord.Member, discord.User)):
-            _id = discord_user_or_jellyfin_username.id
-        else:
-            _id = discord_user_or_jellyfin_username
-
-        if add_or_remove.lower() == "add":
-            if jellyfin_api.database.add_to_blacklist(name_or_id=_id):
-                await ctx.send("User added to blacklist.")
-            else:
-                await ctx.send("Something went wrong while adding that user to the blacklist.")
-        elif add_or_remove.lower() == 'remove':
-            if jellyfin_api.database.remove_from_blacklist(name_or_id=_id):
-                await ctx.send("User removed from blacklist.")
-            else:
-                await ctx.send("Something went wrong while removing user from the blacklist.")
-        elif add_or_remove.lower() == 'list':
-            await ctx.send("Blacklist entries:\n" + '\n'.join([entry.IDorUsername for entry in jellyfin_api.database.blacklist]))
-        else:
-            await ctx.send("Invalid blacklist action.")
-
-    @jellyfin_blacklist.error
-    async def jellyfin_blacklist_error(self, ctx, error):
         print(error)
         await discord_helper.something_went_wrong(ctx=ctx)
 
@@ -440,12 +410,12 @@ class JellyfinManager(commands.Cog):
         """
         Check if the Jellyfin server is online
         """
-        jellyfin_api = multi_server_handler.get_jellyfin_api(ctx=ctx)
+        api = self.get_api(ctx=ctx)
 
-        if jellyfin_api.ping():
-            status_message = f"{jellyfin_api.name} is up and running."
+        if api.ping():
+            status_message = f"{api.name} is up and running."
         else:
-            status_message = f"{jellyfin_api.name} is having connection issues right now."
+            status_message = f"{api.name} is having connection issues right now."
         await ctx.send(status_message)
 
     @jellyfin_status.error
@@ -453,15 +423,8 @@ class JellyfinManager(commands.Cog):
         print(error)
         await discord_helper.something_went_wrong(ctx=ctx)
 
-
-
-
-
-
-
-
     @jellyfin.command(name="winners", pass_context=True)
-    @has_admin_role
+
     async def jellyfin_winners(self, ctx: commands.Context):
         """
         List winners' Jellyfin usernames
@@ -474,7 +437,7 @@ class JellyfinManager(commands.Cog):
             await ctx.send("Error pulling winners from database_handler.")
 
     @jellyfin.command(name="purge", pass_context=True)
-    @has_admin_role
+
     async def jellyfin_purge(self, ctx: commands.Context):
         """
         Remove inactive winners
@@ -483,7 +446,7 @@ class JellyfinManager(commands.Cog):
         await self.purge_winners(ctx)
 
     @jellyfin.command(name="subcheck")
-    @has_admin_role
+
     async def jellyfin_subs(self, ctx: commands.Context):
         """
         Find and removed lapsed subscribers
@@ -498,7 +461,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Something went wrong.")
 
     @jellyfin.command(name="trialcheck")
-    @has_admin_role
+
     async def jellyfin_trial_check(self, ctx: commands.Context):
         """
         Find and remove lapsed trials
@@ -513,7 +476,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Something went wrong.")
 
     @jellyfin.command(name="cleandb", aliases=['clean', 'scrub', 'syncdb'], pass_context=True)
-    @has_admin_role
+
     async def jellyfin_cleandb(self, ctx: commands.Context):
         """
         Remove old users from database_handler
@@ -542,7 +505,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Something went wrong.")
 
     @jellyfin.command(name="backupdb")
-    @has_admin_role
+
     async def jellyfin_backupdb(self, ctx: commands.Context):
         """
         Backup the database_handler to Dropbox.
@@ -557,7 +520,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Something went wrong.")
 
     @jellyfin.command(name="count", aliases=["subs", "number"], pass_context=True)
-    @has_admin_role
+
     async def jellyfin_count(self, ctx: commands.Context):
         """
         Get the number of enabled Jellyfin users
@@ -574,7 +537,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Something went wrong. Please try again later.")
 
     @jellyfin.command(name="add", aliases=["new", "join"], pass_context=True)
-    @has_admin_role
+
     async def jellyfin_add(self, ctx: commands.Context, user: discord.Member, username: str):
         """
         Add a Discord user to Jellyfin
@@ -598,7 +561,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Please mention the Discord user to add to Jellyfin, as well as their Jellyfin username.")
 
     @jellyfin.command(name="remove", aliases=["delete", "rem"], pass_context=True)
-    @has_admin_role
+
     async def jellyfin_remove(self, ctx: commands.Context, user: discord.Member):
         """
         Delete a Discord user from Jellyfin
@@ -619,7 +582,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Please mention the Discord user to remove from Jellyfin.")
 
     @jellyfin.command(name="trial", pass_context=True)
-    @has_admin_role
+
     async def jellyfin_trial(self, ctx: commands.Context, user: discord.Member, JellyfinUsername: str):
         """
         Start a trial of Jellyfin
@@ -642,7 +605,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Please mention the Discord user to add to Jellyfin, as well as their Jellyfin username.")
 
     @jellyfin.command(name='edit', aliases=['update', 'change'])
-    @has_admin_role
+
     async def jellyfin_edit(self, ctx: commands.Context, username: Union[discord.Member, str], category: str, *,
                             category_settings: str):
         """
@@ -771,7 +734,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Sorry, something went wrong.")
 
     @jellyfin.command(name='details', aliases=['restrictions'], pass_context=True)
-    @has_admin_role
+
     async def jellyfin_details(self, ctx: commands.Context, username: Union[discord.Member, str]):
         error_finding_name = False
         jellyfinId = 0
@@ -816,7 +779,7 @@ class JellyfinManager(commands.Cog):
         await ctx.send("Sorry, something went wrong.")
 
     @jellyfin.command(name="import", pass_context=True)
-    @has_admin_role
+
     async def jellyfin_import(self, ctx: commands.Context, user: discord.Member, JellyfinUsername: str, subType: str,
                               serverNumber: int = None):
         """
@@ -852,7 +815,7 @@ class JellyfinManager(commands.Cog):
             "Please mention the Discord user to add to the database_handler, including their Jellyfin username and sub type.")
 
     @jellyfin.group(name="find", aliases=["id"], pass_context=True)
-    @has_admin_role
+
     async def jellyfin_find(self, ctx: commands.Context):
         """
         Find Discord or Jellyfin user
@@ -889,7 +852,7 @@ class JellyfinManager(commands.Cog):
         print(error)
 
     @jellyfin.group(name="info")
-    @has_admin_role
+
     async def jellyfin_info(self, ctx: commands.Context):
         """
         Get database_handler entry for a user

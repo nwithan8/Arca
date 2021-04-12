@@ -6,7 +6,7 @@ from urllib.parse import urlencode
 import requests
 
 import helper.utils as utils
-from media_server.database import DiscordMediaServerConnectorDatabase
+from media_server.media_server_database import DiscordMediaServerConnectorDatabase
 
 
 def _save_token_id(file, credentials):

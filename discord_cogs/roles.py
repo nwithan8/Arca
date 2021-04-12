@@ -9,7 +9,7 @@ from discord.utils import get
 import os
 import asyncio
 import helper.discord_helper as discord_helper
-from helper.decorators import has_admin_role
+from helper.basic_decorators import has_admin_role
 
 ADMIN_ROLE_NAME = "Admin"
 
@@ -88,7 +88,7 @@ class Roles(commands.Cog):
         roles = roles[:-2]
         await ctx.send("Available roles:\n" + roles)
 
-    @has_admin_role
+
     @roles.command(name="add", pass_context=True)
     async def roles_add(self, ctx: commands.Context, role: str, *, nicknames: str):
         """

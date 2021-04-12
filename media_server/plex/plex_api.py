@@ -13,7 +13,7 @@ import helper.utils as utils
 from helper.encryption import Encryption
 from media_server.connectors.ombi_connector import OmbiConnector
 from media_server.connectors.tautulli_connector import TautulliConnector
-from media_server.database import DiscordMediaServerConnectorDatabase
+from media_server.media_server_database import DiscordMediaServerConnectorDatabase
 
 all_movie_ratings = ['12', 'Approved', 'Passed', 'G', 'GP', 'PG', 'PG-13', 'M', 'R', 'NC-17', 'Unrated', 'Not Rated',
                      'NR', 'None']
@@ -436,6 +436,9 @@ class PlexConnections:
         """
         self._credentials = plex_credentials
         self.database = database
+
+    def close_database(self):
+        self.database.close()
 
     @property
     def plex_connectors(self) -> dict:

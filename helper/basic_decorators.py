@@ -1,8 +1,5 @@
-import functools
 from functools import wraps
 
-import discord
-from discord.ext.commands import NoPrivateMessage
 from sqlalchemy import null
 
 

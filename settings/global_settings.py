@@ -1,2 +1,2 @@
 PREFIX = ")"
-SETTINGS_DATABASE_PATH = "settings/settings_database.db"
+SETTINGS_DATABASE_PATH = "databases/master.db"

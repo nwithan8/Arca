@@ -6,7 +6,7 @@ Copyright (C) 2019 Nathan Harris
 from discord.ext import commands
 import asyncio
 
-from helper.decorators import has_admin_role
+from helper.basic_decorators import has_admin_role
 from media_server.jellyfin import settings as settings
 from media_server.jellyfin import jellyfin_api as jf
 from media_server.jellyfin import jellyfin_recs as jr
@@ -124,7 +124,7 @@ class Jellyfin(commands.Cog):
         await ctx.send("Sorry, something went wrong while looking for a new recommendation.")
 
     @jellyfin.command(name="current", aliases=["now"], hidden=True, pass_context=True)
-    @has_admin_role
+
     async def jellyfin_now(self, ctx: commands.Context):
         """
         Current Jellyfin activity

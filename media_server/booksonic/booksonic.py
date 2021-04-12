@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 import random
 import hashlib
 import media_server.booksonic.settings as settings
-from helper.decorators import has_admin_role
+from helper.basic_decorators import has_admin_role
 
 BOOKSONIC_URL = settings.BOOKSONIC_URL
 BOOKSONIC_USER = settings.BOOKSONIC_USER
@@ -55,7 +55,7 @@ class Booksonic(commands.Cog):
             await ctx.send("What subcommand?")
 
     @booksonic.command(name="add", aliases=["new"], pass_context=True)
-    @has_admin_role
+
     async def booksonic_add(self, ctx: commands.Context, user: discord.Member, booksonicUsername: str):
         """
         Add a Discord user to Booksonic

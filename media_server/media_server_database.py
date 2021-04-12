@@ -4,9 +4,9 @@ from typing import Union, List
 from sqlalchemy import Column, Integer, Unicode, UnicodeText, String, BigInteger, null
 from sqlalchemy.ext.declarative import declarative_base
 
-import helper.database as db
+import helper.database_class as db
 
-from helper.decorators import none_as_null
+from helper.basic_decorators import none_as_null
 
 Base = declarative_base()
 
@@ -231,6 +231,7 @@ class DiscordMediaServerConnectorDatabase(db.SQLAlchemyDatabase):
             name_or_id = str(name_or_id)
         new_entry = BlacklistEntry(id_or_username=name_or_id)
         self.session.add(new_entry)
+        self.commit()
         return True
 
     def remove_from_blacklist(self, name_or_id: Union[str, int]) -> bool:

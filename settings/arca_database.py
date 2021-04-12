@@ -1,17 +1,16 @@
-import time
-from functools import wraps
 from typing import Union, List
 
 from sqlalchemy import Column, Integer, Unicode, UnicodeText, String, BigInteger, null, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 
-import helper.database as db
-from helper.decorators import none_as_null
+import helper.database_class as db
+from helper.basic_decorators import none_as_null
 
 Base = declarative_base()
 
 
 class MediaServerSettings(Base):
+    __tablename__ = "media_server_settings"
     DiscordServerID = Column(Integer, primary_key=True)
     InvitedRoleName = Column(String)
     CurrentlyWatchingRoleName = Column(String)
@@ -67,7 +66,8 @@ class MediaServerSettings(Base):
 
 
 class MediaServerRoles(Base):
-    DiscordServerID = Column(Integer)
+    __tablename__ = "media_server_roles"
+    DiscordServerID = Column(Integer, primary_key=True)
     DiscordRoleName = Column(String)
 
     @none_as_null
@@ -79,7 +79,8 @@ class MediaServerRoles(Base):
 
 
 class PlexSettings(Base):
-    EntryID = Column(Integer, autoincrement=True)
+    __tablename__ = "plex_settings"
+    EntryID = Column(Integer, autoincrement=True, primary_key=True)
     DiscordServerID = Column(Integer)
     ServerID = Column(Integer)
     ServerName = Column(String(200))
@@ -107,7 +108,8 @@ class PlexSettings(Base):
 
 
 class TautulliSettings(Base):
-    EntryID = Column(Integer, autoincrement=True)
+    __tablename__ = "tautulli_settings"
+    EntryID = Column(Integer, autoincrement=True, primary_key=True)
     DiscordServerID = Column(Integer)
     PlexServerNumber = Column(Integer)
     ServerName = Column(String(200))
@@ -129,7 +131,8 @@ class TautulliSettings(Base):
 
 
 class OmbiSettings(Base):
-    EntryID = Column(Integer, autoincrement=True)
+    __tablename__ = "ombi_settings"
+    EntryID = Column(Integer, autoincrement=True, primary_key=True)
     DiscordServerID = Column(Integer)
     ServerName = Column(String(200))
     ServerURL = Column(String(200))
@@ -148,7 +151,8 @@ class OmbiSettings(Base):
 
 
 class JellyfinSettings(Base):
-    EntryID = Column(Integer, autoincrement=True)
+    __tablename__ = "jellyfin_settings"
+    EntryID = Column(Integer, autoincrement=True, primary_key=True)
     DiscordServerID = Column(Integer)
     ServerID = Column(Integer)
     ServerName = Column(String(200))
@@ -173,7 +177,8 @@ class JellyfinSettings(Base):
 
 
 class EmbySettings(Base):
-    EntryID = Column(Integer, autoincrement=True)
+    __tablename__ = "emby_settings"
+    EntryID = Column(Integer, autoincrement=True, primary_key=True)
     DiscordServerID = Column(Integer)
     ServerID = Column(Integer)
     ServerName = Column(String(200))
@@ -198,7 +203,8 @@ class EmbySettings(Base):
 
 
 class DiscordAdmins(Base):
-    DiscordServerID = Column(Integer)
+    __tablename__ = "admins"
+    DiscordServerID = Column(Integer, primary_key=True)
     DiscordAdminID = Column(Integer, nullable=True)
     DiscordAdminRole = Column(Integer, nullable=True)
 
@@ -215,7 +221,8 @@ class DiscordAdmins(Base):
 
 
 class CogsEnabled(Base):
-    DiscordServerID = Column(Integer)
+    __tablename__ = "cogs"
+    DiscordServerID = Column(Integer, primary_key=True)
     CogName = Column(String)
 
     @none_as_null
@@ -226,12 +233,22 @@ class CogsEnabled(Base):
         self.CogName = cog_name
 
 
-class SettingsDatabase(db.SQLAlchemyDatabase):
+class ArcaSettingsDatabase(db.SQLAlchemyDatabase):
     def __init__(self,
                  sqlite_file: str,
                  encrypted: bool = False,
                  key_file: str = None):
         super().__init__(sqlite_file=sqlite_file, encrypted=encrypted, key_file=key_file)
+        CogsEnabled.__table__.create(bind=self.engine, checkfirst=True)
+        DiscordAdmins.__table__.create(bind=self.engine, checkfirst=True)
+        EmbySettings.__table__.create(bind=self.engine, checkfirst=True)
+        JellyfinSettings.__table__.create(bind=self.engine, checkfirst=True)
+        OmbiSettings.__table__.create(bind=self.engine, checkfirst=True)
+        TautulliSettings.__table__.create(bind=self.engine, checkfirst=True)
+        PlexSettings.__table__.create(bind=self.engine, checkfirst=True)
+        MediaServerSettings.__table__.create(bind=self.engine, checkfirst=True)
+        MediaServerRoles.__table__.create(bind=self.engine, checkfirst=True)
+
 
     # Cogs
     def get_enabled_cogs(self, discord_server_id: int) -> List[CogsEnabled]:
