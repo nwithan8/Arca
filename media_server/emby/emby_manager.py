@@ -11,7 +11,7 @@ import string
 import csv
 from datetime import datetime
 
-from helper.basic_decorators import has_admin_role
+from helper.decorators import has_admin_role
 from media_server.emby import settings as settings
 from media_server.emby import emby_api as em
 from helper.database_class import Database

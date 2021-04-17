@@ -1,123 +1,12 @@
 import time
 from typing import Union, List
 
-from sqlalchemy import Column, Integer, Unicode, UnicodeText, String, BigInteger, null
-from sqlalchemy.ext.declarative import declarative_base
+from database.media_servers.tables.blacklist import BlacklistEntry
+from database.media_servers.tables.settings import MediaServerSettings
+from database.media_servers.tables.users import EmbyUser, PlexUser, JellyfinUser
+from database.tools import *
 
 import helper.database_class as db
-
-from helper.basic_decorators import none_as_null
-
-Base = declarative_base()
-
-
-class BlacklistEntry(Base):
-    __tablename__ = "blacklist"
-    IDorUsername = Column(String(200), primary_key=True)
-
-    def __init__(self, id_or_username: str):
-        self.IDorUsername = id_or_username
-
-
-class MediaServerUserTable:
-    DiscordID = Column(Integer, primary_key=True)
-    MediaServerUsername = Column(String(100))
-    MediaServerID = Column(String(200))
-    ExpirationStamp = Column(Integer)
-    PayMethod = Column(String(100))
-    SubType = Column(String(100))
-
-    @none_as_null
-    def __init__(self,
-                 discord_id: int = null(),
-                 media_server_username: str = null(),
-                 media_server_id: str = null(),
-                 expiration_stamp: int = null(),
-                 pay_method: str = null(),
-                 user_type: str = null()):
-        self.DiscordID = discord_id
-        self.MediaServerUsername = media_server_username
-        self.MediaServerID = media_server_id
-        self.ExpirationStamp = expiration_stamp
-        self.PayMethod = pay_method
-        self.SubType = user_type
-
-
-class PlexUser(MediaServerUserTable, Base):
-    __tablename__ = "plex"
-    Email = Column(String(100))
-    WhichPlexServer = Column(Integer)
-    WhichTautServer = Column(Integer)
-
-    @none_as_null
-    def __init__(self,
-                 discord_id: int,
-                 plex_username: str,
-                 user_type: str,
-                 email: str = null(),
-                 which_plex_server: int = null(),
-                 which_tautulli_server: int = null(),
-                 expiration_stamp: int = null(),
-                 pay_method: str = null(),
-                 ):
-        super().__init__(discord_id=discord_id,
-                         media_server_username=plex_username,
-                         pay_method=pay_method,
-                         user_type=user_type,
-                         expiration_stamp=expiration_stamp)
-        self.Email = email
-        self.WhichPlexServer = which_plex_server
-        self.WhichTautServer = which_tautulli_server
-
-
-class EmbyUser(MediaServerUserTable, Base):
-    __tablename__ = "emby"
-
-    @none_as_null
-    def __init__(self,
-                 discord_id: int,
-                 emby_username: str,
-                 emby_id: str,
-                 user_type: str,
-                 expiration_stamp: int = null(),
-                 pay_method: str = null()):
-        super().__init__(discord_id=discord_id,
-                         media_server_username=emby_username,
-                         media_server_id=emby_id,
-                         pay_method=pay_method,
-                         user_type=user_type,
-                         expiration_stamp=expiration_stamp)
-
-
-class JellyfinUser(MediaServerUserTable, Base):
-    __tablename__ = "jellyfin"
-
-    @none_as_null
-    def __init__(self,
-                 discord_id: int,
-                 jellyfin_username: str,
-                 jellyfin_id: str,
-                 user_type: str,
-                 expiration_stamp: int = null(),
-                 pay_method: str = null()):
-        super().__init__(discord_id=discord_id,
-                         media_server_username=jellyfin_username,
-                         media_server_id=jellyfin_id,
-                         pay_method=pay_method,
-                         user_type=user_type,
-                         expiration_stamp=expiration_stamp)
-
-
-class ServerSettings(Base):
-    __tablename__ = "settings"
-    MediaServerType = Column(String(100), primary_key=True)
-    DefaultNumber = Column(Integer)
-
-    def __init__(self,
-                 server_type: str,
-                 default_server_number: int):
-        self.MediaServerType = server_type
-        self.DefaultNumber = default_server_number
 
 
 class DiscordMediaServerConnectorDatabase(db.SQLAlchemyDatabase):
@@ -125,7 +14,6 @@ class DiscordMediaServerConnectorDatabase(db.SQLAlchemyDatabase):
                  sqlite_file: str,
                  encrypted: bool = False,
                  key_file: str = None,
-                 use_dropbox: bool = False,
                  media_server_type: str = Union['plex', 'jellyfin', 'emby'],
                  trial_length: int = 0,
                  multi_plex: bool = False):
@@ -145,7 +33,7 @@ class DiscordMediaServerConnectorDatabase(db.SQLAlchemyDatabase):
         return None
 
     def get_server_settings(self, media_server_type: str):
-        return self.session.query(ServerSettings).filter(ServerSettings.MediaServerType == media_server_type)
+        return self.session.query(MediaServerSettings).filter(MediaServerSettings.MediaServerType == media_server_type)
 
     def get_default_server_number(self, media_server_type: str):
         return self.get_server_settings(media_server_type=media_server_type).DefaultNumber

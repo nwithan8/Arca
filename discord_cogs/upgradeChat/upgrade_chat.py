@@ -1,7 +1,7 @@
 from discord.ext import commands
 
 from helper.cog import BasicCog
-from media_server.multi_server_handler import load_api
+from helper.multi_server_handler import load_api
 
 
 class UpgradeChat(BasicCog):

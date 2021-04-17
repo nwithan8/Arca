@@ -8,9 +8,8 @@ from discord.ext import commands
 
 import helper.discord_helper as discord_helper
 from helper.cog import BasicCog
-from helper.basic_decorators import has_admin_role
 
-from media_server import multi_server_handler
+from helper import multi_server_handler
 
 shows = defaultdict(list)
 movies = defaultdict(list)

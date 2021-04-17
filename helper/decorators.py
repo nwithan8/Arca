@@ -1,22 +1,5 @@
 from functools import wraps
 
-from sqlalchemy import null
-
-
-def none_as_null(func):
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        """
-        Replace None as null()
-        """
-        func(self, *args, **kwargs)
-        for k, v in self.__dict__.items():
-            if v is None:
-                setattr(self, k, null())
-
-    return wrapper
-
-
 def has_admin_role(func):
     @wraps(func)
     def check(self, *args, **kwargs):
@@ -32,3 +15,15 @@ def has_admin_role(func):
         if valid:
             func(self, *args, **kwargs)
     return check
+
+def false_if_error(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        """
+        Return False if error encountered
+        """
+        try:
+            return func(self, *args, **kwargs)
+        except:
+            return False
+    return wrapper

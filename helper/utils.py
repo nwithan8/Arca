@@ -1,6 +1,19 @@
+import json
 import string
 import random
 import time
+
+def read_file(file_path: str):
+    with open(file_path) as f:
+        return f.read()
+
+def read_file_lines(file_path: str):
+    with open(file_path) as f:
+        return f.readlines()
+
+def read_json_file(file_path: str):
+    with open(file_path) as f:
+        return json.load(f)
 
 
 def humanbitrate(B, d=1):
@@ -52,6 +65,16 @@ def filesize(size):
 
 def is_positive_int(n):
     return n.isdigit()
+
+def convert_to_bool(bool_string: str):
+    """
+    Careful: True or False is valid. Check if is None to see if this conversion failed
+    """
+    if bool_string.lower() in ['false', 'no', 'off', 'disable']:
+        return False
+    elif bool_string.lower() in ['true', 'yes', 'on', 'enable']:
+        return True
+    return None
 
 
 def password(length):

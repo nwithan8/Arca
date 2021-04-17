@@ -9,7 +9,7 @@ from discord.utils import get
 import os
 import asyncio
 import helper.discord_helper as discord_helper
-from helper.basic_decorators import has_admin_role
+from helper.decorators import has_admin_role
 
 ADMIN_ROLE_NAME = "Admin"
 

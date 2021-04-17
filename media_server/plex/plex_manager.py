@@ -14,7 +14,7 @@ from discord.ext import commands
 import helper.discord_helper as discord_helper
 import helper.utils as utils
 from media_server.media_server_cog import MediaServerCog
-from media_server.media_server_database import PlexUser
+from database.media_servers.media_server_database import PlexUser
 from media_server.plex import settings as plex_settings
 from media_server.plex import plex_api as px_api
 

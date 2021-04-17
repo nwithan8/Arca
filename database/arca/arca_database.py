@@ -1,236 +1,15 @@
 from typing import Union, List
 
-from sqlalchemy import Column, Integer, Unicode, UnicodeText, String, BigInteger, null, Boolean
-from sqlalchemy.ext.declarative import declarative_base
+from database.arca.tables.admins import DiscordAdmins
+from database.arca.tables.cogs import CogsEnabled
+from database.arca.tables.settings import BotSettings
+from database.media_servers.tables.settings import EmbySettings, PlexSettings, JellyfinSettings, TautulliSettings, \
+    OmbiSettings
+from database.tools import *
 
 import helper.database_class as db
-from helper.basic_decorators import none_as_null
-
-Base = declarative_base()
-
-
-class MediaServerSettings(Base):
-    __tablename__ = "media_server_settings"
-    DiscordServerID = Column(Integer, primary_key=True)
-    InvitedRoleName = Column(String)
-    CurrentlyWatchingRoleName = Column(String)
-
-    AutoCheckSubs = Column(Boolean)
-    SubCheckFrequencyDays = Column(Integer)
-
-    TrialRoleName = Column(String)
-    AutoCheckTrials = Column(Boolean)
-    TrialLengthMinutes = Column(Integer)
-    TrialCheckFrequencyMinutes = Column(Integer)
-
-    WinnerRoleName = Column(String)
-    AutoCheckWinners = Column(Boolean)
-    WinnerWatchTimeThresholdMinutes = Column(Integer)
-    WinnerCheckFrequencyDays = Column(Integer)
-
-    WatchlistTemplate = Column(String)
-    PlaylistTemplate = Column(String)
-
-    @none_as_null
-    def __init__(self,
-                 discord_id: int,
-                 invited_role_name: str = None,
-                 currently_watching_role_name: str = None,
-                 auto_check_subs: bool = False,
-                 sub_check_frequency_days: int = None,
-                 trial_role_name: str = None,
-                 auto_check_trials: bool = False,
-                 trial_length_minutes: int = None,
-                 trial_check_frequency_minutes: int = None,
-                 winner_role_name: str = None,
-                 auto_check_winners: bool = False,
-                 winner_watch_time_threshold_minutes: int = None,
-                 winner_check_frequency_days: int = None,
-                 watchlist_template: str = "{}'s Watchlist",
-                 playlist_template: str = "{}'s Playlist"):
-        self.DiscordServerID = discord_id
-        self.InvitedRoleName = invited_role_name
-        self.CurrentlyWatchingRoleName = currently_watching_role_name
-        self.AutoCheckSubs = auto_check_subs
-        self.SubCheckFrequencyDays = sub_check_frequency_days
-        self.TrialRoleName = trial_role_name
-        self.AutoCheckTrials = auto_check_trials
-        self.TrialLengthMinutes = trial_length_minutes
-        self.TrialCheckFrequencyMinutes = trial_check_frequency_minutes
-        self.WinnerRoleName = winner_role_name
-        self.AutoCheckWinners = auto_check_winners
-        self.WinnerWatchTimeThresholdMinutes = winner_watch_time_threshold_minutes
-        self.WinnerCheckFrequencyDays = winner_check_frequency_days
-        self.WatchlistTemplate = watchlist_template
-        self.PlaylistTemplate = playlist_template
-
-
-class MediaServerRoles(Base):
-    __tablename__ = "media_server_roles"
-    DiscordServerID = Column(Integer, primary_key=True)
-    DiscordRoleName = Column(String)
-
-    @none_as_null
-    def __init__(self,
-                 discord_id: int,
-                 role_name: str):
-        self.DiscordServerID = discord_id
-        self.DiscordRoleName = role_name
-
-
-class PlexSettings(Base):
-    __tablename__ = "plex_settings"
-    EntryID = Column(Integer, autoincrement=True, primary_key=True)
-    DiscordServerID = Column(Integer)
-    ServerID = Column(Integer)
-    ServerName = Column(String(200))
-    ServerAltName = Column(String(200))
-    ServerURL = Column(String(200))
-    ServerToken = Column(String(200))
-    TautulliServerID = Column(Integer)
-
-    @none_as_null
-    def __init__(self,
-                 discord_id: int,
-                 server_id: int,
-                 server_name: str,
-                 server_url: str,
-                 server_token: str,
-                 server_alt_name: str = null(),
-                 tautulli_server_id: int = null()):
-        self.DiscordServerID = discord_id
-        self.ServerID = server_id
-        self.ServerName = server_name
-        self.ServerAltName = server_alt_name
-        self.ServerURL = server_url
-        self.ServerToken = server_token
-        self.TautulliServerID = tautulli_server_id
-
-
-class TautulliSettings(Base):
-    __tablename__ = "tautulli_settings"
-    EntryID = Column(Integer, autoincrement=True, primary_key=True)
-    DiscordServerID = Column(Integer)
-    PlexServerNumber = Column(Integer)
-    ServerName = Column(String(200))
-    ServerURL = Column(String(200))
-    ServerAPIKey = Column(String(200))
-
-    @none_as_null
-    def __init__(self,
-                 discord_id: int,
-                 server_name: str,
-                 server_url: str,
-                 server_api_key: str,
-                 plex_server_number: int):
-        self.DiscordServerID = discord_id
-        self.PlexServerNumber = plex_server_number
-        self.ServerName = server_name
-        self.ServerURL = server_url
-        self.ServerAPIKey = server_api_key
-
-
-class OmbiSettings(Base):
-    __tablename__ = "ombi_settings"
-    EntryID = Column(Integer, autoincrement=True, primary_key=True)
-    DiscordServerID = Column(Integer)
-    ServerName = Column(String(200))
-    ServerURL = Column(String(200))
-    ServerAPIKey = Column(String(200))
-
-    @none_as_null
-    def __init__(self,
-                 discord_id: int,
-                 server_name: str,
-                 server_url: str,
-                 server_api_key: str):
-        self.DiscordServerID = discord_id
-        self.ServerName = server_name
-        self.ServerURL = server_url
-        self.ServerAPIKey = server_api_key
-
-
-class JellyfinSettings(Base):
-    __tablename__ = "jellyfin_settings"
-    EntryID = Column(Integer, autoincrement=True, primary_key=True)
-    DiscordServerID = Column(Integer)
-    ServerID = Column(Integer)
-    ServerName = Column(String(200))
-    ServerAltName = Column(String(200))
-    ServerURL = Column(String(200))
-    ServerAPIKey = Column(String(200))
-
-    @none_as_null
-    def __init__(self,
-                 discord_id: int,
-                 server_id: int,
-                 server_name: str,
-                 server_url: str,
-                 server_api_key: str,
-                 server_alt_name: str = null()):
-        self.DiscordServerID = discord_id
-        self.ServerID = server_id
-        self.ServerName = server_name
-        self.ServerAltName = server_alt_name
-        self.ServerURL = server_url
-        self.ServerAPIKey = server_api_key
-
-
-class EmbySettings(Base):
-    __tablename__ = "emby_settings"
-    EntryID = Column(Integer, autoincrement=True, primary_key=True)
-    DiscordServerID = Column(Integer)
-    ServerID = Column(Integer)
-    ServerName = Column(String(200))
-    ServerAltName = Column(String(200))
-    ServerURL = Column(String(200))
-    ServerAPIKey = Column(String(200))
-
-    @none_as_null
-    def __init__(self,
-                 discord_id: int,
-                 server_id: int,
-                 server_name: str,
-                 server_url: str,
-                 server_api_key: str,
-                 server_alt_name: str = null()):
-        self.DiscordServerID = discord_id
-        self.ServerID = server_id
-        self.ServerName = server_name
-        self.ServerAltName = server_alt_name
-        self.ServerURL = server_url
-        self.ServerAPIKey = server_api_key
-
-
-class DiscordAdmins(Base):
-    __tablename__ = "admins"
-    DiscordServerID = Column(Integer, primary_key=True)
-    DiscordAdminID = Column(Integer, nullable=True)
-    DiscordAdminRole = Column(Integer, nullable=True)
-
-    @none_as_null
-    def __init__(self,
-                 discord_id: int,
-                 admin_id: int = None,
-                 admin_role: str = None):
-        if not admin_role and not admin_id:
-            raise Exception("Must provide either admin role or admin ID when adding an admin to database.")
-        self.DiscordServerID = discord_id
-        self.DiscordAdminID = admin_id
-        self.DiscordAdminRole = admin_role
-
-
-class CogsEnabled(Base):
-    __tablename__ = "cogs"
-    DiscordServerID = Column(Integer, primary_key=True)
-    CogName = Column(String)
-
-    @none_as_null
-    def __init__(self,
-                 discord_id: int,
-                 cog_name: str):
-        self.DiscordServerID = discord_id
-        self.CogName = cog_name
+from helper.decorators import false_if_error
+from settings.global_settings import DEFAULT_PREFIX
 
 
 class ArcaSettingsDatabase(db.SQLAlchemyDatabase):
@@ -239,15 +18,9 @@ class ArcaSettingsDatabase(db.SQLAlchemyDatabase):
                  encrypted: bool = False,
                  key_file: str = None):
         super().__init__(sqlite_file=sqlite_file, encrypted=encrypted, key_file=key_file)
+        BotSettings.__table__.create(bind=self.engine, checkfirst=True)
         CogsEnabled.__table__.create(bind=self.engine, checkfirst=True)
         DiscordAdmins.__table__.create(bind=self.engine, checkfirst=True)
-        EmbySettings.__table__.create(bind=self.engine, checkfirst=True)
-        JellyfinSettings.__table__.create(bind=self.engine, checkfirst=True)
-        OmbiSettings.__table__.create(bind=self.engine, checkfirst=True)
-        TautulliSettings.__table__.create(bind=self.engine, checkfirst=True)
-        PlexSettings.__table__.create(bind=self.engine, checkfirst=True)
-        MediaServerSettings.__table__.create(bind=self.engine, checkfirst=True)
-        MediaServerRoles.__table__.create(bind=self.engine, checkfirst=True)
 
 
     # Cogs
@@ -266,6 +39,7 @@ class ArcaSettingsDatabase(db.SQLAlchemyDatabase):
             return True
         return False
 
+    @false_if_error
     def enable_cog(self, discord_server_id: int, cog_name: str) -> bool:
         all_enabled_cogs = self.get_enabled_cogs_names(discord_server_id=discord_server_id)
         if cog_name in all_enabled_cogs:
@@ -276,13 +50,21 @@ class ArcaSettingsDatabase(db.SQLAlchemyDatabase):
         self.session.commit()
         return True
 
+    @false_if_error
     def disable_cog(self, discord_server_id: int, cog_name: str) -> bool:
         all_enabled_cogs = self.get_enabled_cogs(discord_server_id=discord_server_id)
         for cog in all_enabled_cogs:
             if cog.CogName == cog_name:
-                cog.delete()
+                self.session.delete(cog)
         self.session.commit()
         return True
+
+    # Bot settings
+    def get_prefix(self, discord_server_id: int) -> str:
+        result = self.session.query(BotSettings).filter(BotSettings.DiscordServerID == discord_server_id).first()
+        if not result or not result.Prefix:
+            return DEFAULT_PREFIX
+        return result.Prefix
 
     # Discord
     def get_admin_users_and_roles(self, discord_server_id: int) -> List[DiscordAdmins]:

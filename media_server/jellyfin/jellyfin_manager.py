@@ -14,7 +14,7 @@ from discord.ext import commands
 import helper.discord_helper as discord_helper
 import helper.utils as utils
 from media_server.media_server_cog import MediaServerCog
-from media_server.media_server_database import PlexUser, JellyfinUser, EmbyUser
+from database.media_servers.media_server_database import PlexUser, JellyfinUser, EmbyUser
 from media_server.jellyfin import settings as settings
 from media_server.jellyfin import jellyfin_api as jf
 from media_server.jellyfin import settings as jellyfin_settings

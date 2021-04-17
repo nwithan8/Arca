@@ -13,7 +13,7 @@ import helper.utils as utils
 from helper.encryption import Encryption
 from media_server.connectors.ombi_connector import OmbiConnector
 from media_server.connectors.tautulli_connector import TautulliConnector
-from media_server.media_server_database import DiscordMediaServerConnectorDatabase
+from database.media_servers.media_server_database import DiscordMediaServerConnectorDatabase
 
 all_movie_ratings = ['12', 'Approved', 'Passed', 'G', 'GP', 'PG', 'PG-13', 'M', 'R', 'NC-17', 'Unrated', 'Not Rated',
                      'NR', 'None']
