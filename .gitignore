@@ -64,3 +64,4 @@ credentials/
 databases/
 settings/local_settings.py
 settings/global_settings.py
+/.token
