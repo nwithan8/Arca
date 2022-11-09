@@ -1,5 +1,7 @@
 # nwithan8 Cogs
 
+DEPRECATED: `Arca` is no longer being maintained. Components are being extracted and converted into [RedBot](https://github.com/Cog-Creators/Red-DiscordBot)-compatible extensions (cogs): https://github.com/nwithan8/nwithan8-cogs
+
 Cog Function
 
 | Name | Status | Description (Click for full details)
